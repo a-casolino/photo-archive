@@ -45,6 +45,9 @@ con altre persone.
 
 ## Aperti
 
+- **Misure delle anteprime**: 2048 px e 400 px proposte, da confermare.
+- **Video** (Takeout): per ora ignorati dall'import.
+
 - **Provider SMTP** per inviti e reset password: lo indicherà Antonio
   (probabilmente non Brevo).
 - **Fusi orari EXIF**: `DateTimeOriginal` è l'ora locale della fotocamera; per il
@@ -54,8 +57,9 @@ con altre persone.
 
 - [x] Scheletro Next.js, migrazioni, login, sessioni, inviti, reset password, ruoli
 - [x] Gestione utenti per il proprietario, dashboard "Condivisi con me"
-- [ ] Import dal disco CR2 (script locale: exiftool, anteprime, upload su GCS)
-- [ ] Import da Google Takeout e match export → CR2
+- [x] Import dal disco CR2 (programma locale: exiftool, anteprime, upload con URL firmati) e pagina Import
+- [x] Import da Google Takeout e match export → CR2 con pagina di revisione
+- [ ] Bucket Google Cloud Storage (da creare con Antonio; fino ad allora archivio in cartella locale)
 - [ ] Gallerie e album
 - [ ] Condivisioni (protette e link liberi) e download con signed URL
 - [ ] Deploy su xCloud e backup notturno del DB

@@ -11,6 +11,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <strong>Archivio foto</strong>
         <nav>
           <Link href="/dashboard">Condivisi con me</Link>
+          {user.role === "owner" && <Link href="/admin/import">Import</Link>}
           {user.role === "owner" && <Link href="/admin/utenti">Utenti</Link>}
           <Link href="/account">
             {user.name} <span className="muted">({ROLE_LABELS[user.role]})</span>

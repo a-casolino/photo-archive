@@ -9,7 +9,10 @@ Browser ──HTTPS──> OpenLiteSpeed (xCloud) ──> Next.js (Node 24) ─�
                                                           ├─ originals/  (CR2, classe Archive)
                                                           └─ previews/   (JPEG, classe Standard, signed URL)
 
-PC di Antonio: script di import ──exiftool──> anteprime + EXIF ──> GCS + MySQL
+PC di Antonio: npm run import ──exiftool + sharp──> anteprime + EXIF
+      │  1. chiede all'app se il file c'è già (SHA-256)      ─> API /api/import/v1
+      │  2. riceve URL firmati e carica i file direttamente   ─> GCS
+      └  3. registra la foto (l'app controlla che il file ci sia) ─> MySQL
 ```
 
 - I CR2 non vengono mai riletti dal cloud per mostrarli: l'app usa solo le
@@ -18,6 +21,42 @@ PC di Antonio: script di import ──exiftool──> anteprime + EXIF ──> G
 - Google Foto: dal 31/03/2025 la Library API non legge più la libreria
   dell'utente, quindi l'import passa da **Google Takeout** (zip + JSON).
 - Costo stimato su Google: circa 3–5 €/mese di storage, oltre alla VPS.
+
+## Import
+
+Il programma di import (`scripts/import/`) gira sul computer di Antonio, perché
+un browser non può leggere 1 TB di CR2 né lanciare exiftool. Si autentica con una
+**chiave del computer** creata nella pagina **Import** (`/admin/import`), salvata
+in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
+
+- **Scansione**: CR2 dal disco (ogni cartella diventa un album `disk_folder`),
+  oppure un Google Takeout già estratto (`--takeout`): foto e JSON di
+  accompagnamento (data, descrizione, posizione, link), album dalle cartelle con
+  `metadata.json`. I video per ora sono ignorati.
+- **Doppioni**: impronta SHA-256 di ogni file; quelle già calcolate restano in
+  `~/.photo-archive/hash.jsonl`, così una ripresa non rilegge tutto il disco.
+- **Anteprime**: dal JPEG incorporato nel CR2 (`PreviewImage`/`JpgFromRaw`),
+  ruotato secondo l'EXIF (mappatura in `scripts/import/previews.ts`, verificata dai
+  test), poi 2048 px e 400 px in JPEG senza metadati. HEIC: `sips` su Mac.
+- **Upload**: l'app firma gli URL (`PUT`) e il programma carica direttamente su
+  GCS: CR2 e originali in classe `ARCHIVE`, anteprime in `STANDARD`. Le chiavi sono
+  deterministiche (`originals/AAAA/AAAA-MM-GG/<sha8>_<nome>`,
+  `previews/<sha2>/<sha>.jpg`, `thumbs/...`), quindi ripetere un upload non duplica.
+- **Ripresa**: Ctrl+C chiude l'import come interrotto; rilanciando lo stesso
+  comando riprende lo stesso import (`~/.photo-archive/imports.json`).
+- **Tipi**: dal disco `raw`; da Takeout `edit` se l'EXIF viene da una fotocamera
+  (marca o numero di serie), altrimenti `phone`.
+- **Collegamento export → CR2**: stesso `taken_at` (e millisecondi se entrambi li
+  hanno), stessa marca e modello, stesso seriale se l'export lo conserva. Un solo
+  candidato → `auto`; più candidati (raffiche) → scelta manuale nella pagina
+  `/admin/import/collegamenti`, dove si conferma, si sceglie o si scarta.
+  Il calcolo gira a fine import e con il pulsante "Ricalcola".
+- **Archivio di prova**: con `STORAGE_DRIVER=local` i file finiscono in
+  `STORAGE_LOCAL_DIR` sul server, con URL firmati serviti da `/api/storage/...`.
+  Solo per prove: in produzione serve il bucket (la VPS ha 40 GB).
+
+Per GCS servono `STORAGE_DRIVER=gcs`, `GCS_BUCKET` e un account di servizio con
+chiave (`GCS_KEY_FILE`) che possa firmare URL e scrivere sul bucket.
 
 ## Infrastruttura
 
@@ -49,6 +88,7 @@ PC di Antonio: script di import ──exiftool──> anteprime + EXIF ──> G
 ```
 migrations/            migrazioni SQL numerate (applicate da scripts/migrate.ts)
 scripts/               migrate.ts, create-owner.ts
+scripts/import/        programma di import (gira sul computer di Antonio)
 src/lib/
   env.ts               configurazione da variabili d'ambiente (validata con zod)
   db.ts                pool mysql2 e helper query/queryOne/execute
@@ -58,9 +98,16 @@ src/lib/
   mail.ts              invio email via SMTP (o log se non configurato)
   roles.ts             ruoli e permesso di download effettivo
   rate-limit.ts        limite tentativi in memoria
+  storage.ts           archivio file: Google Cloud Storage o cartella locale, URL firmati
+  imports.ts           import lato server: chiavi computer, registrazione foto, album, match
+  import-shared.ts     schemi e funzioni condivise con il programma di import
+  format.ts            formattazione (byte, durate, date) per l'interfaccia
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
-  (app)/               area riservata: dashboard, account, admin/utenti
+  (app)/               area riservata: dashboard, account, admin/utenti,
+                       admin/import (elenco, dettaglio, collegamenti)
+  api/import/v1/       API usata dal programma di import (chiave del computer)
+  api/storage/         file dell'archivio di prova (solo STORAGE_DRIVER=local)
   actions/             Server Actions (auth.ts, users.ts)
   ui/action-form.tsx   form con messaggi di errore/esito
 tests/                 test vitest

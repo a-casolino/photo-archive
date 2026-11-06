@@ -301,3 +301,27 @@ CREATE TABLE share_events (
 --   AND r.taken_at = :taken_at_export
 --   AND (:subsec IS NULL OR r.taken_at_subsec = :subsec);
 -- 1 candidato -> match_status='auto'; più di 1 (raffica) -> scelta manuale.
+
+-- =====================================================================
+-- Aggiunte della migrazione 002_import.sql (2026-11-06)
+-- Il dettaglio SQL è nella migrazione; qui il riassunto.
+-- =====================================================================
+
+-- Chiavi dei computer che possono importare (programma `npm run import`).
+-- import_devices(id, name, token_hash CHAR(64) UNIQUE, token_hint, created_by,
+--                created_at, last_used_at, revoked_at)
+
+-- imports: in più public_id (negli URL), status
+-- ('running','finished','interrupted','failed'), device_id, root_path,
+-- files_total, bytes_total, bytes_done, bytes_uploaded, current_file,
+-- last_seen_at (ultimo segnale dal programma: dopo 2 minuti "nessun segnale").
+
+-- File che non sono entrati, con il motivo (dettaglio dell'import).
+-- import_errors(id, import_id -> imports ON DELETE CASCADE, source_path,
+--               message, created_at)
+
+-- albums: colonna generata origin_key = SHA2(origin:origin_ref) UNIQUE
+-- (NULL per gli album manuali), così un secondo import ritrova l'album
+-- della stessa cartella del disco o dello stesso album di Takeout.
+-- origin_ref = percorso relativo della cartella (disco) o nome della
+-- cartella dell'album (Takeout).

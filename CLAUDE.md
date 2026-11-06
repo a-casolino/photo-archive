@@ -60,6 +60,7 @@ npm run build
 npm run db:migrate   # applica le migrazioni mancanti
 npm run db:status    # mostra quali migrazioni sono applicate
 npm run owner:create -- --email ... --name "..."   # crea il proprietario, una volta
+npm run import -- "/cartella" [--takeout] [--prova]  # programma di import (sul computer di Antonio)
 ```
 
 Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm run build`.
@@ -82,5 +83,6 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 
 - Provider SMTP (lo indicherà Antonio).
 - Fusi orari EXIF (DateTimeOriginal è ora locale della fotocamera).
-- Da fare: import dal disco CR2 (script locale con exiftool), import Google
-  Takeout con match export → CR2, gallerie, condivisioni, signed URL GCS, backup DB.
+- Bucket GCS da creare (chiedere ad Antonio prima: costa). Senza bucket l'archivio
+  è una cartella locale (`STORAGE_DRIVER=local`), solo per prove.
+- Da fare: gallerie, condivisioni, backup DB.
