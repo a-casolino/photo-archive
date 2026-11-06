@@ -24,8 +24,25 @@ PC di Antonio: script di import ──exiftool──> anteprime + EXIF ──> G
 - VPS Hetzner (Falkenstein) gestita con xCloud: Ubuntu 22.04, OpenLiteSpeed,
   MySQL 8, Node 24, 4 core, ~7,7 GB RAM, 40 GB disco. Ospita già altri siti.
 - Niente Docker. L'app è un sito Node collegato al repository GitHub, branch `main`.
-- Deploy previsto: `npm ci && npm run build && npm run db:migrate`, poi
-  `npm start` (porta in `PORT`). Da configurare insieme ad Antonio.
+- **Pubblicata il 2026-11-06** su https://foto.acasolino.com (sito xCloud
+  "foto.acasolino.com", utente di sistema `foto`, cartella
+  `/var/www/foto.acasolino.com`). DNS e certificato gestiti da xCloud tramite
+  Cloudflare (record proxied).
+- Deploy automatico a ogni push su `main`. Lo script di deploy di xCloud è:
+
+  ```
+  npm ci
+  npm run db:migrate
+  npm run build
+  ```
+
+  Attenzione: quando c'è uno script di deploy, xCloud **non** esegue da solo
+  install e build, quindi devono stare nello script. Poi PM2 avvia
+  `npm run start -- -p 3200` e OpenLiteSpeed fa da proxy sulla porta 3200.
+- Database MySQL `photo_archive` con utente `photo_archive` (solo locale).
+- Le variabili d'ambiente stanno nel `.env` gestito da xCloud (Site → impostazioni
+  di deploy), non nel repository. SMTP e Google Cloud ancora vuoti: i link di
+  invito e reset finiscono nel log PM2 del sito.
 
 ## Codice
 

@@ -30,7 +30,9 @@ Prima di lavorare leggi:
 
 - VPS Hetzner (Falkenstein) gestita con **xCloud**: Ubuntu 22.04, OpenLiteSpeed,
   MySQL 8, Node 24, 4 core, ~7,7 GB RAM, 40 GB disco, ospita già altri ~10 siti.
-- L'app va deployata come sito Node collegato a questo repository (branch `main`).
+- L'app è pubblicata su https://foto.acasolino.com come sito Node xCloud collegato
+  a questo repository (branch `main`, deploy a ogni push). Dettagli in
+  `docs/architettura.md`.
 - **Non toccare la VPS** (deploy, database, configurazione) senza che Antonio lo
   chieda esplicitamente: ci sono altri siti in produzione.
 
@@ -81,5 +83,4 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Provider SMTP (lo indicherà Antonio).
 - Fusi orari EXIF (DateTimeOriginal è ora locale della fotocamera).
 - Da fare: import dal disco CR2 (script locale con exiftool), import Google
-  Takeout con match export → CR2, gallerie, condivisioni, signed URL GCS, deploy
-  su xCloud, backup DB.
+  Takeout con match export → CR2, gallerie, condivisioni, signed URL GCS, backup DB.
