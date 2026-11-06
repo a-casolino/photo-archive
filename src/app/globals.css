@@ -60,13 +60,27 @@ main {
   font-size: 1.4rem;
 }
 
+/*
+ * minmax(0, 1fr): senza, la colonna della griglia si allarga fino alla
+ * larghezza "naturale" del contenuto (per esempio una <select> con opzioni
+ * lunghe) e i campi escono dalla card.
+ */
 .form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+
+.form input,
+.form select,
+.form button {
+  width: 100%;
+  min-width: 0;
 }
 
 .form label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   font-size: 0.9rem;
   color: var(--muted);
