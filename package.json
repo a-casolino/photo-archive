@@ -11,9 +11,11 @@
     "test": "vitest run",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:status": "tsx scripts/migrate.ts --status",
-    "owner:create": "tsx scripts/create-owner.ts"
+    "owner:create": "tsx scripts/create-owner.ts",
+    "import": "tsx scripts/import/index.ts"
   },
   "dependencies": {
+    "@google-cloud/storage": "^8.4.0",
     "mysql2": "^3.24.6",
     "next": "16.4.5",
     "nodemailer": "^10.3.1",
@@ -29,6 +31,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
+    "exiftool-vendored": "^39.1.1",
+    "sharp": "^0.35.5",
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.0"

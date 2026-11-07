@@ -29,6 +29,22 @@ const schema = z.object({
 
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   SHARE_LINK_TTL_DAYS: z.coerce.number().int().positive().default(30),
+
+  // Archivio dei file (CR2 e anteprime).
+  //   local -> cartella sul server, solo per prove e sviluppo
+  //   gcs   -> Google Cloud Storage (produzione)
+  STORAGE_DRIVER: z.enum(["local", "gcs"]).default("local"),
+  STORAGE_LOCAL_DIR: z.string().default("./storage-locale"),
+  // Segreto per firmare gli URL del driver "local" (almeno 32 caratteri).
+  // Se manca se ne genera uno a ogni avvio: gli URL firmati scadono al riavvio.
+  STORAGE_SIGNING_SECRET: z.string().min(32).optional(),
+  GCS_BUCKET: z.string().optional(),
+  // File JSON dell'account di servizio; se vuoti sia questo sia GCS_KEY_JSON
+  // si usano le credenziali predefinite di Google (GOOGLE_APPLICATION_CREDENTIALS).
+  GCS_KEY_FILE: z.string().optional(),
+  // In alternativa: il contenuto del file JSON, comodo da incollare nelle
+  // variabili d'ambiente di xCloud.
+  GCS_KEY_JSON: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
