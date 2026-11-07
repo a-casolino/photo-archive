@@ -104,8 +104,9 @@ async function bucket(): Promise<Bucket> {
     const name = env().GCS_BUCKET;
     if (!name) throw new Error("GCS_BUCKET non impostato.");
     const { Storage } = await import("@google-cloud/storage");
-    const keyFile = env().GCS_KEY_FILE;
-    g.__gcsBucket = new Storage(keyFile ? { keyFilename: keyFile } : {}).bucket(name);
+    const { GCS_KEY_FILE: keyFile, GCS_KEY_JSON: keyJson } = env();
+    const options = keyJson ? { credentials: JSON.parse(keyJson) } : keyFile ? { keyFilename: keyFile } : {};
+    g.__gcsBucket = new Storage(options).bucket(name);
   }
   return g.__gcsBucket as Bucket;
 }

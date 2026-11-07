@@ -39,9 +39,12 @@ const schema = z.object({
   // Se manca se ne genera uno a ogni avvio: gli URL firmati scadono al riavvio.
   STORAGE_SIGNING_SECRET: z.string().min(32).optional(),
   GCS_BUCKET: z.string().optional(),
-  // File JSON dell'account di servizio; se vuoto si usano le credenziali
-  // predefinite di Google (GOOGLE_APPLICATION_CREDENTIALS).
+  // File JSON dell'account di servizio; se vuoti sia questo sia GCS_KEY_JSON
+  // si usano le credenziali predefinite di Google (GOOGLE_APPLICATION_CREDENTIALS).
   GCS_KEY_FILE: z.string().optional(),
+  // In alternativa: il contenuto del file JSON, comodo da incollare nelle
+  // variabili d'ambiente di xCloud.
+  GCS_KEY_JSON: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;

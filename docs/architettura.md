@@ -56,7 +56,10 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   Solo per prove: in produzione serve il bucket (la VPS ha 40 GB).
 
 Per GCS servono `STORAGE_DRIVER=gcs`, `GCS_BUCKET` e un account di servizio con
-chiave (`GCS_KEY_FILE`) che possa firmare URL e scrivere sul bucket.
+chiave (`GCS_KEY_FILE`, oppure il contenuto del JSON in `GCS_KEY_JSON`) con ruolo
+"Storage Object Admin" sul solo bucket: firma gli URL e scrive i file.
+Bucket deciso con Antonio il 2026-11-07: Google Cloud (non Hetzner né Amazon),
+regione europe-west3 (Francoforte).
 
 ## Infrastruttura
 
