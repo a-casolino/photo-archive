@@ -21,6 +21,14 @@ con altre persone.
   foto esportata/modificata, risalire al CR2 da cui nasce. Metodo: EXIF
   `DateTimeOriginal` (+ sottosecondi) e numero di serie della fotocamera; se ci
   sono più candidati (raffiche) la scelta è manuale.
+- **Versione modificata al posto di quella nativa**: molti CR2 hanno un export
+  JPEG con le regolazioni di Lightroom, caricato in un album di Google Foto.
+  Quando un CR2 ha un export collegato (`photos.derived_from_id`, match
+  `auto` o `confirmed`), nell'album della cartella l'app mostra e condivide
+  quel JPEG al posto dell'anteprima incorporata nel CR2 (che è quella della
+  fotocamera, senza regolazioni). Il CR2 resta l'originale scaricabile.
+  Filtro nell'album: **tutte le foto** / **solo quelle con regolazioni**.
+  Lo schema v1 basta: non serve una migrazione.
 - **Condivisione** di una singola foto o di un album, in due modalità:
   - **protetta**: solo utenti registrati scelti da Antonio;
   - **libera**: chiunque abbia l'URL, che non è indicizzato (`noindex`) e
