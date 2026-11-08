@@ -45,6 +45,16 @@ const schema = z.object({
   // In alternativa: il contenuto del file JSON, comodo da incollare nelle
   // variabili d'ambiente di xCloud.
   GCS_KEY_JSON: z.string().optional(),
+
+  // Riconoscimento dei volti (`npm run volti`, gira sulla VPS).
+  // Cartella dei modelli InsightFace, fuori dal repository.
+  FACES_MODEL_DIR: z.string().default("./modelli-volti"),
+  // Thread di calcolo: pochi, la VPS ospita anche altri siti.
+  FACES_THREADS: z.coerce.number().int().min(1).max(8).default(2),
+  // Lato del quadrato del rilevatore: più grande trova volti più piccoli ma è più lento.
+  FACES_DET_SIZE: z.coerce.number().int().min(320).max(1600).multipleOf(32).default(640),
+  // Lato minimo di un volto, in pixel dell'anteprima (2048 px): sotto si ignora.
+  FACES_MIN_SIZE: z.coerce.number().int().min(16).default(40),
 });
 
 export type Env = z.infer<typeof schema>;

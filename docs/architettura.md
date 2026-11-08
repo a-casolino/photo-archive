@@ -109,6 +109,34 @@ regione europe-west3 (Francoforte).
   rinomina ed eliminazione. La ricerca degli album cerca anche nei tag. Chi
   riceve una condivisione per ora non vede i tag.
 
+## Volti
+
+`npm run volti` (`scripts/volti/`) gira **sulla VPS**, ogni tanto, lanciato a mano
+o con un cron di xCloud. Analizza le foto con `faces_scanned_at` vuoto: legge
+l'anteprima 2048 px dall'archivio, trova i volti, calcola l'impronta e salva
+riquadro, impronta e una miniatura 160 px (`faces/<sha2>/<sha>_<n>.jpg`, classe
+Standard).
+
+- **Modello**: InsightFace `buffalo_l` su `onnxruntime-node` (solo CPU):
+  `det_10g.onnx` (SCRFD, volti + 5 punti) e `w600k_r50.onnx` (ArcFace, impronta di
+  512 numeri). Licenza dei modelli: uso non commerciale, va bene per l'archivio
+  personale. I modelli (~190 MB) non sono nel repository:
+  `npm run volti -- --scarica-modelli` li mette in `FACES_MODEL_DIR`.
+- **Carichi**: priorità minima (`nice 19`), `FACES_THREADS` thread (2), una foto
+  alla volta, `--pausa` tra una foto e l'altra se serve. A fine giro stampa
+  tempo medio per foto e memoria massima.
+- **Codice**: `src/lib/faces/geometry.ts` replica preprocessing e
+  postprocessing di insightface (letterbox, decodifica SCRFD, NMS, allineamento
+  ArcFace), così le impronte sono le stesse della libreria Python;
+  `engine.ts` carica i modelli; `records.ts` converte in righe della tabella.
+- **Rianalisi** (`--rifai` o cambio di modello): un volto ritrovato nello stesso
+  punto (IoU ≥ 0,5) tiene id, nome confermato e scarti.
+- **Prova senza database**: `npm run volti -- --file a.jpg --file b.jpg` salva in
+  `./prova-volti` le immagini con i riquadri e i ritagli, e stampa la somiglianza
+  tra i volti (oltre ~0,4 di solito è la stessa persona).
+- **Privacy**: tutto resta su VPS, MySQL e bucket privato. Pagine di volti e
+  persone solo per il proprietario; chi riceve una condivisione non vede i nomi.
+
 ## Infrastruttura
 
 - VPS Hetzner (Falkenstein) gestita con xCloud: Ubuntu 22.04, OpenLiteSpeed,
@@ -140,6 +168,7 @@ regione europe-west3 (Francoforte).
 migrations/            migrazioni SQL numerate (applicate da scripts/migrate.ts)
 scripts/               migrate.ts, create-owner.ts
 scripts/import/        programma di import (gira sul computer di Antonio)
+scripts/volti/         analisi dei volti (gira sulla VPS)
 src/lib/
   env.ts               configurazione da variabili d'ambiente (validata con zod)
   db.ts                pool mysql2 e helper query/queryOne/execute
@@ -157,6 +186,7 @@ src/lib/
   gallery-rules.ts     regole pure: stato condivisioni, proporzioni, masonry (testate)
   shares.ts            condivisioni: accesso, creazione, destinatari, registro
   tags.ts              tag su foto e album
+  faces/               volti: geometria (SCRFD, ArcFace), motore ONNX, impronte, righe DB
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
   (app)/               area riservata: dashboard, account, album, foto, tag,

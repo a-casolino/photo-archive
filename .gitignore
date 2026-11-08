@@ -44,3 +44,7 @@ next-env.d.ts
 # archivio file in modalità di prova
 /storage-locale/
 /prova-import/
+
+# modelli e prove del riconoscimento dei volti
+/modelli-volti/
+/prova-volti/
