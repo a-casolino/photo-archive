@@ -34,8 +34,8 @@ describe("photoFields", () => {
       exposureTime: "1/250",
       iso: 400,
       orientation: 6,
-      width: 3456, // verticale: dimensioni scambiate
-      height: 5184,
+      width: 5184, // come nel file: le scambia displaySize()
+      height: 3456,
       gpsLat: null,
     });
   });

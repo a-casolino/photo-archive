@@ -108,7 +108,7 @@ CREATE TABLE photos (
   sha256          CHAR(64) NOT NULL,               -- deduplica: lo stesso file non entra due volte
   file_size       BIGINT UNSIGNED NOT NULL,
   mime_type       VARCHAR(64) NOT NULL,            -- image/x-canon-cr2, image/jpeg, image/heic, video/mp4
-  width           SMALLINT UNSIGNED NULL,
+  width           SMALLINT UNSIGNED NULL,          -- come nel file (sensore): per Orientation 5-8 si scambiano solo in visualizzazione
   height          SMALLINT UNSIGNED NULL,
   orientation     TINYINT UNSIGNED NULL,           -- EXIF Orientation 1..8
 
@@ -391,3 +391,12 @@ CREATE TABLE share_events (
 --   negli URL /tag/<slug>; "Montagna" e "montagna" sono lo stesso tag.
 -- photo_tags(photo_id -> photos, tag_id -> tags), album_tags(album_id ->
 --   albums, tag_id -> tags), entrambe ON DELETE CASCADE.
+
+-- =====================================================================
+-- Migrazione 008_dimensioni_foto.sql (2026-11-08)
+-- =====================================================================
+
+-- photos.width/height sono quelle del file (del sensore per i CR2), anche
+-- per le foto ruotate di 90° (Orientation 5-8): le scambia displaySize()
+-- quando le mostra. La migrazione corregge le foto importate prima, che
+-- avevano le dimensioni già scambiate.
