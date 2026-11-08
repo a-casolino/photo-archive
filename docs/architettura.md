@@ -281,6 +281,8 @@ src/lib/
   faces/               volti: geometria (SCRFD, ArcFace), motore ONNX, impronte, raggruppamento
   people.ts            persone e volti per le pagine (letture e modifiche)
   suggest.ts           suggerimenti della ricerca; regole pure in search-rules.ts
+  utils.ts             cn() per unire le classi Tailwind
+src/components/ui/     componenti shadcn/ui (Button, Dialog, DropdownMenu), modificabili
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
   (app)/               area riservata: dashboard, account, album, foto, tag,
@@ -293,11 +295,34 @@ src/app/
   api/storage/         file dell'archivio di prova (solo STORAGE_DRIVER=local)
   actions/             Server Actions (auth.ts, users.ts, imports.ts, shares.ts)
   ui/action-form.tsx   form con messaggi di errore/esito
+  ui/shell/            testata, navigazione (barra in basso sul telefono), menu utente
   ui/gallery/          masonry, pagina foto, form e elenco condivisioni
   ui/search-suggest.tsx  campo di ricerca con suggerimenti
 tests/                 test vitest
 docs/                  requisiti, architettura, schema.sql
 ```
+
+## Interfaccia
+
+Scelta di Antonio dell'8/11/2026: **shadcn/ui + Tailwind CSS v4**, icone
+**lucide-react**, font **Geist**, rosso `#FF1500` come colore primario.
+
+- I componenti di shadcn/ui sono copiati in `src/components/ui/` (basati su
+  Radix): si possono modificare. Per aggiungerne uno: `npx shadcn@latest add
+  <nome>` (usa `components.json`), oppure copiarlo a mano dal sito
+  https://ui.shadcn.com.
+- Le pagine passano a Tailwind **a poco a poco**. Per non stravolgere quelle
+  ancora in CSS scritto a mano, `globals.css` non importa il reset di Tailwind
+  (preflight): le vecchie regole stanno nel layer `base`, `gallery.css` nel
+  layer `components` e le classi Tailwind (layer `utilities`) vincono sempre.
+  Le regole sugli elementi (`button`, `input`, `select`) escludono i componenti
+  shadcn (`:not([data-slot])`).
+- Colori: le variabili `--bg`, `--fg`, `--muted`, `--card`, `--subtle`,
+  `--border`, `--accent` (tema chiaro e scuro, segue il sistema) sono anche i
+  colori di Tailwind (`bg-background`, `text-muted-foreground`, `bg-primary`…).
+  In shadcn "accent" è lo sfondo leggero al passaggio del mouse; il rosso è
+  `primary` (o `brand`).
+- La griglia masonry resta in CSS proprio (`gallery.css`).
 
 ## Autenticazione
 

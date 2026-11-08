@@ -1,184 +1,255 @@
+/*
+ * Stili dell'app.
+ *
+ * Tailwind CSS v4 serve ai componenti shadcn/ui (src/components/ui) e alle
+ * pagine rifatte con quelle classi. Non importiamo il "preflight" di Tailwind
+ * (il reset del browser) per non stravolgere le pagine ancora scritte con il
+ * CSS a mano: queste regole stanno nel layer "base", gallery.css nel layer
+ * "components", e le classi Tailwind (layer "utilities") vincono sempre.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+@import "./ui/gallery/gallery.css" layer(components);
+
 :root {
-  --bg: #f6f5f2;
-  --fg: #1d1d1b;
-  --muted: #6b6a66;
+  --bg: #fafaf9;
+  --fg: #18181b;
+  --muted: #71717a;
   --card: #ffffff;
-  --border: #dcdad4;
+  --subtle: #f4f4f5;
+  --border: #e4e4e7;
   --accent: #ff1500;
-  --error: #a33a2c;
+  --danger: #dc2626;
+  --error: #b42318;
   --ok: #2f6d3a;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161615;
-    --fg: #ecebe7;
-    --muted: #9c9a94;
-    --card: #1f1f1d;
-    --border: #34332f;
+    --bg: #0c0c0d;
+    --fg: #f4f4f5;
+    --muted: #a1a1aa;
+    --card: #151517;
+    --subtle: #222225;
+    --border: #2c2c30;
     --accent: #ff1500;
-    --error: #e58c7f;
+    --danger: #ef4444;
+    --error: #f2998c;
     --ok: #8fcf98;
   }
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-plex-condensed), system-ui, -apple-system, "Segoe UI", sans-serif;
-  line-height: 1.5;
-}
-
-a {
-  color: var(--accent);
-}
-
-main {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 24px 16px;
-}
-
-.auth-card {
-  max-width: 380px;
-  margin: 10vh auto 0;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 28px 24px;
-}
-
-.auth-card h1 {
-  margin-top: 0;
-  font-size: 1.4rem;
-}
-
 /*
- * minmax(0, 1fr): senza, la colonna della griglia si allarga fino alla
- * larghezza "naturale" del contenuto (per esempio una <select> con opzioni
- * lunghe) e i campi escono dalla card.
+ * Nomi dei colori usati dalle classi Tailwind / shadcn (bg-primary, text-muted-foreground, …).
+ * Attenzione: in shadcn "accent" è lo sfondo leggero al passaggio del mouse;
+ * il rosso dell'app è "primary" (o "brand").
  */
-.form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+@theme inline {
+  --font-sans: var(--font-app), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--card);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--accent);
+  --color-primary-foreground: #ffffff;
+  --color-brand: var(--accent);
+  --color-secondary: var(--subtle);
+  --color-secondary-foreground: var(--fg);
+  --color-muted: var(--subtle);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--subtle);
+  --color-accent-foreground: var(--fg);
+  --color-destructive: var(--danger);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--accent);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 }
 
-.form input,
-.form select,
-.form button {
-  width: 100%;
-  min-width: 0;
-}
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
 
-.form label {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
+  html,
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-app), system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
 
-input,
-select,
-button {
-  font: inherit;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--fg);
-}
+  a {
+    color: var(--accent);
+  }
 
-button {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-  cursor: pointer;
-}
+  /* Componenti shadcn/ui: partono da zero, lo stile lo danno le classi Tailwind. */
+  button[data-slot] {
+    font: inherit;
+    color: inherit;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+  }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
+  [data-slot] {
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--border);
+  }
 
-button.link {
-  background: none;
-  border: none;
-  color: var(--accent);
-  padding: 0;
-  text-decoration: underline;
-}
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
 
-.msg {
-  margin: 0;
-  font-size: 0.9rem;
-}
+  .auth-card {
+    max-width: 380px;
+    margin: 10vh auto 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 24px;
+  }
 
-.msg-error {
-  color: var(--error);
-}
+  .auth-card h1 {
+    margin-top: 0;
+    font-size: 1.4rem;
+  }
 
-.msg-ok {
-  color: var(--ok);
-}
+  /*
+   * minmax(0, 1fr): senza, la colonna della griglia si allarga fino alla
+   * larghezza "naturale" del contenuto (per esempio una <select> con opzioni
+   * lunghe) e i campi escono dalla card.
+   */
+  .form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
 
-.muted {
-  color: var(--muted);
-}
+  .form input,
+  .form select,
+  .form button {
+    width: 100%;
+    min-width: 0;
+  }
 
-.topbar {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
-}
+  .form label {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
 
-.topbar nav {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-}
+  input:not([data-slot]),
+  select:not([data-slot]),
+  button:not([data-slot]) {
+    font: inherit;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+  }
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
+  button:not([data-slot]) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    cursor: pointer;
+  }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+  button:not([data-slot]):disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
 
-th,
-td {
-  text-align: left;
-  padding: 8px 6px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
+  button.link {
+    background: none;
+    border: none;
+    color: var(--accent);
+    padding: 0;
+    text-decoration: underline;
+  }
 
-.table-wrap {
-  overflow-x: auto;
-}
+  .msg {
+    margin: 0;
+    font-size: 0.9rem;
+  }
 
-.inline {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
+  .msg-error {
+    color: var(--error);
+  }
+
+  .msg-ok {
+    color: var(--ok);
+  }
+
+  .muted {
+    color: var(--muted);
+  }
+
+  .topbar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+
+  .topbar nav {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  .inline {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
 }

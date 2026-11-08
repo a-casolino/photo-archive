@@ -1,4 +1,4 @@
-import "@/app/ui/gallery/gallery.css";
+import { Brand, HEADER_CLASS } from "@/app/ui/shell/brand";
 
 /*
  * Pagine dei link liberi: nessun login, nessun menu. Non indicizzate
@@ -7,9 +7,9 @@ import "@/app/ui/gallery/gallery.css";
 export default function PublicLayout({ children }: LayoutProps<"/">) {
   return (
     <>
-      <header className="topbar">
-        <strong>Antonio Casolino | Photo Archive</strong>
-        <span className="muted">Condiviso con un link privato</span>
+      <header className={HEADER_CLASS}>
+        <Brand />
+        <span className="ml-auto text-sm text-muted-foreground">Condiviso con un link privato</span>
       </header>
       <main>{children}</main>
     </>

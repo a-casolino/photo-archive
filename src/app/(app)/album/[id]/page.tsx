@@ -1,5 +1,16 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  FolderIcon,
+  ImageIcon,
+  PencilIcon,
+  Share2Icon,
+  SquareCheckIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { setAlbumCover, updateAlbum } from "@/app/actions/shares";
 import { trashAlbumAction, trashPhotosAction } from "@/app/actions/trash";
 import { ActionForm } from "@/app/ui/action-form";
@@ -10,8 +21,16 @@ import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { env } from "@/lib/env";
-
 import { mergedInto } from "@/lib/albums";
 import { formatCount } from "@/lib/format";
 import { albumCounts, albumPhotos, getAlbum, getAlbumCover, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
@@ -65,34 +84,148 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
 
   return (
     <>
-      <p>
-        <Link href="/album">← Album</Link>
-      </p>
+      <nav aria-label="Percorso" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href="/album" className="text-muted-foreground no-underline hover:text-foreground">
+          Album
+        </Link>
+        <ChevronRightIcon className="size-3.5" aria-hidden />
+        <span className="truncate text-foreground">{album.title}</span>
+      </nav>
       {merged > 0 && (
-        <p className="msg msg-ok card" role="status">
+        <p className="msg msg-ok card mt-4" role="status">
           {merged === 1 ? "Un album è confluito" : `${merged} album sono confluiti`} in questo.
         </p>
       )}
-      <div className="page-head">
-        <div>
-          <h1>{album.title}</h1>
-          <p className="muted">
-            {[albumDates(album), `${formatCount(counts.total)} foto`, ORIGIN_LABEL[album.origin]]
-              .filter(Boolean)
-              .join(" · ")}
+      <div className="mt-3 mb-5 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="m-0 text-[1.75rem] leading-tight font-semibold md:text-[2rem]">{album.title}</h1>
+          <p className="mt-1.5 mb-0 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {albumDates(album) && (
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarIcon className="size-4" aria-hidden />
+                {albumDates(album)}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <ImageIcon className="size-4" aria-hidden />
+              {formatCount(counts.total)} foto
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <FolderIcon className="size-4" aria-hidden />
+              {ORIGIN_LABEL[album.origin]}
+            </span>
+            {activeShares > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <Share2Icon className="size-4" aria-hidden />
+                {activeShares} condivision{activeShares === 1 ? "e" : "i"}
+              </span>
+            )}
           </p>
-          {album.description && <p>{album.description}</p>}
+          {album.description && <p className="mt-2 mb-0 max-w-prose">{album.description}</p>}
           <TagEditor kind="album" targetId={album.public_id} tags={tags} allTags={allTags} />
         </div>
-        <div className="album-tools">
-          <EditedFilter base={base} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Share2Icon />
+                Condividi
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="md:max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>Condividi «{album.title}»</DialogTitle>
+                <DialogDescription>
+                  Chi riceve l&apos;album vede anche le foto aggiunte dopo. Le foto con un export di Lightroom collegato
+                  si vedono e si scaricano nella versione con le regolazioni.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="owner-grid">
+                <ShareForm
+                  targetType="album"
+                  targetId={album.public_id}
+                  people={people}
+                  defaultDays={defaultLinkDays()}
+                />
+                <ShareList shares={shares} back={base} defaultDays={defaultLinkDays()} people={people} />
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <PencilIcon />
+                Modifica
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Modifica album</DialogTitle>
+                <DialogDescription>Titolo, descrizione, copertina ed eliminazione.</DialogDescription>
+              </DialogHeader>
+              <div>
+                <ActionForm action={updateAlbum} submitLabel="Salva">
+                  <input type="hidden" name="albumId" value={album.public_id} />
+                  <label>
+                    Titolo
+                    <input name="title" defaultValue={album.title} required maxLength={255} />
+                  </label>
+                  <label>
+                    Descrizione
+                    <textarea name="description" defaultValue={album.description ?? ""} rows={3} maxLength={5000} />
+                  </label>
+                </ActionForm>
+                <div className="album-cover-info">
+                  {cover?.thumb_key && urls.get(cover.thumb_key) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={urls.get(cover.thumb_key)} alt="Copertina dell'album" />
+                  )}
+                  <p className="muted">
+                    {cover
+                      ? cover.chosen
+                        ? "Copertina scelta da te."
+                        : "Copertina automatica: la prima foto dell'album."
+                      : "Nessuna copertina: l'album è vuoto."}{" "}
+                    Per cambiarla apri una foto dell&apos;album, o selezionane una, e scegli «Usa come copertina».
+                  </p>
+                </div>
+                {album.origin_ref && <p className="muted origin-ref">Origine: {album.origin_ref}</p>}
+                <p>
+                  <Link href={`/album/unisci?in=${album.public_id}`}>Unisci altri album in questo…</Link>
+                </p>
+                <form action={trashAlbumAction} className="album-trash">
+                  <input type="hidden" name="albumId" value={album.public_id} />
+                  <Button type="submit" variant="destructive">
+                    <Trash2Icon />
+                    Elimina album
+                  </Button>
+                  <p className="muted">
+                    L&apos;album va nel cestino
+                    {trashPreview.only > 0
+                      ? ` con ${trashPreview.only === 1 ? "la foto che sta" : `le ${formatCount(trashPreview.only)} foto che stanno`} solo qui`
+                      : ""}
+                    {trashPreview.elsewhere > 0
+                      ? `; ${trashPreview.elsewhere === 1 ? "la foto che è" : `le ${formatCount(trashPreview.elsewhere)} foto che sono`} anche in altri album ${trashPreview.elsewhere === 1 ? "resta" : "restano"} lì`
+                      : ""}
+                    . Puoi ripristinarlo dal Cestino per {env().TRASH_RETENTION_DAYS} giorni, poi viene eliminato per
+                    sempre, file compresi.
+                  </p>
+                </form>
+              </div>
+            </DialogContent>
+          </Dialog>
           {photos.length > 0 && (
-            <Link href={selecting ? withQuery() : withQuery({ seleziona: "1" })} prefetch={false} className="button">
-              {selecting ? "Fine selezione" : "Seleziona"}
-            </Link>
+            <Button asChild variant={selecting ? "secondary" : "outline"}>
+              <Link href={selecting ? withQuery() : withQuery({ seleziona: "1" })} prefetch={false}>
+                {selecting ? <CheckIcon /> : <SquareCheckIcon />}
+                {selecting ? "Fine selezione" : "Seleziona"}
+              </Link>
+            </Button>
           )}
         </div>
       </div>
+
+      <EditedFilter base={base} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
 
       {trashed > 0 && (
         <p className="msg msg-ok" role="status">
@@ -100,72 +233,6 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
           {env().TRASH_RETENTION_DAYS} giorni.
         </p>
       )}
-
-      <details className="card owner-tools">
-        <summary>
-          Condividi l&apos;album{activeShares ? ` · ${activeShares} condivision${activeShares === 1 ? "e" : "i"}` : ""}
-        </summary>
-        <div className="owner-grid">
-          <ShareForm targetType="album" targetId={album.public_id} people={people} defaultDays={defaultLinkDays()} />
-          <ShareList shares={shares} back={base} defaultDays={defaultLinkDays()} people={people} />
-        </div>
-        <p className="muted">
-          Chi riceve l&apos;album vede anche le foto aggiunte dopo. Le foto con un export di Lightroom collegato si
-          vedono e si scaricano nella versione con le regolazioni.
-        </p>
-      </details>
-
-      <details className="card owner-tools">
-        <summary>Modifica album</summary>
-        <div style={{ maxWidth: 520 }}>
-          <ActionForm action={updateAlbum} submitLabel="Salva">
-            <input type="hidden" name="albumId" value={album.public_id} />
-            <label>
-              Titolo
-              <input name="title" defaultValue={album.title} required maxLength={255} />
-            </label>
-            <label>
-              Descrizione
-              <textarea name="description" defaultValue={album.description ?? ""} rows={3} maxLength={5000} />
-            </label>
-          </ActionForm>
-          <div className="album-cover-info">
-            {cover?.thumb_key && urls.get(cover.thumb_key) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={urls.get(cover.thumb_key)} alt="Copertina dell'album" />
-            )}
-            <p className="muted">
-              {cover
-                ? cover.chosen
-                  ? "Copertina scelta da te."
-                  : "Copertina automatica: la prima foto dell'album."
-                : "Nessuna copertina: l'album è vuoto."}{" "}
-              Per cambiarla apri una foto dell&apos;album, o selezionane una, e scegli «Usa come copertina».
-            </p>
-          </div>
-          {album.origin_ref && <p className="muted origin-ref">Origine: {album.origin_ref}</p>}
-          <p>
-            <Link href={`/album/unisci?in=${album.public_id}`}>Unisci altri album in questo…</Link>
-          </p>
-          <form action={trashAlbumAction} className="album-trash">
-            <input type="hidden" name="albumId" value={album.public_id} />
-            <button type="submit" className="danger">
-              Elimina album
-            </button>
-            <p className="muted">
-              L&apos;album va nel cestino
-              {trashPreview.only > 0
-                ? ` con ${trashPreview.only === 1 ? "la foto che sta" : `le ${formatCount(trashPreview.only)} foto che stanno`} solo qui`
-                : ""}
-              {trashPreview.elsewhere > 0
-                ? `; ${trashPreview.elsewhere === 1 ? "la foto che è" : `le ${formatCount(trashPreview.elsewhere)} foto che sono`} anche in altri album ${trashPreview.elsewhere === 1 ? "resta" : "restano"} lì`
-                : ""}
-              . Puoi ripristinarlo dal Cestino per {env().TRASH_RETENTION_DAYS} giorni, poi viene eliminato per sempre,
-              file compresi.
-            </p>
-          </form>
-        </div>
-      </details>
 
       {photos.length === 0 ? (
         <p className="muted">{onlyEdited ? "Nessuna foto con regolazioni." : "L'album è vuoto."}</p>
