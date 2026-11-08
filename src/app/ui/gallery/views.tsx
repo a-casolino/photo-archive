@@ -5,6 +5,7 @@ import { cameraLabel, displaySize, exposureLabel } from "@/lib/gallery-rules";
 import type { PhotoCard, PhotoDetail } from "@/lib/gallery";
 import { canDownload, type DownloadLevel } from "@/lib/roles";
 import { KeyNav } from "./key-nav";
+import { SwipeNav } from "./swipe-nav";
 import type { MasonryItem } from "./masonry";
 
 /*
@@ -148,18 +149,20 @@ export function PhotoView({
         ) : (
           <span className="stage-nav" />
         )}
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei, niente ottimizzazione
-          <img
-            src={previewUrl}
-            alt={title}
-            width={size?.width}
-            height={size?.height}
-            className="photo-preview"
-          />
-        ) : (
-          <div className="photo-preview tile-empty">Anteprima non disponibile</div>
-        )}
+        <SwipeNav key={photo.public_id} prev={nav.prev} next={nav.next}>
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei, niente ottimizzazione
+            <img
+              src={previewUrl}
+              alt={title}
+              width={size?.width}
+              height={size?.height}
+              className="photo-preview"
+            />
+          ) : (
+            <div className="photo-preview tile-empty">Anteprima non disponibile</div>
+          )}
+        </SwipeNav>
         {nav.next ? (
           <Link href={nav.next} className="stage-nav next" aria-label="Foto successiva" title="Successiva (→)">
             ›
@@ -171,11 +174,19 @@ export function PhotoView({
 
       <div className="photo-info">
         <section>
-          <h1>{title}</h1>
+          {/* Il nome del file è già tra i dati sotto: il titolo resta solo per i lettori di schermo. */}
+          <h1 className="sr-only">{title}</h1>
           {photo.description && <p>{photo.description}</p>}
-          <p className="muted">{formatTakenAt(photo.taken_at)}</p>
           {photo.edited ? <p className="muted">Versione con le regolazioni di Lightroom.</p> : null}
           <dl className="exif">
+            {photo.title && (
+              <>
+                <dt>Titolo</dt>
+                <dd>{photo.title}</dd>
+              </>
+            )}
+            <dt>Data</dt>
+            <dd>{formatTakenAt(photo.taken_at)}</dd>
             {camera && (
               <>
                 <dt>Fotocamera</dt>

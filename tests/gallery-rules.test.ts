@@ -10,6 +10,7 @@ import {
   linkExpiry,
   masonryColumns,
   shareState,
+  swipeDirection,
 } from "../src/lib/gallery-rules";
 
 describe("stato delle condivisioni", () => {
@@ -78,6 +79,22 @@ describe("nomi e etichette", () => {
       "1/250 s",
       "ISO 400",
     ]);
+  });
+});
+
+describe("swipe", () => {
+  const W = 390; // larghezza di un telefono
+  it("dito verso destra = precedente, verso sinistra = successiva", () => {
+    expect(swipeDirection(120, 10, 300, W)).toBe("prev");
+    expect(swipeDirection(-120, 10, 300, W)).toBe("next");
+  });
+  it("un colpo rapido basta anche se corto", () => {
+    expect(swipeDirection(-40, 5, 50, W)).toBe("next");
+    expect(swipeDirection(-40, 5, 400, W)).toBeNull();
+  });
+  it("ignora i gesti verticali e quelli minimi", () => {
+    expect(swipeDirection(80, 100, 200, W)).toBeNull();
+    expect(swipeDirection(20, 0, 20, W)).toBeNull();
   });
 });
 

@@ -186,6 +186,18 @@ button.link.danger {
   border-radius: 4px;
 }
 
+/* Lo swipe orizzontale lo gestisce SwipeNav; scroll verticale e zoom restano al browser. */
+.swipe-area {
+  min-width: 0;
+  touch-action: pan-y pinch-zoom;
+  will-change: transform;
+}
+
+.swipe-area img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 div.photo-preview {
   min-height: 300px;
   width: 100%;
@@ -546,6 +558,18 @@ a.tag-chip {
 .face-grid-remove .face-pick input:checked + img {
   outline: 3px solid var(--accent);
   opacity: 0.6;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* --- Unione di album --- */
