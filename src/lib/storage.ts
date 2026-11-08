@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "./env";
 import { isValidStorageKey, type StorageClass, type UploadTarget } from "./import-shared";
@@ -23,6 +23,10 @@ export interface FileStorage {
   readUrl(key: string, ttlSeconds?: number): Promise<string>;
   /** Dimensione del file, o null se non esiste. */
   size(key: string): Promise<number | null>;
+  /** Legge un file intero (usato dai lavori sul server, es. i volti). */
+  read(key: string): Promise<Buffer>;
+  /** Scrive un file piccolo direttamente dal server (es. miniature dei volti). */
+  write(key: string, data: Buffer, contentType: string, storageClass: StorageClass): Promise<void>;
 }
 
 const UPLOAD_TTL_SECONDS = 6 * 3600;
@@ -91,6 +95,14 @@ const localStorage: FileStorage = {
       return null;
     }
   },
+  async read(key) {
+    return readFile(localPath(key));
+  },
+  async write(key, data) {
+    const file = localPath(key);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, data);
+  },
 };
 
 // ---------------------------------------------------------------------
@@ -140,6 +152,13 @@ const gcsStorage: FileStorage = {
       if ((e as { code?: number }).code === 404) return null;
       throw e;
     }
+  },
+  async read(key) {
+    const [data] = await (await bucket()).file(key).download();
+    return data;
+  },
+  async write(key, data, contentType, storageClass) {
+    await (await bucket()).file(key).save(data, { resumable: false, contentType, metadata: { storageClass } });
   },
 };
 

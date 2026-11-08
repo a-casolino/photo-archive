@@ -26,7 +26,7 @@ const TAKEN_AT_RE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
 /** Solo caratteri sicuri, niente "..", niente percorsi assoluti. */
 export function isValidStorageKey(key: string): boolean {
   return (
-    /^(originals|previews|thumbs)\/[A-Za-z0-9._\-/]+$/.test(key) &&
+    /^(originals|previews|thumbs|faces)\/[A-Za-z0-9._\-/]+$/.test(key) &&
     key.length <= 512 &&
     !key.split("/").some((part) => part === "" || part === "." || part === "..")
   );

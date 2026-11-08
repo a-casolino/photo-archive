@@ -61,6 +61,9 @@ npm run db:migrate   # applica le migrazioni mancanti
 npm run db:status    # mostra quali migrazioni sono applicate
 npm run owner:create -- --email ... --name "..."   # crea il proprietario, una volta
 npm run import -- "/cartella" [--takeout] [--prova]  # programma di import (sul computer di Antonio)
+npm run volti [-- --max N] [--rifai]   # trova i volti nelle anteprime (sulla VPS, bassa priorità)
+npm run volti -- --scarica-modelli      # scarica i modelli InsightFace in FACES_MODEL_DIR
+npm run volti -- --file foto.jpg        # prova su file locali, senza database
 ```
 
 Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm run build`.
@@ -71,6 +74,9 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Autorizzazione **sempre lato server**: `requireUser()` / `requireOwner()` da
   `src/lib/session.ts`, anche dentro ogni Server Action (non fidarti del layout).
 - Permessi di download solo tramite `effectiveDownload()` in `src/lib/roles.ts`.
+- Volti e persone solo per il proprietario. Le impronte (`faces.embedding`) sono dati
+  biometrici: mai al browser, mai a servizi esterni; eliminando una persona si
+  eliminano anche i suoi volti.
 - Negli URL solo `public_id` casuali, mai gli id numerici.
 - Token (sessione, invito, reset, link liberi) salvati solo come hash SHA-256.
 - Date in UTC nel database; in interfaccia fuso `Europe/Rome`.
@@ -86,3 +92,5 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Bucket GCS da creare (chiedere ad Antonio prima: costa). Senza bucket l'archivio
   è una cartella locale (`STORAGE_DRIVER=local`), solo per prove.
 - Da fare: gallerie, condivisioni, backup DB.
+- Volti: fatto il calcolo (`npm run volti`); da fare raggruppamento, pagina
+  "Volti da riconoscere", suggerimenti e pagina persona. Carichi sulla VPS da misurare.

@@ -325,3 +325,29 @@ CREATE TABLE share_events (
 -- della stessa cartella del disco o dello stesso album di Takeout.
 -- origin_ref = percorso relativo della cartella (disco) o nome della
 -- cartella dell'album (Takeout).
+
+-- =====================================================================
+-- Aggiunte della migrazione 004_volti.sql (2026-11-08)
+-- Riconoscimento dei volti, visibile solo al proprietario.
+-- =====================================================================
+
+-- Persone a cui Antonio ha dato un nome.
+-- people(id, public_id UNIQUE, name, cover_face_id -> faces ON DELETE SET NULL,
+--        centroid VARBINARY(2048) = media normalizzata delle impronte confermate,
+--        created_at, updated_at)
+
+-- Un volto trovato in una foto da `npm run volti` (InsightFace buffalo_l).
+-- faces(id, photo_id -> photos ON DELETE CASCADE,
+--       box_x, box_y, box_w, box_h  frazioni 0..1 dell'anteprima ruotata,
+--       landmarks JSON (5 punti), det_score,
+--       embedding VARBINARY(2048) = 512 float32, DATO BIOMETRICO: mai al browser,
+--       model ('buffalo_l'), gcs_face_key (miniatura 160 px in faces/..),
+--       cluster_id (gruppo senza nome), person_id -> people ON DELETE SET NULL,
+--       status ('unknown','suggested','confirmed','ignored'), suggest_score,
+--       confirmed_at, created_at)
+-- Eliminare una persona: l'app elimina anche i suoi volti (le impronte non restano).
+
+-- "Non è questa persona": il volto non viene più proposto per lei.
+-- face_rejections(face_id -> faces, person_id -> people, created_at), PK (face_id, person_id)
+
+-- photos: in più faces_scanned_at (NULL = non ancora analizzata) e faces_model.
