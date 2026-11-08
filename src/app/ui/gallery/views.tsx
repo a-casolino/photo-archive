@@ -174,12 +174,11 @@ export function PhotoView({
 
       <div className="photo-info">
         <section>
-          {/* Il nome del file è già tra i dati sotto: il titolo resta solo per i lettori di schermo. */}
-          <h1 className="sr-only">{title}</h1>
+          {/* Niente titolo visibile: il nome del file è già tra i dati sotto (File). */}
           {photo.description && <p>{photo.description}</p>}
           {photo.edited ? <p className="muted">Versione con le regolazioni di Lightroom.</p> : null}
           <dl className="exif">
-            {photo.title && (
+            {photo.title && photo.title !== photo.original_filename && (
               <>
                 <dt>Titolo</dt>
                 <dd>{photo.title}</dd>
