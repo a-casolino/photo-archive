@@ -214,7 +214,7 @@ export default async function ImportPage() {
 IMPORT_KEY=pa_...`}</pre>
           </li>
           <li>
-            Disco con i CR2 (una cartella o tutto il disco; ogni cartella diventa un album):
+            Disco con le foto, CR2 e JPG (una cartella o tutto il disco; ogni cartella diventa un album):
             <pre className="cmd">{`npm run import -- "/Volumes/Disco foto" --etichetta "Disco WD 1TB"`}</pre>
           </li>
           <li>

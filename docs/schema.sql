@@ -411,6 +411,15 @@ CREATE TABLE share_events (
 -- solo passaggio (l'app aggiorna chi puntava a un album poi unito a sua volta).
 
 -- =====================================================================
+-- Migrazione 009_dimensioni_cr2.sql (2026-11-08)
+-- =====================================================================
+
+-- Rimette orizzontali le dimensioni dei CR2 verticali salvati ancora
+-- scambiati da una copia vecchia del programma di import. Nessuna modifica
+-- allo schema. L'app ora rifiuta le versioni del programma sotto
+-- MIN_PROGRAM_VERSION (header X-Import-Program).
+
+-- =====================================================================
 -- Migrazione 010_cestino_album.sql (2026-11-08)
 -- =====================================================================
 

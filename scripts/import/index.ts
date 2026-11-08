@@ -66,7 +66,7 @@ async function main() {
   const parallel = Math.max(1, Math.min(8, Number(opts.paralleli) || 3));
   const max = opts.max ? Number(opts.max) : Infinity;
 
-  console.log(`\nArchivio foto: import ${source === "cr2_disk" ? "CR2 dal disco" : "Google Takeout"}`);
+  console.log(`\nArchivio foto: import ${source === "cr2_disk" ? "foto dal disco" : "Google Takeout"}`);
   console.log(`Cartella: ${root}\n`);
 
   process.stdout.write("Scansione…");
