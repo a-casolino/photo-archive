@@ -14,7 +14,7 @@ import { env } from "@/lib/env";
 
 import { mergedInto } from "@/lib/albums";
 import { formatCount } from "@/lib/format";
-import { albumCounts, albumPhotos, getAlbum, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
+import { albumCounts, albumPhotos, getAlbum, getAlbumCover, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
@@ -36,18 +36,21 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
   const selecting = sp.seleziona === "1";
   const trashed = typeof sp.cestino === "string" && /^\d+$/.test(sp.cestino) ? Number(sp.cestino) : 0;
   const page = parsePage(sp.pagina);
-  const [counts, photos, shares, people, tags, allTags] = await Promise.all([
+  const [counts, photos, shares, people, tags, allTags, cover] = await Promise.all([
     albumCounts(album.id),
     albumPhotos(album.id, { onlyEdited, offset: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }),
     listShares({ albumId: album.id }),
     shareableUsers(),
     tagsOf({ kind: "album", id: album.id }),
     listTags(),
+    getAlbumCover(album),
   ]);
-  const urls = await signKeys(photos.map((p) => p.thumb_key));
+  const urls = await signKeys([...photos.map((p) => p.thumb_key), cover?.thumb_key ?? null]);
   const base = `/album/${album.public_id}`;
   const photoQuery = new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) });
-  const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true });
+  const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true }).map((it) =>
+    it.key === cover?.public_id ? { ...it, badge: it.badge ? `Copertina · ${it.badge}` : "Copertina" } : it,
+  );
   const listQuery = new URLSearchParams({
     ...(onlyEdited ? { solo: "regolazioni" } : {}),
     ...(page > 1 ? { pagina: String(page) } : {}),
@@ -124,6 +127,20 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               <textarea name="description" defaultValue={album.description ?? ""} rows={3} maxLength={5000} />
             </label>
           </ActionForm>
+          <div className="album-cover-info">
+            {cover?.thumb_key && urls.get(cover.thumb_key) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={urls.get(cover.thumb_key)} alt="Copertina dell'album" />
+            )}
+            <p className="muted">
+              {cover
+                ? cover.chosen
+                  ? "Copertina scelta da te."
+                  : "Copertina automatica: la prima foto dell'album."
+                : "Nessuna copertina: l'album è vuoto."}{" "}
+              Per cambiarla apri una foto dell&apos;album e scegli «Usa come copertina».
+            </p>
+          </div>
           {album.origin_ref && <p className="muted origin-ref">Origine: {album.origin_ref}</p>}
           <p>
             <Link href={`/album/unisci?in=${album.public_id}`}>Unisci altri album in questo…</Link>
