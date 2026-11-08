@@ -134,8 +134,25 @@ Standard).
 - **Prova senza database**: `npm run volti -- --file a.jpg --file b.jpg` salva in
   `./prova-volti` le immagini con i riquadri e i ritagli, e stampa la somiglianza
   tra i volti (oltre ~0,4 di solito è la stessa persona).
+- **Raggruppamento** (`scripts/volti/group.ts`, alla fine di ogni analisi o con
+  `--raggruppa`): ricalcola il volto tipo di ogni persona (media delle impronte
+  confermate, `people.centroid`); i volti senza nome che somigliano a una persona
+  sopra 0,45 diventano `suggested`, saltando le persone in `face_rejections`; gli
+  altri vengono raggruppati "a leader" con soglia 0,5 (`src/lib/faces/cluster.ts`)
+  e numerati dal gruppo più grande in `cluster_id`. Confermati e ignorati non si
+  toccano mai.
+- **Pagine** (solo proprietario, `src/lib/people.ts`, `src/app/actions/people.ts`):
+  `/persone` (elenco con foto profilo), `/persone/da-riconoscere` (gruppi: nome
+  nuovo o esistente per tutto il gruppo, spunta tolta = volto escluso, "Non mi
+  interessa" = `ignored`), `/persone/suggerimenti` (conferma o scarta in blocco),
+  `/persone/<id>` (foto in ordine di data con la griglia degli album, un export
+  collegato a un CR2 della persona compare una volta sola; togli volti, rinomina,
+  unisci, elimina). La pagina della foto mostra i nomi delle persone confermate.
+- **Eliminare una persona** cancella i suoi volti e le impronte; le foto restano.
+  I volti tornano solo rianalizzando la foto con `--rifai`.
 - **Privacy**: tutto resta su VPS, MySQL e bucket privato. Pagine di volti e
   persone solo per il proprietario; chi riceve una condivisione non vede i nomi.
+  Le query delle pagine non leggono mai `faces.embedding`.
 
 ## Infrastruttura
 
@@ -186,7 +203,8 @@ src/lib/
   gallery-rules.ts     regole pure: stato condivisioni, proporzioni, masonry (testate)
   shares.ts            condivisioni: accesso, creazione, destinatari, registro
   tags.ts              tag su foto e album
-  faces/               volti: geometria (SCRFD, ArcFace), motore ONNX, impronte, righe DB
+  faces/               volti: geometria (SCRFD, ArcFace), motore ONNX, impronte, raggruppamento
+  people.ts            persone e volti per le pagine (letture e modifiche)
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
   (app)/               area riservata: dashboard, account, album, foto, tag,

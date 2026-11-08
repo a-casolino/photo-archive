@@ -79,4 +79,5 @@ con altre persone.
 - [ ] Riconoscimento facciale (proposta da preparare)
 - [ ] Deploy su xCloud e backup notturno del DB
 - [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 006)
-- [ ] Volti: raggruppamento, "Volti da riconoscere", suggerimenti, pagina persona
+- [x] Volti: raggruppamento, "Da riconoscere", suggerimenti, pagina persona
+- [ ] Volti: riquadri nel visore della foto

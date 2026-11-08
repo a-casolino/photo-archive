@@ -164,12 +164,18 @@ const gcsStorage: FileStorage = {
       throw e;
     }
   },
+  // Lettura e scrittura passano da URL firmati e fetch, non dagli stream della
+  // libreria: chiamati migliaia di volte di seguito (npm run volti) lasciavano
+  // listener appesi (MaxListenersExceededWarning).
   async read(key) {
-    const [data] = await (await bucket()).file(key).download();
-    return data;
+    const res = await fetch(await this.readUrl(key, 300));
+    if (!res.ok) throw new Error(`Lettura di ${key} non riuscita: HTTP ${res.status}.`);
+    return Buffer.from(await res.arrayBuffer());
   },
   async write(key, data, contentType, storageClass) {
-    await (await bucket()).file(key).save(data, { resumable: false, contentType, metadata: { storageClass } });
+    const target = await this.uploadTarget(key, contentType, storageClass);
+    const res = await fetch(target.url, { method: target.method, headers: target.headers, body: new Uint8Array(data) });
+    if (!res.ok) throw new Error(`Scrittura di ${key} non riuscita: HTTP ${res.status}.`);
   },
 };
 

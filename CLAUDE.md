@@ -61,7 +61,8 @@ npm run db:migrate   # applica le migrazioni mancanti
 npm run db:status    # mostra quali migrazioni sono applicate
 npm run owner:create -- --email ... --name "..."   # crea il proprietario, una volta
 npm run import -- "/cartella" [--takeout] [--prova]  # programma di import (sul computer di Antonio)
-npm run volti [-- --max N] [--rifai]   # trova i volti nelle anteprime (sulla VPS, bassa priorità)
+npm run volti [-- --max N] [--rifai]   # trova i volti nelle anteprime e li raggruppa (sulla VPS, bassa priorità)
+npm run volti -- --raggruppa           # solo raggruppamento e suggerimenti, senza analizzare
 npm run volti -- --scarica-modelli [--zip buffalo_l.zip]  # modelli InsightFace in FACES_MODEL_DIR (da GitHub o da uno zip già scaricato)
 npm run volti -- --file foto.jpg        # prova su file locali, senza database
 ```
@@ -92,5 +93,6 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Bucket GCS da creare (chiedere ad Antonio prima: costa). Senza bucket l'archivio
   è una cartella locale (`STORAGE_DRIVER=local`), solo per prove.
 - Da fare: backup DB.
-- Volti: fatto il calcolo (`npm run volti`); da fare raggruppamento, pagina
-  "Volti da riconoscere", suggerimenti e pagina persona. Carichi sulla VPS da misurare.
+- Volti: fatti calcolo, raggruppamento, pagine Persone / Da riconoscere /
+  Suggerimenti / persona. Misurato sulla VPS (8/11): ~1 s per foto, ~1 GB di memoria.
+  Da fare: riquadri dei volti nel visore ("Mostra volti"), soglie da tarare su foto vere.
