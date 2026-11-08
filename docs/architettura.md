@@ -108,6 +108,13 @@ regione europe-west3 (Francoforte).
   `/tag` elenca i tag, `/tag/<slug>` mostra album e foto con quel tag, con
   rinomina ed eliminazione. La ricerca degli album cerca anche nei tag. Chi
   riceve una condivisione per ora non vede i tag.
+- **Copertina dell'album** (solo proprietario): "Usa come copertina" nella
+  pagina della foto (per l'album da cui arrivi, altrimenti per ogni album che
+  la contiene) salva `albums.cover_photo_id`. La copertina mostrata è quella
+  scelta se la foto è ancora nell'album e non è nel cestino, altrimenti la
+  prima foto dell'album (`albumCoverId()` in `src/lib/gallery.ts`): una foto
+  cestinata viene sostituita senza toccare il dato e torna se la ripristini.
+  Nell'album la miniatura della copertina ha il badge "Copertina".
 - **Unire album** (solo proprietario, `/album/unisci`, `src/lib/albums.ts`):
   si spuntano due o più album e si sceglie quale tenere. Nell'album tenuto
   arrivano le foto (senza doppioni) e i tag degli altri; titolo a scelta,

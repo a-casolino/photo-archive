@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
 import { ratioOf } from "@/app/ui/gallery/views";
 import { query } from "@/lib/db";
-import { signKeys } from "@/lib/gallery";
+import { albumCoverId, signKeys } from "@/lib/gallery";
 import { effectiveDownload, type DownloadLevel } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 
@@ -50,7 +50,8 @@ export default async function DashboardPage() {
        JOIN shares s ON s.id = sr.share_id
        LEFT JOIN albums a ON a.id = s.album_id AND a.deleted_at IS NULL
        LEFT JOIN photos p ON p.id = s.photo_id AND p.deleted_at IS NULL
-       LEFT JOIN photos c ON c.id = COALESCE(p.id, a.cover_photo_id) AND c.deleted_at IS NULL
+       LEFT JOIN LATERAL (SELECT ${albumCoverId("a")} AS id) ac ON TRUE
+       LEFT JOIN photos c ON c.id = COALESCE(p.id, ac.id) AND c.deleted_at IS NULL
        LEFT JOIN photos x ON x.id = (
          SELECT e.id FROM photos e
           WHERE e.derived_from_id = c.id AND e.match_status IN ('auto', 'confirmed') AND e.deleted_at IS NULL

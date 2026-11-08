@@ -34,6 +34,8 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
   const q = album ? `?${new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) })}` : "";
   const href = (pid: string | null) => (pid ? `/foto/${pid}${q}` : null);
   const self = `/foto/${photo.public_id}`;
+  // "Usa come copertina": per l'album da cui arrivi, altrimenti per ogni album che contiene la foto.
+  const coverTargets = albums.filter((a) => !a.is_cover && (!album || a.public_id === album.public_id));
 
   return (
     <PhotoView
@@ -91,19 +93,20 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
               <span key={a.public_id}>
                 {i > 0 && ", "}
                 <Link href={`/album/${a.public_id}`}>{a.title}</Link>
+                {a.is_cover ? " (copertina)" : ""}
               </span>
             ))}
           </p>
         )}
-        {album && album.cover_photo_id !== photo.id && (
-          <form action={setAlbumCover}>
-            <input type="hidden" name="albumId" value={album.public_id} />
+        {coverTargets.map((a) => (
+          <form key={a.public_id} action={setAlbumCover}>
+            <input type="hidden" name="albumId" value={a.public_id} />
             <input type="hidden" name="photoId" value={photo.public_id} />
             <button type="submit" className="link">
-              Usa come copertina di “{album.title}”
+              Usa come copertina di “{a.title}”
             </button>
           </form>
-        )}
+        ))}
       </section>
 
       <details className="card owner-tools">
