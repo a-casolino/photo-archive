@@ -8,7 +8,7 @@ export default function PublicLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <header className="topbar">
-        <strong>Archivio foto</strong>
+        <strong>Antonio Casolino | Photo Archive</strong>
         <span className="muted">Condiviso con un link privato</span>
       </header>
       <main>{children}</main>

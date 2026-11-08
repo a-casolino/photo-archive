@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <header className="topbar">
-        <strong>Archivio foto</strong>
+        <strong>Antonio Casolino | Photo Archive</strong>
         <nav>
           {owner ? (
             <Link href="/album" prefetch={false}>

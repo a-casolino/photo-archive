@@ -12,7 +12,7 @@ const plexCondensed = IBM_Plex_Sans_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "Archivio foto",
+  title: "Antonio Casolino | Photo Archive",
   description: "Archivio fotografico privato",
   // Nessuna pagina dell'app va indicizzata (anche i link liberi).
   robots: { index: false, follow: false },
