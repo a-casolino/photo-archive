@@ -30,6 +30,19 @@ export const CARD_COLUMNS = `
 /** Ordine delle foto in un album: posizione manuale, poi data di scatto. */
 const ALBUM_ORDER = "ap.position, p.taken_at IS NULL, p.taken_at, p.taken_at_subsec, p.id";
 
+/**
+ * Copertina effettiva dell'album `alias`: quella scelta (`cover_photo_id`) se la foto è ancora
+ * nell'album e non è nel cestino, altrimenti la prima foto dell'album. Così una copertina
+ * cestinata viene sostituita senza toccare il dato, e torna se la foto viene ripristinata.
+ */
+export function albumCoverId(alias: string): string {
+  return `COALESCE(
+    (SELECT cp.id FROM album_photos cap JOIN photos cp ON cp.id = cap.photo_id AND cp.deleted_at IS NULL
+      WHERE cap.album_id = ${alias}.id AND cap.photo_id = ${alias}.cover_photo_id),
+    (SELECT p.id FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+      WHERE ap.album_id = ${alias}.id ORDER BY ${ALBUM_ORDER} LIMIT 1))`;
+}
+
 export type PhotoCard = {
   id: number;
   public_id: string;
@@ -117,19 +130,25 @@ export async function listAlbums(
     where.push("a.origin = ?");
     params.push(filter.origin);
   }
+  // La copertina effettiva si calcola in una tabella derivata: il join su photos resta per chiave primaria.
   return query<AlbumListItem>(
     `SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.date_from, a.date_to,
-            a.cover_photo_id,
-            (SELECT COUNT(*) FROM album_photos ap JOIN photos q ON q.id = ap.photo_id
-              WHERE ap.album_id = a.id AND q.deleted_at IS NULL) AS photo_count,
+            a.cover_photo_id, a.photo_count,
             COALESCE(x.gcs_thumb_key, p.gcs_thumb_key) AS cover_thumb,
             IF(x.id IS NULL, p.width, x.width) AS cover_width,
             IF(x.id IS NULL, p.height, x.height) AS cover_height,
             IF(x.id IS NULL, p.orientation, x.orientation) AS cover_orientation
-       FROM albums a
-       LEFT JOIN photos p ON p.id = a.cover_photo_id AND p.deleted_at IS NULL
+       FROM (
+         SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.date_from, a.date_to,
+                a.cover_photo_id,
+                (SELECT COUNT(*) FROM album_photos ap JOIN photos q ON q.id = ap.photo_id
+                  WHERE ap.album_id = a.id AND q.deleted_at IS NULL) AS photo_count,
+                ${albumCoverId("a")} AS shown_cover_id
+           FROM albums a
+          WHERE ${where.join(" AND ")}
+       ) a
+       LEFT JOIN photos p ON p.id = a.shown_cover_id
        ${LINKED_EXPORT}
-      WHERE ${where.join(" AND ")}
       ORDER BY a.date_from IS NULL, a.date_from DESC, a.title`,
     params,
   );
@@ -149,6 +168,20 @@ export async function getAlbumById(id: number): Promise<AlbumRow | null> {
        FROM albums WHERE id = ? AND deleted_at IS NULL`,
     [id],
   );
+}
+
+/** Copertina mostrata per l'album e se è stata scelta a mano (o è la prima foto). */
+export async function getAlbumCover(
+  album: Pick<AlbumRow, "id" | "cover_photo_id">,
+): Promise<{ public_id: string; thumb_key: string | null; chosen: boolean } | null> {
+  const row = await queryOne<{ id: number; public_id: string; thumb_key: string | null }>(
+    `SELECT p.id, p.public_id, COALESCE(x.gcs_thumb_key, p.gcs_thumb_key) AS thumb_key
+       FROM (SELECT ${albumCoverId("a")} AS shown_cover_id FROM albums a WHERE a.id = ?) a
+       JOIN photos p ON p.id = a.shown_cover_id
+       ${LINKED_EXPORT}`,
+    [album.id],
+  );
+  return row ? { public_id: row.public_id, thumb_key: row.thumb_key, chosen: row.id === album.cover_photo_id } : null;
 }
 
 export async function albumCounts(albumId: number): Promise<{ total: number; edited: number }> {
@@ -214,9 +247,11 @@ export async function isPhotoInAlbum(albumId: number, photoId: number): Promise<
 }
 
 /** Album (non cancellati) che contengono la foto: per il proprietario. */
-export async function albumsOfPhoto(photoId: number): Promise<{ public_id: string; title: string }[]> {
+export async function albumsOfPhoto(
+  photoId: number,
+): Promise<{ public_id: string; title: string; is_cover: number }[]> {
   return query(
-    `SELECT a.public_id, a.title FROM album_photos ap JOIN albums a ON a.id = ap.album_id AND a.deleted_at IS NULL
+    `SELECT a.public_id, a.title, (a.cover_photo_id <=> ap.photo_id) AS is_cover FROM album_photos ap JOIN albums a ON a.id = ap.album_id AND a.deleted_at IS NULL
       WHERE ap.photo_id = ? ORDER BY a.title`,
     [photoId],
   );
