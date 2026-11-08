@@ -7,7 +7,16 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * che la contiene, offre "Seleziona tutte / Nessuna" e disattiva i pulsanti
  * finché non c'è almeno una foto selezionata.
  */
-export function SelectBar({ name, children }: { name: string; children: ReactNode }) {
+export function SelectBar({
+  name,
+  children,
+  single,
+}: {
+  name: string;
+  children: ReactNode;
+  /** Azioni che valgono per una sola foto: attive solo con esattamente una selezionata. */
+  single?: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(0);
   const [total, setTotal] = useState(0);
@@ -44,6 +53,11 @@ export function SelectBar({ name, children }: { name: string; children: ReactNod
       <fieldset disabled={count === 0} style={{ display: "contents" }}>
         {children}
       </fieldset>
+      {single && (
+        <fieldset disabled={count !== 1} style={{ display: "contents" }}>
+          {single}
+        </fieldset>
+      )}
     </div>
   );
 }
