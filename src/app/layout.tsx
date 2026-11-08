@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans_Condensed } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 
 // Font dell'app. next/font lo scarica durante la build e lo serve dal nostro
 // dominio: il browser non fa richieste a Google.
-const plexCondensed = IBM_Plex_Sans_Condensed({
-  weight: ["400", "500", "600", "700"],
+// Geist (lo stesso di shadcn/ui), scelto da Antonio l'8/11/2026 al posto di
+// IBM Plex Sans Condensed.
+const geist = Geist({
   subsets: ["latin", "latin-ext"],
   display: "swap",
-  variable: "--font-plex-condensed",
+  variable: "--font-app",
 });
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="it" className={plexCondensed.variable}>
+    <html lang="it" className={geist.variable}>
       <body>{children}</body>
     </html>
   );

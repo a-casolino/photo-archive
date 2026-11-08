@@ -1,67 +1,24 @@
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
+import { AppNav, MobileNav } from "@/app/ui/shell/app-nav";
+import { Brand, HEADER_CLASS } from "@/app/ui/shell/brand";
 import { requireUser } from "@/lib/session";
 import { ROLE_LABELS } from "@/lib/roles";
-import "@/app/ui/gallery/gallery.css";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const owner = user.role === "owner";
   return (
     <>
-      <header className="topbar">
-        <strong>Antonio Casolino | Photo Archive</strong>
-        <nav>
-          {owner ? (
-            <Link href="/album" prefetch={false}>
-              Album
-            </Link>
-          ) : (
-            <Link href="/dashboard" prefetch={false}>
-              Condivisi con me
-            </Link>
-          )}
-          {owner && (
-            <Link href="/tag" prefetch={false}>
-              Tag
-            </Link>
-          )}
-          {owner && (
-            <Link href="/persone" prefetch={false}>
-              Persone
-            </Link>
-          )}
-          {owner && (
-            <Link href="/admin/condivisioni" prefetch={false}>
-              Condivisioni
-            </Link>
-          )}
-          {owner && (
-            <Link href="/admin/import" prefetch={false}>
-              Import
-            </Link>
-          )}
-          {owner && (
-            <Link href="/admin/cestino" prefetch={false}>
-              Cestino
-            </Link>
-          )}
-          {owner && (
-            <Link href="/admin/utenti" prefetch={false}>
-              Utenti
-            </Link>
-          )}
-          <Link href="/account" prefetch={false}>
-            {user.name} <span className="muted">({ROLE_LABELS[user.role]})</span>
-          </Link>
-          <form action={logout}>
-            <button type="submit" className="link">
-              Esci
-            </button>
-          </form>
-        </nav>
+      <header className={HEADER_CLASS}>
+        <Link href={owner ? "/album" : "/dashboard"} prefetch={false} className="text-foreground no-underline">
+          <Brand />
+        </Link>
+        <AppNav owner={owner} userName={user.name} roleLabel={ROLE_LABELS[user.role]} logout={logout} />
       </header>
-      <main>{children}</main>
+      {/* pb-24 sul telefono: spazio per la barra di navigazione in basso. */}
+      <main className="pb-24 md:pb-6">{children}</main>
+      <MobileNav owner={owner} />
     </>
   );
 }
