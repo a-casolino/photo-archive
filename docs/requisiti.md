@@ -33,6 +33,9 @@ con altre persone.
   - **protetta**: solo utenti registrati scelti da Antonio;
   - **libera**: chiunque abbia l'URL, che non è indicizzato (`noindex`) e
     contiene un token casuale lungo.
+- **Riconoscimento facciale**: vedere tutte le foto di una persona. L'app trova
+  i volti e raggruppa quelli simili; Antonio dà un nome ai gruppi e conferma i
+  suggerimenti sulle foto nuove. Dettagli in [architettura](architettura.md#volti).
 - **Gestione utenti**: ogni utente ha un account e una dashboard con tutto ciò
   che è stato condiviso con lui. Gli utenti non si registrano da soli: li invita
   Antonio.
@@ -50,6 +53,7 @@ con altre persone.
 | Stack | Next.js + MySQL 8 sulla VPS xCloud, GCS solo per i file (vedi [architettura](architettura.md)) | 2026-11-06 |
 | Modello dati | [schema.sql](schema.sql), v1 | 2026-11-06 |
 | Griglia degli album | Masonry, foto intere senza ritaglio | 2026-11-08 |
+| Riconoscimento facciale | Calcolo sulla VPS ogni tanto (`npm run volti`, bassa priorità); modello InsightFace buffalo_l (il progetto non è commerciale); nomi e volti visibili solo al proprietario; suggerimenti sempre da confermare | 2026-11-08 |
 | Versioning | `main` stabile + PR, Conventional Commits, SemVer < 1.0, migrazioni numerate | 2026-11-06 |
 
 ## Aperti
@@ -74,3 +78,5 @@ con altre persone.
 - [ ] Tag su album e foto
 - [ ] Riconoscimento facciale (proposta da preparare)
 - [ ] Deploy su xCloud e backup notturno del DB
+- [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 006)
+- [ ] Volti: raggruppamento, "Volti da riconoscere", suggerimenti, pagina persona
