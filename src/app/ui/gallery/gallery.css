@@ -624,6 +624,7 @@ button.danger {
 .photo-trash {
   margin-top: 16px;
   font-size: 0.9rem;
+}
 
 .sr-only {
   position: absolute;
@@ -740,6 +741,7 @@ button.danger {
 }
 .album-cover-info p {
   margin: 0;
+}
 
 /* --- Ricerca con suggerimenti (album, tag, persone) --- */
 
@@ -834,4 +836,57 @@ button.danger {
   background: none;
   color: inherit;
   font-weight: 700;
+}
+
+/* --- Cestino: album --- */
+
+.trash-section {
+  margin-bottom: 24px;
+}
+
+.trash-albums {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.trash-albums li {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.trash-albums img,
+.trash-albums .tile-empty {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.trash-albums p {
+  margin: 4px 0 8px;
+}
+
+.trash-album-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.trash-album-actions .confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.album-trash {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }

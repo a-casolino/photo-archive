@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { setAlbumCover, updateAlbum } from "@/app/actions/shares";
-import { trashPhotosAction } from "@/app/actions/trash";
+import { trashAlbumAction, trashPhotosAction } from "@/app/actions/trash";
 import { ActionForm } from "@/app/ui/action-form";
 import { albumDates } from "@/app/ui/gallery/dates";
 import { Masonry } from "@/app/ui/gallery/masonry";
@@ -16,6 +16,7 @@ import { mergedInto } from "@/lib/albums";
 import { formatCount } from "@/lib/format";
 import { albumCounts, albumPhotos, getAlbum, getAlbumCover, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
+import { albumTrashPreview } from "@/lib/trash";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
 
@@ -45,6 +46,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
     listTags(),
     getAlbumCover(album),
   ]);
+  const trashPreview = await albumTrashPreview(album.id);
   const urls = await signKeys([...photos.map((p) => p.thumb_key), cover?.thumb_key ?? null]);
   const base = `/album/${album.public_id}`;
   const photoQuery = new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) });
@@ -145,6 +147,23 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
           <p>
             <Link href={`/album/unisci?in=${album.public_id}`}>Unisci altri album in questo…</Link>
           </p>
+          <form action={trashAlbumAction} className="album-trash">
+            <input type="hidden" name="albumId" value={album.public_id} />
+            <button type="submit" className="danger">
+              Elimina album
+            </button>
+            <p className="muted">
+              L&apos;album va nel cestino
+              {trashPreview.only > 0
+                ? ` con ${trashPreview.only === 1 ? "la foto che sta" : `le ${formatCount(trashPreview.only)} foto che stanno`} solo qui`
+                : ""}
+              {trashPreview.elsewhere > 0
+                ? `; ${trashPreview.elsewhere === 1 ? "la foto che è" : `le ${formatCount(trashPreview.elsewhere)} foto che sono`} anche in altri album ${trashPreview.elsewhere === 1 ? "resta" : "restano"} lì`
+                : ""}
+              . Puoi ripristinarlo dal Cestino per {env().TRASH_RETENTION_DAYS} giorni, poi viene eliminato per sempre,
+              file compresi.
+            </p>
+          </form>
         </div>
       </details>
 

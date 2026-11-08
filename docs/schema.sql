@@ -418,3 +418,13 @@ CREATE TABLE share_events (
 -- scambiati da una copia vecchia del programma di import. Nessuna modifica
 -- allo schema. L'app ora rifiuta le versioni del programma sotto
 -- MIN_PROGRAM_VERSION (header X-Import-Program).
+
+-- =====================================================================
+-- Migrazione 010_cestino_album.sql (2026-11-08)
+-- =====================================================================
+
+-- photos.trashed_with_album_id (-> albums ON DELETE SET NULL): la foto è
+-- andata nel cestino con "Elimina album" perché non stava in altri album.
+-- "Ripristina album" riporta queste foto; eliminando l'album per sempre si
+-- eliminano anche loro (file compresi). Ripristinare la foto da sola la
+-- azzera.

@@ -167,6 +167,16 @@ pagina `/admin/cestino`, azioni in `src/app/actions/trash.ts`.
   condivisioni di album resta l'evento senza la foto. Se un file non si
   cancella la foto resta nel cestino e si può riprovare. L'account di servizio
   ha già il permesso (Storage Object Admin).
+- **Elimina album** (riquadro "Modifica album"): l'album va nel cestino e,
+  con lui, le foto che non stanno in nessun altro album attivo (più i loro
+  export collegati, se anche loro non stanno altrove): senza album resterebbero
+  irraggiungibili, perché l'app si naviga per album. Le foto presenti anche in
+  altri album restano. Le foto andate con l'album hanno
+  `photos.trashed_with_album_id` (migrazione 010): nel Cestino si vedono sotto
+  l'album, "Ripristina album" riporta esattamente quelle, "Elimina
+  definitivamente" (e `npm run cestino` dopo 30 giorni) elimina le foto, file
+  compresi, poi l'album con le sue condivisioni e gli album uniti in lui.
+  "Svuota cestino" elimina prima gli album, poi le foto rimaste.
 - **Costo**: la classe Archive ha una durata minima di 365 giorni; un CR2
   cancellato prima di un anno dall'upload si paga comunque fino all'anno
   (pochi centesimi al GB).

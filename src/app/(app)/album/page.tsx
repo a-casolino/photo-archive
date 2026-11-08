@@ -54,6 +54,12 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
           </Link>
         )}
       </div>
+      {typeof sp.album_cestino === "string" && /^\d+$/.test(sp.album_cestino) && (
+        <p className="msg msg-ok card" role="status">
+          Album spostato nel <Link href="/admin/cestino">cestino</Link>
+          {Number(sp.album_cestino) > 0 ? ` con ${sp.album_cestino} foto` : ""}: puoi ripristinarlo da lì.
+        </p>
+      )}
       {albums.length === 0 ? (
         <p className="muted">
           {q || origin ? (
