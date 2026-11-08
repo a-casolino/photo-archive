@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { updateAlbum } from "@/app/actions/shares";
+import { setAlbumCover, updateAlbum } from "@/app/actions/shares";
 import { trashPhotosAction } from "@/app/actions/trash";
 import { ActionForm } from "@/app/ui/action-form";
 import { albumDates } from "@/app/ui/gallery/dates";
@@ -138,7 +138,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
                   ? "Copertina scelta da te."
                   : "Copertina automatica: la prima foto dell'album."
                 : "Nessuna copertina: l'album è vuoto."}{" "}
-              Per cambiarla apri una foto dell&apos;album e scegli «Usa come copertina».
+              Per cambiarla apri una foto dell&apos;album, o selezionane una, e scegli «Usa come copertina».
             </p>
           </div>
           {album.origin_ref && <p className="muted origin-ref">Origine: {album.origin_ref}</p>}
@@ -153,7 +153,15 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
       ) : selecting ? (
         <form>
           <input type="hidden" name="back" value={withQuery()} />
-          <SelectBar name="photo">
+          <input type="hidden" name="albumId" value={album.public_id} />
+          <SelectBar
+            name="photo"
+            single={
+              <button type="submit" formAction={setAlbumCover} title="Seleziona una sola foto">
+                Usa come copertina
+              </button>
+            }
+          >
             <button type="submit" className="danger" formAction={trashPhotosAction}>
               Sposta nel cestino
             </button>

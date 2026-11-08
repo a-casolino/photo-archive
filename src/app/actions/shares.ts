@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { execute, queryOne } from "@/lib/db";
 import { sha256 } from "@/lib/crypto";
@@ -156,11 +157,17 @@ export async function removeShareRecipient(formData: FormData): Promise<void> {
   refresh(formData);
 }
 
-/** Copertina dell'album: la foto deve farne parte. */
+/**
+ * Copertina dell'album: la foto deve farne parte. La foto arriva come `photoId` (pagina della foto)
+ * o come unica casella `photo` spuntata nella selezione dell'album; in quel caso si torna all'album.
+ */
 export async function setAlbumCover(formData: FormData): Promise<void> {
   await requireOwner();
   const albumId = publicId.parse(formData.get("albumId"));
-  const photoId = publicId.parse(formData.get("photoId"));
+  const picked = formData.getAll("photo").map(String);
+  const fromSelection = !formData.has("photoId");
+  if (fromSelection && picked.length !== 1) redirect(`/album/${albumId}`);
+  const photoId = publicId.parse(fromSelection ? picked[0] : formData.get("photoId"));
   await execute(
     `UPDATE albums a
        JOIN photos p ON p.public_id = ? AND p.deleted_at IS NULL
@@ -171,6 +178,7 @@ export async function setAlbumCover(formData: FormData): Promise<void> {
   );
   revalidatePath(`/album/${albumId}`);
   revalidatePath("/album");
+  if (fromSelection) redirect(`/album/${albumId}`);
 }
 
 const albumForm = z.object({

@@ -110,7 +110,8 @@ regione europe-west3 (Francoforte).
   riceve una condivisione per ora non vede i tag.
 - **Copertina dell'album** (solo proprietario): "Usa come copertina" nella
   pagina della foto (per l'album da cui arrivi, altrimenti per ogni album che
-  la contiene) salva `albums.cover_photo_id`. La copertina mostrata è quella
+  la contiene) o dalla selezione dell'album con una sola foto spuntata salva
+  `albums.cover_photo_id`. La copertina mostrata è quella
   scelta se la foto è ancora nell'album e non è nel cestino, altrimenti la
   prima foto dell'album (`albumCoverId()` in `src/lib/gallery.ts`): una foto
   cestinata viene sostituita senza toccare il dato e torna se la ripristini.
