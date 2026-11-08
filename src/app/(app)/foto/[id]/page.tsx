@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setAlbumCover } from "@/app/actions/shares";
+import { trashPhotosAction } from "@/app/actions/trash";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
@@ -34,6 +35,11 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
   const q = album ? `?${new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) })}` : "";
   const href = (pid: string | null) => (pid ? `/foto/${pid}${q}` : null);
   const self = `/foto/${photo.public_id}`;
+  // Dopo "Sposta nel cestino" si passa alla foto successiva dell'album (comodo per scremare).
+  const afterTrash =
+    href(neighbors?.next ?? null) ??
+    href(neighbors?.prev ?? null) ??
+    (album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : "/album");
 
   return (
     <PhotoView
@@ -113,6 +119,18 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
         <ShareForm targetType="photo" targetId={photo.public_id} people={people} defaultDays={defaultLinkDays()} />
         <ShareList shares={shares} back={self} defaultDays={defaultLinkDays()} people={people} />
       </details>
+
+      <form action={trashPhotosAction} className="photo-trash">
+        <input type="hidden" name="photo" value={photo.public_id} />
+        <input type="hidden" name="back" value={afterTrash} />
+        <button type="submit" className="link">
+          Sposta nel cestino
+        </button>
+        <span className="muted">
+          {photo.export_public_id ? " insieme all'export di Lightroom collegato" : ""} (si può ripristinare dal{" "}
+          <Link href="/admin/cestino">Cestino</Link>)
+        </span>
+      </form>
     </PhotoView>
   );
 }

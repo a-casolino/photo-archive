@@ -29,6 +29,9 @@ const schema = z.object({
 
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   SHARE_LINK_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  // Giorni nel cestino prima dell'eliminazione definitiva automatica
+  // (`npm run cestino`, lanciato da un cron).
+  TRASH_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
 
   // Archivio dei file (CR2 e anteprime).
   //   local -> cartella sul server, solo per prove e sviluppo

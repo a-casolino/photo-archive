@@ -109,6 +109,38 @@ regione europe-west3 (Francoforte).
   rinomina ed eliminazione. La ricerca degli album cerca anche nei tag. Chi
   riceve una condivisione per ora non vede i tag.
 
+## Cestino ed eliminazione
+
+Codice in `src/lib/trash.ts` (regole testabili in `src/lib/trash-rules.ts`),
+pagina `/admin/cestino`, azioni in `src/app/actions/trash.ts`.
+
+- **Sposta nel cestino**: dalla pagina della foto (poi si passa alla foto
+  successiva dell'album) o in blocco dall'album con "Seleziona"
+  (`?seleziona=1`, caselle sulla griglia). Imposta `photos.deleted_at`: la foto
+  sparisce da album, tag, persone e condivisioni ma resta nel database e nel
+  bucket. Anche i doppioni scartati finiscono qui.
+- **Export collegati**: un CR2 e il suo export (`match_status` `auto` o
+  `confirmed`) vanno nel cestino, tornano e si eliminano insieme; nel cestino si
+  vede solo il CR2.
+- **Ripristina** toglie `deleted_at`: la foto torna nei suoi album, con tag,
+  volti e condivisioni. Copertine: le gestisce la lettura degli album.
+- **Eliminazione definitiva**: "Elimina definitivamente" (selezione),
+  "Svuota cestino" (tutto) o `npm run cestino` (foto nel cestino da più di
+  `TRASH_RETENTION_DAYS` giorni, 30), da lanciare con un cron giornaliero di
+  xCloud. Prima cancella dal bucket originale, anteprima, miniatura e miniature
+  dei volti (8 richieste alla volta); poi, in una transazione, le condivisioni
+  della sola foto e la foto (volti, tag, posti negli album, doppioni: `ON DELETE
+  CASCADE`; copertine e legami export: `SET NULL`). Nel registro delle
+  condivisioni di album resta l'evento senza la foto. Se un file non si
+  cancella la foto resta nel cestino e si può riprovare. L'account di servizio
+  ha già il permesso (Storage Object Admin).
+- **Costo**: la classe Archive ha una durata minima di 365 giorni; un CR2
+  cancellato prima di un anno dall'upload si paga comunque fino all'anno
+  (pochi centesimi al GB).
+- Finché una foto è nel cestino il suo SHA-256 resta nel database, quindi un
+  nuovo import dello stesso file non la ricarica: va ripristinata. Dopo
+  l'eliminazione definitiva un nuovo import la carica di nuovo.
+
 ## Volti
 
 `npm run volti` (`scripts/volti/`) gira **sulla VPS**, ogni tanto, lanciato a mano

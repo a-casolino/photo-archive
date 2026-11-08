@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "./env";
 import { isValidStorageKey, type StorageClass, type UploadTarget } from "./import-shared";
@@ -30,6 +30,8 @@ export interface FileStorage {
   read(key: string): Promise<Buffer>;
   /** Scrive un file piccolo direttamente dal server (es. miniature dei volti). */
   write(key: string, data: Buffer, contentType: string, storageClass: StorageClass): Promise<void>;
+  /** Cancella un file. Un file che non c'è già più non è un errore. */
+  remove(key: string): Promise<void>;
 }
 
 const UPLOAD_TTL_SECONDS = 6 * 3600;
@@ -113,6 +115,13 @@ const localStorage: FileStorage = {
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, data);
   },
+  async remove(key) {
+    try {
+      await unlink(localPath(key));
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+    }
+  },
 };
 
 // ---------------------------------------------------------------------
@@ -176,6 +185,10 @@ const gcsStorage: FileStorage = {
     const target = await this.uploadTarget(key, contentType, storageClass);
     const res = await fetch(target.url, { method: target.method, headers: target.headers, body: new Uint8Array(data) });
     if (!res.ok) throw new Error(`Scrittura di ${key} non riuscita: HTTP ${res.status}.`);
+  },
+  // Serve il permesso storage.objects.delete (incluso in "Storage Object Admin").
+  async remove(key) {
+    await (await bucket()).file(key).delete({ ignoreNotFound: true });
   },
 };
 

@@ -145,7 +145,7 @@ CREATE TABLE photos (
 
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  deleted_at      DATETIME NULL,                   -- cestino: niente cancellazioni immediate
+  deleted_at      DATETIME NULL,                   -- cestino: dopo TRASH_RETENTION_DAYS (30) eliminata per sempre, file compresi
 
   UNIQUE KEY uq_photos_public (public_id),
   UNIQUE KEY uq_photos_sha (sha256),

@@ -21,7 +21,20 @@ export type MasonryItem = {
  * Le foto vanno nella colonna più bassa, così l'ordine (per data) si legge
  * da sinistra a destra. Il numero di colonne segue la larghezza.
  */
-export function Masonry({ items, minColumns = 2 }: { items: MasonryItem[]; minColumns?: number }) {
+export function Masonry({
+  items,
+  minColumns = 2,
+  selectName,
+}: {
+  items: MasonryItem[];
+  minColumns?: number;
+  /**
+   * Modalità selezione: ogni foto ha una casella `name={selectName}` con
+   * valore `key`, da inviare con il form che contiene la griglia, e non è
+   * più un link.
+   */
+  selectName?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [cols, setCols] = useState(3);
 
@@ -45,7 +58,7 @@ export function Masonry({ items, minColumns = 2 }: { items: MasonryItem[]; minCo
             const it = items[i];
             const aspect = it.ratio ? `${1 / it.ratio}` : undefined;
             return (
-              <Link key={it.key} href={it.href} className="tile" prefetch={false}>
+              <Tile key={it.key} href={it.href} selectName={selectName} value={it.key}>
                 {it.src ? (
                   // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei, niente ottimizzazione
                   <img src={it.src} alt={it.alt} loading="lazy" decoding="async" style={{ aspectRatio: aspect }} />
@@ -61,11 +74,37 @@ export function Masonry({ items, minColumns = 2 }: { items: MasonryItem[]; minCo
                     {it.caption.detail && <span>{it.caption.detail}</span>}
                   </span>
                 )}
-              </Link>
+              </Tile>
             );
           })}
         </div>
       ))}
     </div>
+  );
+}
+
+function Tile({
+  href,
+  selectName,
+  value,
+  children,
+}: {
+  href: string;
+  selectName?: string;
+  value: string;
+  children: React.ReactNode;
+}) {
+  if (!selectName) {
+    return (
+      <Link href={href} className="tile" prefetch={false}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <label className="tile tile-pick">
+      <input type="checkbox" name={selectName} value={value} />
+      {children}
+    </label>
   );
 }

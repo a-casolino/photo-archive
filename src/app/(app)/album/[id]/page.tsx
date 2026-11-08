@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { updateAlbum } from "@/app/actions/shares";
+import { trashPhotosAction } from "@/app/actions/trash";
 import { ActionForm } from "@/app/ui/action-form";
 import { albumDates } from "@/app/ui/gallery/dates";
 import { Masonry } from "@/app/ui/gallery/masonry";
+import { SelectBar } from "@/app/ui/gallery/select-bar";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
+import { env } from "@/lib/env";
 import { formatCount } from "@/lib/format";
 import { albumCounts, albumPhotos, getAlbum, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
@@ -22,6 +25,8 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
   if (!album) notFound();
 
   const onlyEdited = sp.solo === "regolazioni";
+  const selecting = sp.seleziona === "1";
+  const trashed = typeof sp.cestino === "string" && /^\d+$/.test(sp.cestino) ? Number(sp.cestino) : 0;
   const page = parsePage(sp.pagina);
   const [counts, photos, shares, people, tags, allTags] = await Promise.all([
     albumCounts(album.id),
@@ -35,6 +40,14 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
   const base = `/album/${album.public_id}`;
   const photoQuery = new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) });
   const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true });
+  const listQuery = new URLSearchParams({
+    ...(onlyEdited ? { solo: "regolazioni" } : {}),
+    ...(page > 1 ? { pagina: String(page) } : {}),
+  });
+  const withQuery = (extra: Record<string, string> = {}) => {
+    const q = new URLSearchParams({ ...Object.fromEntries(listQuery), ...extra }).toString();
+    return q ? `${base}?${q}` : base;
+  };
   const activeShares = shares.filter((s) => !s.revoked_at).length;
 
   return (
@@ -53,8 +66,22 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
           {album.description && <p>{album.description}</p>}
           <TagEditor kind="album" targetId={album.public_id} tags={tags} allTags={allTags} />
         </div>
-        <EditedFilter base={base} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
+        <div className="album-tools">
+          <EditedFilter base={base} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
+          {photos.length > 0 && (
+            <Link href={selecting ? withQuery() : withQuery({ seleziona: "1" })} prefetch={false} className="button">
+              {selecting ? "Fine selezione" : "Seleziona"}
+            </Link>
+          )}
+        </div>
       </div>
+
+      {trashed > 0 && (
+        <p className="msg msg-ok" role="status">
+          {trashed} foto nel <Link href="/admin/cestino">cestino</Link>: puoi ripristinarle per{" "}
+          {env().TRASH_RETENTION_DAYS} giorni.
+        </p>
+      )}
 
       <details className="card owner-tools">
         <summary>
@@ -90,6 +117,16 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
 
       {photos.length === 0 ? (
         <p className="muted">{onlyEdited ? "Nessuna foto con regolazioni." : "L'album è vuoto."}</p>
+      ) : selecting ? (
+        <form>
+          <input type="hidden" name="back" value={withQuery()} />
+          <SelectBar name="photo">
+            <button type="submit" className="danger" formAction={trashPhotosAction}>
+              Sposta nel cestino
+            </button>
+          </SelectBar>
+          <Masonry items={items} selectName="photo" />
+        </form>
       ) : (
         <Masonry items={items} />
       )}
