@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { deviceFromRequest, ImportProblem, runningImport, type ImportDevice } from "@/lib/imports";
-import type { ImportSource } from "@/lib/import-shared";
+import { MIN_PROGRAM_VERSION, PROGRAM_VERSION_HEADER, type ImportSource } from "@/lib/import-shared";
 
 /*
  * Utilità comuni delle route usate dal programma di import.
@@ -20,6 +20,13 @@ export function deviceRoute<T>(schema: z.ZodType<T> | null, handler: Handler<T>)
     try {
       const device = await deviceFromRequest(request);
       if (!device) return jsonError(401, "Chiave del computer mancante, sbagliata o revocata.");
+      const version = Number(request.headers.get(PROGRAM_VERSION_HEADER) ?? 0);
+      if (!(version >= MIN_PROGRAM_VERSION)) {
+        return jsonError(
+          426,
+          "Il programma di import sul computer è vecchio: aggiornalo con «git pull» (e «npm ci») e rilancia lo stesso comando.",
+        );
+      }
       let body = undefined as T;
       if (schema) {
         const raw = await request.json().catch(() => undefined);

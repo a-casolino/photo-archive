@@ -123,6 +123,12 @@ describe("classifyKind", () => {
     expect(classifyKind("google_takeout", "image/jpeg", { make: "Apple", model: "iPhone 15", serial: "" })).toBe("phone");
     expect(classifyKind("google_takeout", "image/jpeg", null)).toBe("phone");
   });
+  it("JPG dal disco: export di Lightroom o foto qualsiasi, non raw", () => {
+    expect(classifyKind("cr2_disk", "image/jpeg", { make: "Canon", model: "Canon EOS 7D", serial: "1380813621" })).toBe(
+      "edit",
+    );
+    expect(classifyKind("cr2_disk", "image/jpeg", null)).toBe("phone");
+  });
 });
 
 describe("formattazione", () => {
