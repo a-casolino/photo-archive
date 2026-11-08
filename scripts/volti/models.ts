@@ -57,15 +57,37 @@ export function zipExtract(zip: Buffer, entry: ZipEntry): Buffer {
   throw new Error(`Compressione ${entry.method} non gestita (${entry.name}).`);
 }
 
+/**
+ * Il server dei file delle release di GitHub a volte risponde 502/503/504:
+ * riprova qualche volta con attese crescenti prima di arrendersi.
+ */
+async function downloadWithRetry(url: string, attempts = 6): Promise<Buffer> {
+  for (let i = 1; ; i++) {
+    console.log(`Scarico ${url} (tentativo ${i} di ${attempts}) …`);
+    try {
+      const res = await fetch(url);
+      if (res.ok) return Buffer.from(await res.arrayBuffer());
+      if (res.status < 500 && res.status !== 429) throw new Error(`Download non riuscito: HTTP ${res.status}.`);
+      if (i >= attempts) throw new Error(`Download non riuscito: HTTP ${res.status}.`);
+      console.log(`  HTTP ${res.status}, riprovo.`);
+    } catch (e) {
+      if (i >= attempts || (e as Error).message.startsWith("Download non riuscito")) {
+        throw new Error(
+          `${(e as Error).message} Scaricalo a mano (curl -L) e usa: npm run volti -- --scarica-modelli --zip percorso/buffalo_l.zip`,
+        );
+      }
+      console.log(`  ${(e as Error).message}, riprovo.`);
+    }
+    await new Promise((r) => setTimeout(r, 5000 * i));
+  }
+}
+
 export async function downloadModels(modelDir: string, zipPath?: string): Promise<void> {
   let zip: Buffer;
   if (zipPath) {
     zip = await readFile(zipPath);
   } else {
-    console.log(`Scarico ${BUFFALO_URL} …`);
-    const res = await fetch(BUFFALO_URL);
-    if (!res.ok) throw new Error(`Download non riuscito: HTTP ${res.status}.`);
-    zip = Buffer.from(await res.arrayBuffer());
+    zip = await downloadWithRetry(BUFFALO_URL);
   }
   console.log(`Zip: ${(zip.length / 1e6).toFixed(0)} MB, sha256 ${createHash("sha256").update(zip).digest("hex")}`);
   const entries = zipEntries(zip);

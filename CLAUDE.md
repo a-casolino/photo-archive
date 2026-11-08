@@ -62,7 +62,7 @@ npm run db:status    # mostra quali migrazioni sono applicate
 npm run owner:create -- --email ... --name "..."   # crea il proprietario, una volta
 npm run import -- "/cartella" [--takeout] [--prova]  # programma di import (sul computer di Antonio)
 npm run volti [-- --max N] [--rifai]   # trova i volti nelle anteprime (sulla VPS, bassa priorità)
-npm run volti -- --scarica-modelli      # scarica i modelli InsightFace in FACES_MODEL_DIR
+npm run volti -- --scarica-modelli [--zip buffalo_l.zip]  # modelli InsightFace in FACES_MODEL_DIR (da GitHub o da uno zip già scaricato)
 npm run volti -- --file foto.jpg        # prova su file locali, senza database
 ```
 
