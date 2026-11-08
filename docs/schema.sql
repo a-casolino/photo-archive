@@ -210,7 +210,7 @@ CREATE TABLE shares (
   photo_id        BIGINT UNSIGNED NULL,
   album_id        BIGINT UNSIGNED NULL,
   mode            ENUM('users','link') NOT NULL,
-  token           CHAR(32) NULL,                   -- solo per 'link'. Dalla 003: CHAR(64), SHA-256 del token
+  token           CHAR(32) NULL,                   -- solo per 'link'. Dalla 005: CHAR(64), SHA-256 del token
                                                    -- (32 caratteri base62, ~190 bit), mai in chiaro
   message         TEXT NULL,                       -- nota per i destinatari
   -- Tetto di download della condivisione. Il permesso effettivo è il
@@ -328,7 +328,27 @@ CREATE TABLE share_events (
 -- cartella dell'album (Takeout).
 
 -- =====================================================================
--- Aggiunte della migrazione 003_condivisioni.sql (2026-11-08)
+-- Aggiunte della migrazione 003_doppioni.sql (2026-11-08)
+-- =====================================================================
+
+-- Coppie di CR2 che sembrano doppioni (stessa fotocamera, stesso istante,
+-- stesso FileNumber Canon o, se manca, stesso nome e millisecondi) ma che
+-- Antonio ha giudicato foto diverse: non vengono più proposte.
+-- duplicate_dismissals(photo_a < photo_b, decided_by, decided_at)
+-- Scartare un doppione lo manda nel cestino (photos.deleted_at); gli
+-- export collegati passano alla foto tenuta.
+
+-- =====================================================================
+-- Aggiunte della migrazione 004_attivita_import.sql (2026-11-08)
+-- =====================================================================
+
+-- imports.activity_json (JSON NULL): ultimo stato mandato dal programma
+-- mentre lavora (file in lavorazione e fase di ognuno, velocità di upload
+-- e di lavorazione in byte/s). Schema in src/lib/import-shared.ts
+-- (activitySchema). Torna NULL quando l'import finisce.
+
+-- =====================================================================
+-- Aggiunte della migrazione 005_condivisioni.sql (2026-11-08)
 -- =====================================================================
 
 -- shares: in più public_id CHAR(22) UNIQUE (negli URL /condivisi/<id>);

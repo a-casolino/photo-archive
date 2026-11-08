@@ -12,11 +12,31 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <header className="topbar">
         <strong>Archivio foto</strong>
         <nav>
-          {owner ? <Link href="/album">Album</Link> : <Link href="/dashboard">Condivisi con me</Link>}
-          {owner && <Link href="/admin/condivisioni">Condivisioni</Link>}
-          {owner && <Link href="/admin/import">Import</Link>}
-          {owner && <Link href="/admin/utenti">Utenti</Link>}
-          <Link href="/account">
+          {owner ? (
+            <Link href="/album" prefetch={false}>
+              Album
+            </Link>
+          ) : (
+            <Link href="/dashboard" prefetch={false}>
+              Condivisi con me
+            </Link>
+          )}
+          {owner && (
+            <Link href="/admin/condivisioni" prefetch={false}>
+              Condivisioni
+            </Link>
+          )}
+          {owner && (
+            <Link href="/admin/import" prefetch={false}>
+              Import
+            </Link>
+          )}
+          {owner && (
+            <Link href="/admin/utenti" prefetch={false}>
+              Utenti
+            </Link>
+          )}
+          <Link href="/account" prefetch={false}>
             {user.name} <span className="muted">({ROLE_LABELS[user.role]})</span>
           </Link>
           <form action={logout}>

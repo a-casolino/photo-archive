@@ -31,7 +31,9 @@ export default async function ImportDetailPage({ params }: PageProps<"/admin/imp
     <>
       {imp.status === "running" && !isStale(imp) && <AutoRefresh seconds={3} />}
       <p>
-        <Link href="/admin/import">← Import</Link>
+        <Link prefetch={false} href="/admin/import">
+          ← Import
+        </Link>
       </p>
       <div className="import-head">
         <h1>{imp.label}</h1>
@@ -47,7 +49,6 @@ export default async function ImportDetailPage({ params }: PageProps<"/admin/imp
         </div>
         {imp.root_path && <p className="current-file">Cartella: {imp.root_path}</p>}
         <ImportProgress imp={imp} />
-        {imp.status === "running" && imp.current_file && <p className="current-file">{imp.current_file}</p>}
       </section>
 
       <section className="card table-wrap">

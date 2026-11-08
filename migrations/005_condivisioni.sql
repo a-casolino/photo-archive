@@ -1,5 +1,5 @@
 -- =====================================================================
--- 003: condivisioni (gallerie e link liberi)
+-- 005: condivisioni (gallerie e link liberi)
 --
 -- 1. Le condivisioni ricevono un public_id casuale da usare negli URL
 --    delle condivisioni protette (/condivisi/<public_id>), come foto e

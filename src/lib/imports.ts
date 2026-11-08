@@ -2,12 +2,14 @@ import "server-only";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { execute, pool, query, queryOne } from "./db";
 import { newToken, randomBase62, sha256 } from "./crypto";
+import { countDuplicatePairs } from "./duplicates";
 import { storage } from "./storage";
 import {
   classifyKind,
   storageKeys,
   type AlbumRef,
   type CommitBody,
+  type ImportActivity,
   type ImportSource,
   type UploadTarget,
 } from "./import-shared";
@@ -72,6 +74,8 @@ export type ImportRow = {
   bytes_done: number;
   bytes_uploaded: number;
   current_file: string | null;
+  /** Ultimo stato mandato dal programma mentre lavora (vedi activitySchema). */
+  activity_json: ImportActivity | null;
   last_seen_at: Date | null;
   log: string | null;
 };
@@ -121,14 +125,29 @@ export async function runningImport(publicId: string): Promise<{ id: number; sou
 
 export async function updateProgress(
   importId: number,
-  p: { filesSeen: number; filesTotal?: number; bytesTotal?: number; bytesDone: number; currentFile?: string | null },
+  p: {
+    filesSeen: number;
+    filesTotal?: number;
+    bytesTotal?: number;
+    bytesDone: number;
+    currentFile?: string | null;
+    activity?: ImportActivity | null;
+  },
 ) {
   await execute(
     `UPDATE imports
         SET files_seen = ?, files_total = COALESCE(?, files_total), bytes_total = COALESCE(?, bytes_total),
-            bytes_done = ?, current_file = ?, last_seen_at = UTC_TIMESTAMP()
+            bytes_done = ?, current_file = ?, activity_json = ?, last_seen_at = UTC_TIMESTAMP()
       WHERE id = ?`,
-    [p.filesSeen, p.filesTotal ?? null, p.bytesTotal ?? null, p.bytesDone, p.currentFile ?? null, importId],
+    [
+      p.filesSeen,
+      p.filesTotal ?? null,
+      p.bytesTotal ?? null,
+      p.bytesDone,
+      p.currentFile ?? null,
+      p.activity ? JSON.stringify(p.activity) : null,
+      importId,
+    ],
   );
 }
 
@@ -147,15 +166,16 @@ export async function finishImport(
   importId: number,
   status: "finished" | "interrupted" | "failed",
   log?: string,
-): Promise<{ matched: number }> {
+): Promise<{ matched: number; duplicates: number }> {
   await execute(
-    `UPDATE imports SET status = ?, finished_at = UTC_TIMESTAMP(), current_file = NULL,
+    `UPDATE imports SET status = ?, finished_at = UTC_TIMESTAMP(), current_file = NULL, activity_json = NULL,
             last_seen_at = UTC_TIMESTAMP(), log = COALESCE(?, log)
       WHERE id = ?`,
     [status, log ?? null, importId],
   );
   const matched = await autoMatch();
-  return { matched };
+  const duplicates = await countDuplicatePairs();
+  return { matched, duplicates };
 }
 
 // ---------------------------------------------------------------------

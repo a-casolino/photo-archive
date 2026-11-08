@@ -22,7 +22,14 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { ExifTool } from "exiftool-vendored";
-import type { CommitBody, ImportSource, UploadTarget } from "../../src/lib/import-shared";
+import {
+  RateMeter,
+  type CommitBody,
+  type ImportActivity,
+  type ImportSource,
+  type ImportStep,
+  type UploadTarget,
+} from "../../src/lib/import-shared";
 import { Api, FatalError } from "./api";
 import { exifJson, photoFields, romeLocalString, type Tags } from "./metadata";
 import { makePreviews } from "./previews";
@@ -173,8 +180,18 @@ async function runImport(
 
   const cache = await HashCache.load();
   const stats = { seen: 0, bytesDone: 0, imported: 0, skipped: 0, failed: 0, noPreview: 0, uploaded: 0 };
-  let current: string | null = null;
   let stopping = false;
+  /** Cosa sta facendo ogni lavoro in parallelo (null = libero). */
+  const slots: ({ file: string; step: ImportStep; size: number; sent?: number } | null)[] = Array(parallel).fill(null);
+  const uploadMeter = new RateMeter(20_000);
+  const doneMeter = new RateMeter(60_000);
+  const current = () => slots.find((x) => x)?.file ?? null;
+  const activity = (): ImportActivity => ({
+    workers: slots.filter((x) => x !== null),
+    uploadBps: Math.round(uploadMeter.rate()),
+    doneBps: Math.round(doneMeter.rate()),
+    parallel,
+  });
   const t0 = Date.now();
 
   process.on("SIGINT", () => {
@@ -193,14 +210,15 @@ async function runImport(
         filesTotal: files.length,
         bytesTotal,
         bytesDone: stats.bytesDone,
-        currentFile: current,
+        currentFile: current(),
+        activity: slots.some((x) => x) ? activity() : null,
       })
       .catch(() => {});
 
   const printLine = () => {
     const pct = bytesTotal ? ((stats.bytesDone / bytesTotal) * 100).toFixed(1) : "0";
     process.stdout.write(
-      `\r${pct}% · ${stats.seen}/${files.length} file · nuovi ${stats.imported} · già presenti ${stats.skipped} · errori ${stats.failed} · caricati ${fmtBytes(stats.uploaded)}   `,
+      `\r${pct}% · ${stats.seen}/${files.length} file · nuovi ${stats.imported} · già presenti ${stats.skipped} · errori ${stats.failed} · caricati ${fmtBytes(stats.uploaded)} · ${fmtBytes(uploadMeter.rate())}/s   `,
     );
   };
   const ticker = setInterval(() => {
@@ -208,13 +226,19 @@ async function runImport(
     void report();
   }, 2000);
 
-  async function processFile(f: FileEntry) {
-    current = f.rel;
+  async function processFile(f: FileEntry, slot: number) {
+    const state: { file: string; step: ImportStep; size: number; sent?: number } = { file: f.rel, step: "hash", size: f.size };
+    slots[slot] = state;
+    const step = (s: ImportStep) => {
+      state.step = s;
+      state.sent = undefined;
+    };
     let sha = cache.get(f.abs, f.size, f.mtimeMs);
     if (!sha) {
       sha = await sha256File(f.abs);
       await cache.set(f.abs, f.size, f.mtimeMs, sha);
     }
+    step("check");
     const check = await api.call<{ existing: string[] }>("POST", `/imports/${id}/check`, {
       items: [{ sha256: sha, album: f.album }],
     });
@@ -223,7 +247,9 @@ async function runImport(
       return;
     }
 
+    step("exif");
     const info = await readInfo(et, f);
+    step("previews");
     let previews = null;
     try {
       previews = await makePreviews(et, f.abs, f.mime, info.fields.orientation);
@@ -236,17 +262,32 @@ async function runImport(
       stats.noPreview++;
     }
 
+    step("upload_previews");
     const targets = await api.call<{ original: UploadTarget; preview: UploadTarget | null; thumb: UploadTarget | null }>(
       "POST",
       `/imports/${id}/prepare`,
       { sha256: sha, filename: f.name, takenAt: info.takenAt, mime: f.mime, withPreview: !!previews },
     );
     if (previews && targets.preview && targets.thumb) {
-      await api.upload(targets.preview, previews.preview);
-      await api.upload(targets.thumb, previews.thumb);
+      const onBytes = (n: number) => uploadMeter.add(n);
+      await api.upload(targets.preview, previews.preview, { onBytes });
+      await api.upload(targets.thumb, previews.thumb, { onBytes });
     }
-    await api.upload(targets.original, { file: f.abs, size: f.size });
+    step("upload_original");
+    state.sent = 0;
+    await api.upload(
+      targets.original,
+      { file: f.abs, size: f.size },
+      {
+        onBytes: (n) => {
+          uploadMeter.add(n);
+          state.sent = (state.sent ?? 0) + n;
+        },
+        onRetry: () => (state.sent = 0),
+      },
+    );
     stats.uploaded += f.size;
+    step("commit");
 
     const body: CommitBody = {
       sha256: sha,
@@ -267,11 +308,11 @@ async function runImport(
   }
 
   let next = 0;
-  async function worker() {
+  async function worker(slot: number) {
     while (!stopping && next < files.length) {
       const f = files[next++];
       try {
-        await processFile(f);
+        await processFile(f, slot);
       } catch (e) {
         if (e instanceof FatalError) {
           stopping = true;
@@ -281,16 +322,17 @@ async function runImport(
         const message = (e as Error).message || String(e);
         await api.call("POST", `/imports/${id}/errors`, { sourcePath: f.rel, message }).catch(() => {});
       } finally {
+        slots[slot] = null;
         stats.seen++;
         stats.bytesDone += f.size;
+        doneMeter.add(f.size);
       }
     }
   }
 
   let fatal: unknown = null;
-  await Promise.all(Array.from({ length: parallel }, () => worker().catch((e) => (fatal = e))));
+  await Promise.all(Array.from({ length: parallel }, (_, i) => worker(i).catch((e) => (fatal = e))));
   clearInterval(ticker);
-  current = null;
   printLine();
   await report();
 
@@ -307,11 +349,14 @@ async function runImport(
   ]
     .filter(Boolean)
     .join("\n");
-  const done = await api.call<{ matched: number }>("POST", `/imports/${id}/finish`, { status, log });
+  const done = await api.call<{ matched: number; duplicates?: number }>("POST", `/imports/${id}/finish`, { status, log });
   if (status === "finished") await rememberImport(server, source, root, null);
 
   console.log(`\n\n${log}`);
   if (done.matched) console.log(`Export collegati in automatico al loro CR2: ${done.matched}`);
+  if (done.duplicates) {
+    console.log(`Probabili doppioni da rivedere nell'archivio: ${done.duplicates} (${new URL("/admin/import/doppioni", server)})`);
+  }
   console.log(
     status === "finished"
       ? "\n✓ Import completato."

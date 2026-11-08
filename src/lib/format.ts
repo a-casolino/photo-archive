@@ -34,13 +34,27 @@ export function formatCount(n: number | null | undefined): string {
 }
 
 /**
- * Tempo stimato alla fine, dalla velocità media in byte da quando è
- * iniziato. null se non si può ancora stimare.
+ * Tempo stimato alla fine: dalla velocità recente se c'è, altrimenti dalla
+ * velocità media da quando è iniziato. null se non si può ancora stimare.
  */
-export function estimateRemainingMs(bytesDone: number, bytesTotal: number | null, elapsedMs: number): number | null {
+export function estimateRemainingMs(
+  bytesDone: number,
+  bytesTotal: number | null,
+  elapsedMs: number,
+  /** Velocità recente in byte/s, se il programma la manda: più fedele della media. */
+  recentBps?: number | null,
+): number | null {
   if (!bytesTotal || bytesDone <= 0 || elapsedMs < 10_000) return null;
-  const rate = bytesDone / elapsedMs;
+  const rate = recentBps && recentBps > 0 ? recentBps / 1000 : bytesDone / elapsedMs;
   return Math.max(0, (bytesTotal - bytesDone) / rate);
+}
+
+/** Velocità: "2,1 MB/s (17 Mbit/s)", i Mbit/s sono l'unità delle offerte internet. */
+export function formatRate(bytesPerSecond: number | null | undefined): string {
+  if (bytesPerSecond === null || bytesPerSecond === undefined || !Number.isFinite(bytesPerSecond)) return "—";
+  const mbit = (bytesPerSecond * 8) / 1_000_000;
+  const digits = mbit >= 10 ? 0 : 1;
+  return `${formatBytes(Math.round(bytesPerSecond))}/s (${mbit.toLocaleString("it-IT", { maximumFractionDigits: digits })} Mbit/s)`;
 }
 
 /**
