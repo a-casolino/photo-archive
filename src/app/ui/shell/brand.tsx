@@ -1,10 +1,12 @@
-/** Nome dell'app con il punto rosso, in testa a ogni pagina. */
+/**
+ * Titolo del sito con il punto rosso, in testa a ogni pagina. Sempre intero
+ * («Antonio Casolino | Photo Archive», come il <title>), anche sul telefono.
+ */
 export function Brand() {
   return (
-    <span className="flex items-center gap-2.5 font-semibold whitespace-nowrap">
-      <span className="size-2.5 rounded-full bg-brand" aria-hidden />
-      Antonio Casolino
-      <span className="hidden font-normal text-muted-foreground sm:inline">| Photo Archive</span>
+    <span className="flex min-w-0 items-center gap-2.5 font-semibold whitespace-nowrap">
+      <span className="size-2.5 shrink-0 rounded-full bg-brand" aria-hidden />
+      <span className="truncate">Antonio Casolino | Photo Archive</span>
     </span>
   );
 }
