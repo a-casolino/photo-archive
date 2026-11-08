@@ -3,6 +3,8 @@ import {
   cameraLabel,
   columnsForWidth,
   displaySize,
+  MERGE_MAX_ALBUMS,
+  mergeSelection,
   downloadName,
   exposureLabel,
   linkExpiry,
@@ -76,5 +78,29 @@ describe("nomi e etichette", () => {
       "1/250 s",
       "ISO 400",
     ]);
+  });
+});
+
+describe("unione di album", () => {
+  it("tiene la destinazione e unisce gli altri", () => {
+    expect(mergeSelection(["a", "b", "c"], "b")).toEqual({ sources: ["a", "c"] });
+  });
+
+  it("ignora i doppioni nella scelta", () => {
+    expect(mergeSelection(["a", "b", "b"], "a")).toEqual({ sources: ["b"] });
+  });
+
+  it("servono almeno due album diversi", () => {
+    expect(mergeSelection(["a"], "a")).toHaveProperty("error");
+    expect(mergeSelection(["a", "a"], "a")).toHaveProperty("error");
+  });
+
+  it("la destinazione deve essere tra gli album scelti", () => {
+    expect(mergeSelection(["a", "b"], "c")).toHaveProperty("error");
+  });
+
+  it("ha un massimo di album alla volta", () => {
+    const many = Array.from({ length: MERGE_MAX_ALBUMS + 1 }, (_, i) => `a${i}`);
+    expect(mergeSelection(many, "a0")).toHaveProperty("error");
   });
 });
