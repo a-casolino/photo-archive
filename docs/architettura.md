@@ -115,6 +115,14 @@ regione europe-west3 (Francoforte).
   prima foto dell'album (`albumCoverId()` in `src/lib/gallery.ts`): una foto
   cestinata viene sostituita senza toccare il dato e torna se la ripristini.
   Nell'album la miniatura della copertina ha il badge "Copertina".
+- **Ricerca con suggerimenti** (solo proprietario, `src/app/ui/search-suggest.tsx`):
+  mentre si scrive nel campo di `/album` compare una tendina con fino a 5
+  album, 5 tag e 5 persone il cui nome contiene il testo (maiuscole e accenti
+  non contano), prima quelli che iniziano con il testo. Frecce e Invio aprono
+  la pagina dell'album, del tag o della persona; Invio senza scelta fa la
+  ricerca di prima. I dati arrivano da `/api/suggerimenti?q=` (`src/lib/suggest.ts`),
+  che risponde 404 a chi non è il proprietario: tag e persone non escono mai
+  verso chi riceve condivisioni.
 - **Unire album** (solo proprietario, `/album/unisci`, `src/lib/albums.ts`):
   si spuntano due o più album e si sceglie quale tenere. Nell'album tenuto
   arrivano le foto (senza doppioni) e i tag degli altri; titolo a scelta,
@@ -254,6 +262,7 @@ src/lib/
   tags.ts              tag su foto e album
   faces/               volti: geometria (SCRFD, ArcFace), motore ONNX, impronte, raggruppamento
   people.ts            persone e volti per le pagine (letture e modifiche)
+  suggest.ts           suggerimenti della ricerca; regole pure in search-rules.ts
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
   (app)/               area riservata: dashboard, account, album, foto, tag,
@@ -261,11 +270,13 @@ src/app/
                        admin/import (elenco, dettaglio, collegamenti)
   (public)/l/[token]   link liberi (senza login)
   api/download/        download con controllo dei permessi
+  api/suggerimenti/    suggerimenti della ricerca (album, tag, persone; solo proprietario)
   api/import/v1/       API usata dal programma di import (chiave del computer)
   api/storage/         file dell'archivio di prova (solo STORAGE_DRIVER=local)
   actions/             Server Actions (auth.ts, users.ts, imports.ts, shares.ts)
   ui/action-form.tsx   form con messaggi di errore/esito
   ui/gallery/          masonry, pagina foto, form e elenco condivisioni
+  ui/search-suggest.tsx  campo di ricerca con suggerimenti
 tests/                 test vitest
 docs/                  requisiti, architettura, schema.sql
 ```

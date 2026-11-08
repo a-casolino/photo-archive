@@ -740,4 +740,98 @@ button.danger {
 }
 .album-cover-info p {
   margin: 0;
+
+/* --- Ricerca con suggerimenti (album, tag, persone) --- */
+
+.search-suggest {
+  position: relative;
+}
+
+.search-suggest-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  width: max(100%, min(360px, calc(100vw - 32px)));
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+  padding: 4px 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.search-suggest-list[hidden] {
+  display: none;
+}
+
+.search-suggest-list > p {
+  margin: 0;
+  padding: 8px 12px;
+}
+
+.search-suggest-group {
+  padding: 8px 12px 2px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.search-suggest-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 12px;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.search-suggest-item.active {
+  background: var(--bg);
+}
+
+.search-suggest-item > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.search-suggest-item img,
+.search-suggest-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.search-suggest-item.person img,
+.search-suggest-item.person .search-suggest-icon {
+  border-radius: 50%;
+}
+
+.search-suggest-icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.search-suggest-title,
+.search-suggest-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-suggest-detail {
+  font-size: 0.8rem;
+}
+
+.search-suggest-title mark {
+  background: none;
+  color: inherit;
+  font-weight: 700;
 }
