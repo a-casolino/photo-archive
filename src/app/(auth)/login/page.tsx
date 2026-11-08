@@ -9,7 +9,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next } = await searchParams;
   return (
     <main className="auth-card">
-      <h1>Archivio foto</h1>
+      <h1>Antonio Casolino | Photo Archive</h1>
       <ActionForm action={login} submitLabel="Accedi">
         <input type="hidden" name="next" value={typeof next === "string" ? next : ""} />
         <label>
