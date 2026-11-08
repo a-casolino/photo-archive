@@ -45,10 +45,13 @@ export async function scan(
 
     // Album di questa cartella
     let album: AlbumRef | null = null;
-    if (opts.albums && relDir) {
-      if (source === "cr2_disk") {
-        album = { origin: "disk_folder", ref: relDir, title: path.basename(dir).slice(0, 255) };
-      } else if (names.includes("metadata.json") && !isNonAlbumFolder(path.basename(dir))) {
+    if (opts.albums && source === "cr2_disk") {
+      // Anche i file direttamente nella cartella scelta vanno in un album, col
+      // nome della cartella (non per la radice di un disco, che non ha nome).
+      const ref = relDir || path.basename(path.resolve(root));
+      if (ref) album = { origin: "disk_folder", ref, title: path.basename(path.resolve(dir)).slice(0, 255) };
+    } else if (opts.albums && relDir) {
+      if (names.includes("metadata.json") && !isNonAlbumFolder(path.basename(dir))) {
         const meta = JSON.parse(await readFile(path.join(dir, "metadata.json"), "utf8").catch(() => "{}"));
         const title = String(meta.title || albumTitle || path.basename(dir)).slice(0, 255);
         // Il nome della cartella, non il percorso: così non dipende da dove è stato estratto il Takeout.
