@@ -409,3 +409,12 @@ CREATE TABLE share_events (
 -- un altro con "Unisci album". L'album di partenza va nel cestino
 -- (deleted_at); l'import e i vecchi URL seguono merged_into_id. Sempre un
 -- solo passaggio (l'app aggiorna chi puntava a un album poi unito a sua volta).
+
+-- =====================================================================
+-- Migrazione 009_dimensioni_cr2.sql (2026-11-08)
+-- =====================================================================
+
+-- Rimette orizzontali le dimensioni dei CR2 verticali salvati ancora
+-- scambiati da una copia vecchia del programma di import. Nessuna modifica
+-- allo schema. L'app ora rifiuta le versioni del programma sotto
+-- MIN_PROGRAM_VERSION (header X-Import-Program).

@@ -2,7 +2,7 @@ import { estimateRemainingMs, formatBytes, formatCount, formatDuration, formatRa
 import { STEP_LABEL, type ImportActivity } from "@/lib/import-shared";
 import { isStale, type ImportRow } from "@/lib/imports";
 
-export const SOURCE_LABEL = { cr2_disk: "Disco CR2", google_takeout: "Google Takeout" } as const;
+export const SOURCE_LABEL = { cr2_disk: "Disco", google_takeout: "Google Takeout" } as const;
 
 const STATUS_LABEL: Record<ImportRow["status"], string> = {
   running: "In corso",

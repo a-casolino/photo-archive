@@ -1,6 +1,6 @@
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
-import type { UploadTarget } from "../../src/lib/import-shared";
+import { PROGRAM_VERSION, PROGRAM_VERSION_HEADER, type UploadTarget } from "../../src/lib/import-shared";
 
 /** Chiamate all'app (API /api/import/v1) e upload dei file. */
 
@@ -43,11 +43,16 @@ export class Api {
     return withRetry(`${method} ${pathname}`, async () => {
       const res = await fetch(new URL(`/api/import/v1${pathname}`, this.server), {
         method,
-        headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${this.key}`,
+          "Content-Type": "application/json",
+          [PROGRAM_VERSION_HEADER]: String(PROGRAM_VERSION),
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.status === 401) throw new FatalError(data.error ?? "Chiave non valida.");
+      if (res.status === 426) throw new FatalError(data.error ?? "Programma da aggiornare.");
       if (!res.ok) throw new HttpError(data.error ?? `HTTP ${res.status}`, res.status, res.status >= 500);
       return data as T;
     });

@@ -29,10 +29,17 @@ un browser non può leggere 1 TB di CR2 né lanciare exiftool. Si autentica con 
 **chiave del computer** creata nella pagina **Import** (`/admin/import`), salvata
 in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
 
-- **Scansione**: CR2 dal disco (ogni cartella diventa un album `disk_folder`),
+- **Scansione**: foto dal disco, CR2 e JPG/HEIC/PNG (ogni cartella, compresa
+  quella scelta, diventa un album `disk_folder`; i CR2 sono `raw`, le altre foto
+  `edit` se l'EXIF è di una fotocamera, per esempio gli export di Lightroom, che
+  vengono collegati al loro CR2, altrimenti `phone`),
   oppure un Google Takeout già estratto (`--takeout`): foto e JSON di
   accompagnamento (data, descrizione, posizione, link), album dalle cartelle con
   `metadata.json`. I video per ora sono ignorati.
+- **Versione del programma**: il programma manda `X-Import-Program`; l'app
+  rifiuta le versioni sotto `MIN_PROGRAM_VERSION` (`src/lib/import-shared.ts`)
+  e chiede di aggiornare con `git pull`. Si alza quando una copia vecchia
+  salverebbe dati sbagliati.
 - **Doppioni**: impronta SHA-256 di ogni file; quelle già calcolate restano in
   `~/.photo-archive/hash.jsonl`, così una ripresa non rilegge tutto il disco.
 - **Anteprime**: dal JPEG incorporato nel CR2 (`PreviewImage`/`JpgFromRaw`),

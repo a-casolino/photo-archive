@@ -8,6 +8,16 @@ import { z } from "zod";
 
 export const API_VERSION = "v1";
 
+/**
+ * Versione del programma di import. Si alza quando il programma cambia in
+ * modo che una copia vecchia salverebbe dati sbagliati: l'app rifiuta le
+ * versioni sotto MIN_PROGRAM_VERSION e chiede di aggiornare (git pull).
+ * 2: dimensioni delle foto come nel file, JPG anche dal disco.
+ */
+export const PROGRAM_VERSION = 2;
+export const MIN_PROGRAM_VERSION = 2;
+export const PROGRAM_VERSION_HEADER = "X-Import-Program";
+
 export type StorageClass = "ARCHIVE" | "COLDLINE" | "NEARLINE" | "STANDARD";
 
 /** Come caricare un file: PUT su `url` (relativo all'app o assoluto) con questi header. */
@@ -86,7 +96,7 @@ const CAMERA_MAKERS = /^(canon|nikon|sony|fujifilm|olympus|om digital|panasonic|
  *    collegare al suo CR2; altrimenti è una foto del telefono.
  */
 export function classifyKind(source: ImportSource, mime: string, camera: CameraInfo | null): "raw" | "phone" | "edit" {
-  if (source === "cr2_disk" || mime === "image/x-canon-cr2") return "raw";
+  if (mime === "image/x-canon-cr2" || mime === "image/x-adobe-dng") return "raw";
   if (camera && (camera.serial !== "" || CAMERA_MAKERS.test(camera.make))) return "edit";
   return "phone";
 }

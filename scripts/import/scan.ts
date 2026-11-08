@@ -76,8 +76,9 @@ export async function scan(
         continue;
       }
       const mime = mimeFor(e.name);
-      const wanted = source === "cr2_disk" ? mime === "image/x-canon-cr2" : mime !== null;
-      if (!wanted) {
+      // Dal disco anche JPG, HEIC, PNG…: i CR2 diventano "raw", le altre foto
+      // "edit" (se l'EXIF è di una fotocamera, es. export di Lightroom) o "phone".
+      if (mime === null) {
         if (!e.name.toLowerCase().endsWith(".json")) result.ignored++;
         continue;
       }
@@ -89,7 +90,7 @@ export async function scan(
         name: e.name,
         size: st.size,
         mtimeMs: st.mtimeMs,
-        mime: mime!,
+        mime,
         album,
         sidecar: sidecar ? path.join(dir, sidecar) : null,
       });
