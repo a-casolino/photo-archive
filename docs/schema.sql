@@ -210,7 +210,8 @@ CREATE TABLE shares (
   photo_id        BIGINT UNSIGNED NULL,
   album_id        BIGINT UNSIGNED NULL,
   mode            ENUM('users','link') NOT NULL,
-  token           CHAR(32) NULL,                   -- solo per 'link': 32 caratteri base62 casuali (~190 bit)
+  token           CHAR(32) NULL,                   -- solo per 'link'. Dalla 005: CHAR(64), SHA-256 del token
+                                                   -- (32 caratteri base62, ~190 bit), mai in chiaro
   message         TEXT NULL,                       -- nota per i destinatari
   -- Tetto di download della condivisione. Il permesso effettivo è il
   -- minimo tra questo e il ruolo dell'utente:
@@ -345,3 +346,12 @@ CREATE TABLE share_events (
 -- mentre lavora (file in lavorazione e fase di ognuno, velocità di upload
 -- e di lavorazione in byte/s). Schema in src/lib/import-shared.ts
 -- (activitySchema). Torna NULL quando l'import finisce.
+
+-- =====================================================================
+-- Aggiunte della migrazione 005_condivisioni.sql (2026-11-08)
+-- =====================================================================
+
+-- shares: in più public_id CHAR(22) UNIQUE (negli URL /condivisi/<id>);
+-- token diventa CHAR(64) e contiene lo SHA-256 del token del link libero
+-- (/l/<token>): il link si vede solo alla creazione, per riaverlo se ne
+-- genera uno nuovo. Indice ix_shares_created per l'elenco.

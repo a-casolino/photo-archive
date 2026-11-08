@@ -4,7 +4,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeWebStream } from "node:stream/web";
 import type { NextRequest } from "next/server";
-import { localPath, storage, verifyLocal } from "@/lib/storage";
+import { attachmentDisposition, localPath, storage, verifyLocal } from "@/lib/storage";
 
 /*
  * Archivio "local" (modalità di prova): lettura e scrittura dei file con
@@ -39,12 +39,16 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/storage/
   try {
     const info = await stat(/* turbopackIgnore: true */ file);
     const ext = file.split(".").pop()?.toLowerCase() ?? "";
+    const headers: Record<string, string> = {
+      "Content-Type": TYPES[ext] ?? "application/octet-stream",
+      "Content-Length": String(info.size),
+      "Cache-Control": "private, max-age=600",
+    };
+    // Nome per il download: non è firmato, ma cambia solo il nome del file.
+    const dl = request.nextUrl.searchParams.get("dl");
+    if (dl) headers["Content-Disposition"] = attachmentDisposition(dl.slice(0, 200));
     return new Response(Readable.toWeb(createReadStream(/* turbopackIgnore: true */ file)) as ReadableStream, {
-      headers: {
-        "Content-Type": TYPES[ext] ?? "application/octet-stream",
-        "Content-Length": String(info.size),
-        "Cache-Control": "private, max-age=600",
-      },
+      headers,
     });
   } catch {
     return new Response("Non trovato", { status: 404 });
