@@ -12,13 +12,13 @@ import { storage } from "./storage";
  */
 
 /** Export collegato più recente della foto `p` (alias `x`, NULL se non c'è). */
-const LINKED_EXPORT = `
+export const LINKED_EXPORT = `
   LEFT JOIN photos x ON x.id = (
     SELECT e.id FROM photos e
      WHERE e.derived_from_id = p.id AND e.match_status IN ('auto', 'confirmed') AND e.deleted_at IS NULL
      ORDER BY e.id DESC LIMIT 1)`;
 
-const CARD_COLUMNS = `
+export const CARD_COLUMNS = `
   p.id, p.public_id, p.kind, p.original_filename, p.title, p.taken_at, p.taken_at_subsec,
   IF(x.id IS NULL, p.width, x.width) AS width,
   IF(x.id IS NULL, p.height, x.height) AS height,
@@ -97,13 +97,21 @@ export const ORIGIN_LABEL: Record<AlbumRow["origin"], string> = {
 // Album
 // ---------------------------------------------------------------------
 
-export async function listAlbums(filter: { q?: string; origin?: AlbumRow["origin"] } = {}): Promise<AlbumListItem[]> {
+export async function listAlbums(
+  filter: { q?: string; origin?: AlbumRow["origin"]; tagId?: number } = {},
+): Promise<AlbumListItem[]> {
   const where = ["a.deleted_at IS NULL"];
   const params: unknown[] = [];
   if (filter.q) {
-    where.push("(a.title LIKE ? OR a.origin_ref LIKE ?)");
+    // Titolo, cartella d'origine o un tag dell'album.
+    where.push(`(a.title LIKE ? OR a.origin_ref LIKE ? OR EXISTS (
+      SELECT 1 FROM album_tags at JOIN tags t ON t.id = at.tag_id WHERE at.album_id = a.id AND t.name LIKE ?))`);
     const like = `%${filter.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-    params.push(like, like);
+    params.push(like, like, like);
+  }
+  if (filter.tagId) {
+    where.push("EXISTS (SELECT 1 FROM album_tags at WHERE at.album_id = a.id AND at.tag_id = ?)");
+    params.push(filter.tagId);
   }
   if (filter.origin) {
     where.push("a.origin = ?");

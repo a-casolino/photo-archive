@@ -75,7 +75,7 @@ con altre persone.
 - [ ] Bucket Google Cloud Storage (da creare con Antonio; fino ad allora archivio in cartella locale)
 - [x] Gallerie e album (griglia masonry senza ritaglio, filtro "solo con regolazioni")
 - [x] Condivisioni (protette e link liberi) e download con signed URL
-- [ ] Tag su album e foto
+- [x] Tag su album e foto (solo proprietario)
 - [ ] Riconoscimento facciale (proposta da preparare)
 - [ ] Deploy su xCloud e backup notturno del DB
 - [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 006)

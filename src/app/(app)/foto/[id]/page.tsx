@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { setAlbumCover } from "@/app/actions/shares";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
+import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { PhotoView } from "@/app/ui/gallery/views";
 import { albumNeighbors, albumsOfPhoto, getAlbum, getPhoto, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
+import { listTags, tagsOf } from "@/lib/tags";
 
 export default async function OwnerPhotoPage({ params, searchParams }: PageProps<"/foto/[id]">) {
   await requireOwner();
@@ -18,11 +20,13 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
   const onlyEdited = sp.solo === "regolazioni";
   const album = typeof sp.album === "string" ? await getAlbum(sp.album) : null;
   const neighbors = album ? await albumNeighbors(album.id, photo.id, onlyEdited) : null;
-  const [urls, albums, shares, people] = await Promise.all([
+  const [urls, albums, shares, people, tags, allTags] = await Promise.all([
     signKeys([photo.preview_key]),
     albumsOfPhoto(photo.id),
     listShares({ photoId: photo.id }),
     shareableUsers(),
+    tagsOf({ kind: "photo", id: photo.id }),
+    listTags(),
   ]);
 
   const q = album ? `?${new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) })}` : "";
@@ -44,6 +48,7 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
       access={{}}
       showPrivate
     >
+      <TagEditor kind="photo" targetId={photo.public_id} tags={tags} allTags={allTags} />
       <section className="photo-links">
         {photo.export_public_id && (
           <p>

@@ -381,3 +381,13 @@ CREATE TABLE share_events (
 -- face_rejections(face_id -> faces, person_id -> people, created_at), PK (face_id, person_id)
 
 -- photos: in più faces_scanned_at (NULL = non ancora analizzata) e faces_model.
+
+-- =====================================================================
+-- Aggiunte della migrazione 007_tag.sql (2026-11-08)
+-- =====================================================================
+
+-- Tag liberi su foto e album (per ora solo per il proprietario).
+-- tags(id, name, slug UNIQUE, created_at): slug minuscolo senza accenti,
+--   negli URL /tag/<slug>; "Montagna" e "montagna" sono lo stesso tag.
+-- photo_tags(photo_id -> photos, tag_id -> tags), album_tags(album_id ->
+--   albums, tag_id -> tags), entrambe ON DELETE CASCADE.
