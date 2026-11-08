@@ -103,6 +103,11 @@ regione europe-west3 (Francoforte).
   `share_events`, contatore in `shares.view_count`; il proprietario non viene
   contato.
 - **Privacy**: posizione GPS e nome/dimensione del file solo al proprietario.
+- **Tag** (solo proprietario): si aggiungono e tolgono dalla pagina
+  dell'album o della foto (più tag separati da virgola, con suggerimenti).
+  `/tag` elenca i tag, `/tag/<slug>` mostra album e foto con quel tag, con
+  rinomina ed eliminazione. La ricerca degli album cerca anche nei tag. Chi
+  riceve una condivisione per ora non vede i tag.
 
 ## Infrastruttura
 
@@ -151,9 +156,10 @@ src/lib/
   gallery.ts           album e foto per le gallerie (versione mostrata, vicine, URL firmati)
   gallery-rules.ts     regole pure: stato condivisioni, proporzioni, masonry (testate)
   shares.ts            condivisioni: accesso, creazione, destinatari, registro
+  tags.ts              tag su foto e album
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
-  (app)/               area riservata: dashboard, account, album, foto,
+  (app)/               area riservata: dashboard, account, album, foto, tag,
                        condivisi/<id>, admin/utenti, admin/condivisioni,
                        admin/import (elenco, dettaglio, collegamenti)
   (public)/l/[token]   link liberi (senza login)

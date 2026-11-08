@@ -36,7 +36,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
       <div className="page-head">
         <h1>Album</h1>
         <form className="album-search" role="search">
-          <input name="q" type="search" placeholder="Cerca un album" defaultValue={q} aria-label="Cerca" />
+          <input name="q" type="search" placeholder="Cerca un album o un tag" defaultValue={q} aria-label="Cerca" />
           <select name="origine" defaultValue={origin ?? ""} aria-label="Origine">
             <option value="">Tutte le origini</option>
             {ORIGINS.map((o) => (

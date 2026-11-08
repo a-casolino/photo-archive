@@ -6,11 +6,13 @@ import { albumDates } from "@/app/ui/gallery/dates";
 import { Masonry } from "@/app/ui/gallery/masonry";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
+import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
 import { formatCount } from "@/lib/format";
 import { albumCounts, albumPhotos, getAlbum, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
+import { listTags, tagsOf } from "@/lib/tags";
 
 export default async function AlbumPage({ params, searchParams }: PageProps<"/album/[id]">) {
   await requireOwner();
@@ -21,11 +23,13 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
 
   const onlyEdited = sp.solo === "regolazioni";
   const page = parsePage(sp.pagina);
-  const [counts, photos, shares, people] = await Promise.all([
+  const [counts, photos, shares, people, tags, allTags] = await Promise.all([
     albumCounts(album.id),
     albumPhotos(album.id, { onlyEdited, offset: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }),
     listShares({ albumId: album.id }),
     shareableUsers(),
+    tagsOf({ kind: "album", id: album.id }),
+    listTags(),
   ]);
   const urls = await signKeys(photos.map((p) => p.thumb_key));
   const base = `/album/${album.public_id}`;
@@ -47,6 +51,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               .join(" · ")}
           </p>
           {album.description && <p>{album.description}</p>}
+          <TagEditor kind="album" targetId={album.public_id} tags={tags} allTags={allTags} />
         </div>
         <EditedFilter base={base} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
       </div>

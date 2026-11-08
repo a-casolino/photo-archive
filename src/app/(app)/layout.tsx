@@ -22,6 +22,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </Link>
           )}
           {owner && (
+            <Link href="/tag" prefetch={false}>
+              Tag
+            </Link>
+          )}
+          {owner && (
             <Link href="/admin/condivisioni" prefetch={false}>
               Condivisioni
             </Link>

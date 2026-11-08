@@ -91,3 +91,34 @@ export function exposureLabel(p: {
   if (p.iso) out.push(`ISO ${p.iso}`);
   return out;
 }
+
+// ---------------------------------------------------------------------
+// Tag
+// ---------------------------------------------------------------------
+
+export const TAG_MAX_LENGTH = 64;
+
+/** Slug di un tag, per l'URL e per non avere doppioni: "Lago di Garda" -> "lago-di-garda". */
+export function tagSlug(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+/** Nomi dei tag scritti in un campo: separati da virgola o punto e virgola, senza doppioni. */
+export function parseTagInput(raw: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(/[,;\n]+/)) {
+    const name = part.trim().replace(/^#/, "").replace(/\s+/g, " ").slice(0, TAG_MAX_LENGTH).trim();
+    const slug = tagSlug(name);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    out.push(name);
+  }
+  return out;
+}

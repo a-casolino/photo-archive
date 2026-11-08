@@ -355,3 +355,13 @@ CREATE TABLE share_events (
 -- token diventa CHAR(64) e contiene lo SHA-256 del token del link libero
 -- (/l/<token>): il link si vede solo alla creazione, per riaverlo se ne
 -- genera uno nuovo. Indice ix_shares_created per l'elenco.
+
+-- =====================================================================
+-- Aggiunte della migrazione 006_tag.sql (2026-11-08)
+-- =====================================================================
+
+-- Tag liberi su foto e album (per ora solo per il proprietario).
+-- tags(id, name, slug UNIQUE, created_at): slug minuscolo senza accenti,
+--   negli URL /tag/<slug>; "Montagna" e "montagna" sono lo stesso tag.
+-- photo_tags(photo_id -> photos, tag_id -> tags), album_tags(album_id ->
+--   albums, tag_id -> tags), entrambe ON DELETE CASCADE.
