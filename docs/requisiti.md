@@ -54,6 +54,7 @@ con altre persone.
 | Modello dati | [schema.sql](schema.sql), v1 | 2026-11-06 |
 | Griglia degli album | Masonry, foto intere senza ritaglio | 2026-11-08 |
 | Riconoscimento facciale | Calcolo sulla VPS ogni tanto (`npm run volti`, bassa priorità); modello InsightFace buffalo_l (il progetto non è commerciale); nomi e volti visibili solo al proprietario; suggerimenti sempre da confermare | 2026-11-08 |
+| Eliminare foto | Dalla foto o in blocco dall'album (selezione multipla) le foto vanno nel **cestino**, ripristinabili; dopo 30 giorni si eliminano da sole (`npm run cestino` da cron), oppure prima con "Elimina definitivamente" / "Svuota cestino". L'eliminazione definitiva cancella i file dal bucket (CR2, anteprime, volti) e i dati collegati. Un CR2 e il suo export collegato si eliminano insieme | 2026-11-08 |
 | Versioning | `main` stabile + PR, Conventional Commits, SemVer < 1.0, migrazioni numerate | 2026-11-06 |
 
 ## Aperti
@@ -82,3 +83,4 @@ con altre persone.
 - [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 006)
 - [x] Volti: raggruppamento, "Da riconoscere", suggerimenti, pagina persona
 - [ ] Volti: riquadri nel visore della foto
+- [x] Cestino ed eliminazione definitiva anche dal bucket (cron `npm run cestino` da configurare su xCloud)
