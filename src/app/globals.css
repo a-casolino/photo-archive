@@ -4,7 +4,7 @@
   --muted: #6b6a66;
   --card: #ffffff;
   --border: #dcdad4;
-  --accent: #2f5d50;
+  --accent: #ff1500;
   --error: #a33a2c;
   --ok: #2f6d3a;
   color-scheme: light dark;
@@ -17,7 +17,7 @@
     --muted: #9c9a94;
     --card: #1f1f1d;
     --border: #34332f;
-    --accent: #7fb8a6;
+    --accent: #ff1500;
     --error: #e58c7f;
     --ok: #8fcf98;
   }
