@@ -325,3 +325,23 @@ CREATE TABLE share_events (
 -- della stessa cartella del disco o dello stesso album di Takeout.
 -- origin_ref = percorso relativo della cartella (disco) o nome della
 -- cartella dell'album (Takeout).
+
+-- =====================================================================
+-- Aggiunte della migrazione 003_doppioni.sql (2026-11-08)
+-- =====================================================================
+
+-- Coppie di CR2 che sembrano doppioni (stessa fotocamera, stesso istante,
+-- stesso FileNumber Canon o, se manca, stesso nome e millisecondi) ma che
+-- Antonio ha giudicato foto diverse: non vengono più proposte.
+-- duplicate_dismissals(photo_a < photo_b, decided_by, decided_at)
+-- Scartare un doppione lo manda nel cestino (photos.deleted_at); gli
+-- export collegati passano alla foto tenuta.
+
+-- =====================================================================
+-- Aggiunte della migrazione 004_attivita_import.sql (2026-11-08)
+-- =====================================================================
+
+-- imports.activity_json (JSON NULL): ultimo stato mandato dal programma
+-- mentre lavora (file in lavorazione e fase di ognuno, velocità di upload
+-- e di lavorazione in byte/s). Schema in src/lib/import-shared.ts
+-- (activitySchema). Torna NULL quando l'import finisce.

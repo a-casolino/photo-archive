@@ -126,7 +126,7 @@ export default async function MatchReviewPage() {
   return (
     <>
       <p>
-        <Link href="/admin/import">← Import</Link>
+        <Link prefetch={false} href="/admin/import">← Import</Link>
       </p>
       <h1>Collegamenti export → CR2</h1>
       <p className="muted">

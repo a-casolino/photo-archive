@@ -177,3 +177,33 @@ a.card {
 a.card:hover {
   border-color: var(--accent);
 }
+
+/* Attività in corso: un elemento per file in lavorazione */
+.activity {
+  margin-top: 12px;
+}
+
+.workers {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.workers li {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.worker-step {
+  font-size: 0.85rem;
+}
+
+.progress.progress-small {
+  height: 4px;
+  margin: 4px 0 0;
+}

@@ -1,4 +1,5 @@
-import { estimateRemainingMs, formatBytes, formatCount, formatDuration } from "@/lib/format";
+import { estimateRemainingMs, formatBytes, formatCount, formatDuration, formatRate } from "@/lib/format";
+import { STEP_LABEL, type ImportActivity } from "@/lib/import-shared";
 import { isStale, type ImportRow } from "@/lib/imports";
 
 export const SOURCE_LABEL = { cr2_disk: "Disco CR2", google_takeout: "Google Takeout" } as const;
@@ -15,14 +16,17 @@ export function StatusBadge({ imp }: { imp: ImportRow }) {
   return <span className={`badge badge-${imp.status}`}>{STATUS_LABEL[imp.status]}</span>;
 }
 
-/** Barra di avanzamento con contatori e tempo stimato. */
+/** Barra di avanzamento con contatori, velocità, tempo stimato e file in lavorazione. */
 export function ImportProgress({ imp }: { imp: ImportRow }) {
   const total = Number(imp.bytes_total ?? 0);
   const done = Number(imp.bytes_done);
   const pct = total > 0 ? Math.min(100, (done / total) * 100) : imp.status === "finished" ? 100 : 0;
   const end = imp.finished_at ?? new Date();
   const elapsed = end.getTime() - imp.started_at.getTime();
-  const remaining = imp.status === "running" ? estimateRemainingMs(done, total, elapsed) : null;
+  const live = imp.status === "running" && !isStale(imp);
+  const activity = live ? imp.activity_json : null;
+  const remaining = live ? estimateRemainingMs(done, total, elapsed, activity?.doneBps) : null;
+  const avgUpload = elapsed > 0 ? (Number(imp.bytes_uploaded) * 1000) / elapsed : null;
 
   return (
     <div>
@@ -52,6 +56,54 @@ export function ImportProgress({ imp }: { imp: ImportRow }) {
         </span>
         {remaining !== null && <span>Fine stimata tra {formatDuration(remaining)}</span>}
       </div>
+      {activity ? (
+        <Activity activity={activity} />
+      ) : (
+        <>
+          {live && imp.current_file && <p className="current-file">{imp.current_file}</p>}
+          {!live && Number(imp.bytes_uploaded) > 0 && (
+            <div className="counters">
+              <span>Velocità media di upload: {formatRate(avgUpload)}</span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Cosa sta facendo il programma adesso: velocità e una riga per ogni file in lavorazione. */
+function Activity({ activity }: { activity: ImportActivity }) {
+  return (
+    <div className="activity">
+      <div className="counters">
+        <span>
+          Upload adesso: <strong>{formatRate(activity.uploadBps)}</strong>
+        </span>
+        <span>Lavorazione: {formatBytes(activity.doneBps)}/s di file</span>
+        <span>
+          File in parallelo: {activity.workers.length} di {activity.parallel}
+        </span>
+      </div>
+      <ul className="workers">
+        {activity.workers.map((w, i) => {
+          const pct = w.sent !== undefined && w.size > 0 ? Math.min(100, (w.sent / w.size) * 100) : null;
+          return (
+            <li key={i}>
+              <span className="current-file">{w.file}</span>
+              <span className="worker-step">
+                {STEP_LABEL[w.step]}
+                {pct !== null ? ` · ${Math.round(pct)}% di ${formatBytes(w.size)}` : ` · ${formatBytes(w.size)}`}
+              </span>
+              {pct !== null && (
+                <div className="progress progress-small" aria-hidden>
+                  <span style={{ width: `${pct}%` }} />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

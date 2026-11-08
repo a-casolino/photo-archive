@@ -10,10 +10,20 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <header className="topbar">
         <strong>Archivio foto</strong>
         <nav>
-          <Link href="/dashboard">Condivisi con me</Link>
-          {user.role === "owner" && <Link href="/admin/import">Import</Link>}
-          {user.role === "owner" && <Link href="/admin/utenti">Utenti</Link>}
-          <Link href="/account">
+          <Link href="/dashboard" prefetch={false}>
+            Condivisi con me
+          </Link>
+          {user.role === "owner" && (
+            <Link href="/admin/import" prefetch={false}>
+              Import
+            </Link>
+          )}
+          {user.role === "owner" && (
+            <Link href="/admin/utenti" prefetch={false}>
+              Utenti
+            </Link>
+          )}
+          <Link href="/account" prefetch={false}>
             {user.name} <span className="muted">({ROLE_LABELS[user.role]})</span>
           </Link>
           <form action={logout}>
