@@ -53,14 +53,32 @@ export class Api {
     });
   }
 
-  /** Carica un file (percorso) o un buffer su un URL firmato. */
-  async upload(target: UploadTarget, data: { file: string; size: number } | Buffer): Promise<void> {
+  /**
+   * Carica un file (percorso) o un buffer su un URL firmato. `onBytes`
+   * riceve i byte man mano che partono (per velocità e avanzamento);
+   * `onRetry` viene chiamato prima di ogni nuovo tentativo.
+   */
+  async upload(
+    target: UploadTarget,
+    data: { file: string; size: number } | Buffer,
+    progress?: { onBytes?: (n: number) => void; onRetry?: () => void },
+  ): Promise<void> {
+    let attempt = 0;
     await withRetry("upload", async () => {
+      if (attempt++ > 0) progress?.onRetry?.();
       const isBuf = Buffer.isBuffer(data);
+      let body: BodyInit;
+      if (isBuf) {
+        body = new Uint8Array(data) as Uint8Array<ArrayBuffer>;
+      } else {
+        const stream = createReadStream(data.file);
+        if (progress?.onBytes) stream.on("data", (chunk) => progress.onBytes!(chunk.length));
+        body = Readable.toWeb(stream) as ReadableStream;
+      }
       const res = await fetch(new URL(target.url, this.server), {
         method: target.method,
         headers: { ...target.headers, "Content-Length": String(isBuf ? data.length : data.size) },
-        body: isBuf ? new Uint8Array(data) : (Readable.toWeb(createReadStream(data.file)) as ReadableStream),
+        body,
         // @ts-expect-error -- richiesto da Node per i body in streaming
         duplex: "half",
       });
@@ -68,6 +86,7 @@ export class Api {
         const text = (await res.text().catch(() => "")).slice(0, 300);
         throw new HttpError(`upload rifiutato (HTTP ${res.status}) ${text}`, res.status, res.status >= 500 || res.status === 429);
       }
+      if (isBuf) progress?.onBytes?.(data.length);
     });
   }
 }

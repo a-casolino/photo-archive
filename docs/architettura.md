@@ -51,6 +51,17 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   candidato → `auto`; più candidati (raffiche) → scelta manuale nella pagina
   `/admin/import/collegamenti`, dove si conferma, si sceglie o si scarta.
   Il calcolo gira a fine import e con il pulsante "Ricalcola".
+- **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
+  più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
+  FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in
+  `/admin/import/doppioni` (`src/lib/duplicates.ts`). "Scarta" mette la foto nel
+  cestino (`deleted_at`) e sposta album, copertine ed export collegati su quella
+  tenuta; "Sono foto diverse" salva la coppia in `duplicate_dismissals`.
+- **Avanzamento**: ogni 2 secondi il programma manda contatori e attività
+  (`activity_json`: file in lavorazione con la fase di ognuno, velocità di upload
+  e di lavorazione su una finestra mobile). Le pagine di import si aggiornano
+  ogni 3 secondi con `router.refresh()`; i link hanno `prefetch={false}` perché
+  ogni refresh rifarebbe il prefetch di tutti i link della pagina.
 - **Archivio di prova**: con `STORAGE_DRIVER=local` i file finiscono in
   `STORAGE_LOCAL_DIR` sul server, con URL firmati serviti da `/api/storage/...`.
   Solo per prove: in produzione serve il bucket (la VPS ha 40 GB).
