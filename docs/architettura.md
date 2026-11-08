@@ -108,6 +108,16 @@ regione europe-west3 (Francoforte).
   `/tag` elenca i tag, `/tag/<slug>` mostra album e foto con quel tag, con
   rinomina ed eliminazione. La ricerca degli album cerca anche nei tag. Chi
   riceve una condivisione per ora non vede i tag.
+- **Unire album** (solo proprietario, `/album/unisci`, `src/lib/albums.ts`):
+  si spuntano due o più album e si sceglie quale tenere. Nell'album tenuto
+  arrivano le foto (senza doppioni) e i tag degli altri; titolo a scelta,
+  descrizione e copertina dell'album tenuto (o del primo degli altri, se
+  mancano), date ricalcolate. Le condivisioni degli album uniti, se attive,
+  si spostano sull'album tenuto (stessi link e destinatari, ma vedono tutte
+  le foto) o si revocano: lo sceglie Antonio ogni volta. Gli album uniti vanno
+  nel cestino con `merged_into_id` (migrazione 009): i vecchi `/album/<id>`
+  portano all'album tenuto e un nuovo import della stessa cartella mette le
+  foto lì. Non c'è un "annulla" nell'interfaccia.
 
 ## Volti
 

@@ -140,3 +140,22 @@ export function swipeDirection(dx: number, dy: number, ms: number, width: number
   if (!longEnough && !fastEnough) return null;
   return dx > 0 ? "prev" : "next";
 }
+
+// ---------------------------------------------------------------------
+// Unione di album
+// ---------------------------------------------------------------------
+
+export const MERGE_MAX_ALBUMS = 50;
+
+/**
+ * Scelta degli album da unire: almeno due, al massimo MERGE_MAX_ALBUMS,
+ * e l'album di destinazione deve essere tra quelli scelti.
+ * Restituisce gli album di partenza (tutti tranne la destinazione).
+ */
+export function mergeSelection(selected: string[], into: string): { sources: string[] } | { error: string } {
+  const unique = [...new Set(selected)];
+  if (unique.length < 2) return { error: "Scegli almeno due album da unire." };
+  if (unique.length > MERGE_MAX_ALBUMS) return { error: `Si possono unire al massimo ${MERGE_MAX_ALBUMS} album alla volta.` };
+  if (!unique.includes(into)) return { error: "Scegli quale album tenere tra quelli selezionati." };
+  return { sources: unique.filter((id) => id !== into) };
+}

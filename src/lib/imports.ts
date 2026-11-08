@@ -343,7 +343,12 @@ async function ensureAlbum(album: AlbumRef, conn: Runner = pool()): Promise<numb
      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
     [randomBase62(22), album.title, album.origin, album.ref],
   );
-  return res.insertId;
+  // Album unito a un altro (migrazione 009): le foto vanno in quello tenuto.
+  const [rows] = await conn.query<RowDataPacket[]>(
+    "SELECT COALESCE(merged_into_id, id) AS id FROM albums WHERE id = ?",
+    [res.insertId],
+  );
+  return Number(rows[0]?.id ?? res.insertId);
 }
 
 async function addToAlbum(albumId: number, photoId: number, conn: Runner = pool()) {

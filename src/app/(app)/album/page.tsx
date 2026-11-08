@@ -47,6 +47,11 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
           </select>
           <button type="submit">Filtra</button>
         </form>
+        {albums.length > 1 && (
+          <Link className="button secondary" href="/album/unisci">
+            Unisci album
+          </Link>
+        )}
       </div>
       {albums.length === 0 ? (
         <p className="muted">
