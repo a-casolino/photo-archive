@@ -119,9 +119,10 @@ export function photoFields(tags: Tags): PhotoFields {
   const orientation = num(tags.Orientation);
   const o = orientation && orientation >= 1 && orientation <= 8 ? orientation : null;
   const size = /^(\d+)x(\d+)$/.exec(String(tags.ImageSize ?? ""));
-  let width = size ? Number(size[1]) : num(tags.ImageWidth);
-  let height = size ? Number(size[2]) : num(tags.ImageHeight);
-  if (o && o >= 5 && width && height) [width, height] = [height, width]; // dimensioni come si vede
+  // Dimensioni come sono nel file (sensore): per le foto ruotate di 90° le
+  // scambia chi le mostra, con displaySize() in src/lib/gallery-rules.ts.
+  const width = size ? Number(size[1]) : num(tags.ImageWidth);
+  const height = size ? Number(size[2]) : num(tags.ImageHeight);
 
   const lat = num(tags.GPSLatitude);
   const lon = num(tags.GPSLongitude);
