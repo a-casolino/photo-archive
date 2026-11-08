@@ -76,7 +76,7 @@ regione europe-west3 (Francoforte).
 
 - **Proprietario**: `/album` (elenco con ricerca e filtro per origine),
   `/album/<id>` (griglia), `/foto/<id>?album=<id>` (foto con frecce ← →, Esc
-  torna all'album), `/admin/condivisioni` (tutte le condivisioni).
+  torna all'album; su telefono swipe a destra/sinistra), `/admin/condivisioni` (tutte le condivisioni).
 - **Griglia masonry senza ritaglio** (`src/app/ui/gallery/masonry.tsx`):
   ogni foto con le sue proporzioni (da `width`/`height`, lati scambiati se
   Orientation 5–8); ogni foto va nella colonna più bassa, così l'ordine per

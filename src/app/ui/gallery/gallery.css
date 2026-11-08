@@ -186,6 +186,18 @@ button.link.danger {
   border-radius: 4px;
 }
 
+/* Lo swipe orizzontale lo gestisce SwipeNav; scroll verticale e zoom restano al browser. */
+.swipe-area {
+  min-width: 0;
+  touch-action: pan-y pinch-zoom;
+  will-change: transform;
+}
+
+.swipe-area img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 div.photo-preview {
   min-height: 300px;
   width: 100%;
