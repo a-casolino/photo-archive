@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <header className={HEADER_CLASS}>
-        <Link href={owner ? "/album" : "/dashboard"} prefetch={false} className="text-foreground no-underline">
+        <Link href={owner ? "/album" : "/dashboard"} prefetch={false} className="min-w-0 text-foreground no-underline">
           <Brand />
         </Link>
         <AppNav owner={owner} userName={user.name} roleLabel={ROLE_LABELS[user.role]} logout={logout} />
