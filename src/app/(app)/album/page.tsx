@@ -5,6 +5,7 @@ import { displaySize } from "@/lib/gallery-rules";
 import { requireOwner } from "@/lib/session";
 import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
 import { albumDates } from "@/app/ui/gallery/dates";
+import { SearchSuggest } from "@/app/ui/search-suggest";
 
 const ORIGINS = Object.keys(ORIGIN_LABEL) as AlbumRow["origin"][];
 
@@ -36,7 +37,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
       <div className="page-head">
         <h1>Album</h1>
         <form className="album-search" role="search">
-          <input name="q" type="search" placeholder="Cerca un album o un tag" defaultValue={q} aria-label="Cerca" />
+          <SearchSuggest name="q" defaultValue={q} placeholder="Cerca album, tag o persone" label="Cerca" />
           <select name="origine" defaultValue={origin ?? ""} aria-label="Origine">
             <option value="">Tutte le origini</option>
             {ORIGINS.map((o) => (
