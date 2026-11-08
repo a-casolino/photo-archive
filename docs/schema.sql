@@ -357,7 +357,7 @@ CREATE TABLE share_events (
 -- genera uno nuovo. Indice ix_shares_created per l'elenco.
 
 -- =====================================================================
--- Aggiunte della migrazione 006_tag.sql (2026-11-08)
+-- Aggiunte della migrazione 007_tag.sql (2026-11-08)
 -- =====================================================================
 
 -- Tag liberi su foto e album (per ora solo per il proprietario).

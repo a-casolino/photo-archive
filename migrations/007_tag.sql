@@ -1,5 +1,5 @@
 -- =====================================================================
--- 006: tag su album e foto (richiesta di Antonio del 2026-11-08)
+-- 007: tag su album e foto (richiesta di Antonio del 2026-11-08)
 --
 -- Etichette libere ("montagna", "famiglia", "Marco"...) per ritrovare
 -- foto e album. Per ora le vede e le gestisce solo il proprietario.
