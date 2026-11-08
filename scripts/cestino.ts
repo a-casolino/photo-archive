@@ -2,7 +2,7 @@
  * Cestino delle foto: eliminazione definitiva automatica.
  * Pensato per un cron sulla VPS (per esempio una volta al giorno).
  *
- *   npm run cestino                 elimina le foto nel cestino da più di
+ *   npm run cestino                 elimina album e foto nel cestino da più di
  *                                   TRASH_RETENTION_DAYS giorni (30)
  *   npm run cestino -- --giorni 60  con un'altra soglia
  *
@@ -13,16 +13,21 @@ import "./load-env";
 import { parseArgs } from "node:util";
 import { pool } from "../src/lib/db";
 import { env } from "../src/lib/env";
-import { purgePhotos } from "../src/lib/trash";
+import { purgeAlbums, purgePhotos } from "../src/lib/trash";
 
 async function main() {
   const { values } = parseArgs({ options: { giorni: { type: "string" } } });
   const days = values.giorni ? Number(values.giorni) : env().TRASH_RETENTION_DAYS;
   if (!Number.isInteger(days) || days < 1) throw new Error("--giorni deve essere un numero intero da 1 in su.");
+  // Prima gli album (con le loro foto), poi le foto rimaste.
+  const albums = await purgeAlbums({ olderThanDays: days });
   const { deleted, failed } = await purgePhotos({ olderThanDays: days });
-  console.log(`[cestino] nel cestino da più di ${days} giorni: ${deleted} eliminate, ${failed} non riuscite.`);
+  console.log(
+    `[cestino] nel cestino da più di ${days} giorni: ${albums.albums} album e ${albums.photos + deleted} foto eliminate, ` +
+      `${albums.failed + failed} foto non riuscite.`,
+  );
   await pool().end();
-  if (failed) process.exitCode = 1;
+  if (failed || albums.failed) process.exitCode = 1;
 }
 
 main().catch((e) => {

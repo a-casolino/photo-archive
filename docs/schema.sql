@@ -409,3 +409,13 @@ CREATE TABLE share_events (
 -- un altro con "Unisci album". L'album di partenza va nel cestino
 -- (deleted_at); l'import e i vecchi URL seguono merged_into_id. Sempre un
 -- solo passaggio (l'app aggiorna chi puntava a un album poi unito a sua volta).
+
+-- =====================================================================
+-- Migrazione 010_cestino_album.sql (2026-11-08)
+-- =====================================================================
+
+-- photos.trashed_with_album_id (-> albums ON DELETE SET NULL): la foto è
+-- andata nel cestino con "Elimina album" perché non stava in altri album.
+-- "Ripristina album" riporta queste foto; eliminando l'album per sempre si
+-- eliminano anche loro (file compresi). Ripristinare la foto da sola la
+-- azzera.

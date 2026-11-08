@@ -1,4 +1,5 @@
 import "server-only";
+import type { RowDataPacket } from "mysql2/promise";
 import { execute, pool, query, queryOne } from "./db";
 import { CARD_COLUMNS, LINKED_EXPORT, type PhotoCard } from "./gallery";
 import { storage } from "./storage";
@@ -51,7 +52,7 @@ export async function trashPhotos(publicIds: string[]): Promise<number> {
 export async function restorePhotos(publicIds: string[]): Promise<number> {
   const ids = await expand(publicIds, true);
   if (!ids.length) return 0;
-  const res = await execute("UPDATE photos SET deleted_at = NULL WHERE id IN (?)", [ids]);
+  const res = await execute("UPDATE photos SET deleted_at = NULL, trashed_with_album_id = NULL WHERE id IN (?)", [ids]);
   return res.affectedRows;
 }
 
@@ -59,7 +60,8 @@ export type TrashItem = PhotoCard & { deleted_at: Date; total_size: number; days
 
 /**
  * Foto nel cestino, dalla più recente. Gli export collegati a un CR2 nel
- * cestino non compaiono da soli: si vedono come "versione mostrata".
+ * cestino non compaiono da soli: si vedono come "versione mostrata". Le foto
+ * andate nel cestino con un album si vedono sotto l'album.
  */
 export async function listTrash(retentionDays: number, limit = 500): Promise<TrashItem[]> {
   // LINKED_EXPORT cerca solo export non cancellati: qui servono quelli nel cestino.
@@ -69,7 +71,7 @@ export async function listTrash(retentionDays: number, limit = 500): Promise<Tra
             GREATEST(0, CEIL(TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), p.deleted_at + INTERVAL ? DAY) / 86400)) AS days_left
        FROM photos p
        ${trashedExport}
-      WHERE p.deleted_at IS NOT NULL
+      WHERE p.deleted_at IS NOT NULL AND p.trashed_with_album_id IS NULL
         AND NOT EXISTS (SELECT 1 FROM photos d
                          WHERE d.id = p.derived_from_id AND p.${LINKED} AND d.deleted_at IS NOT NULL)
       ORDER BY p.deleted_at DESC, p.id DESC
@@ -87,7 +89,7 @@ export async function trashSummary(): Promise<{ photos: number; bytes: number; a
   return { photos: Number(row?.photos ?? 0), bytes: Number(row?.bytes ?? 0), archiveBytes: Number(row?.archive ?? 0) };
 }
 
-export type PurgeTarget = { publicIds: string[] } | { all: true } | { olderThanDays: number };
+export type PurgeTarget = { publicIds: string[] } | { ids: number[] } | { all: true } | { olderThanDays: number };
 
 type PurgeCandidate = PurgeRow & { parent_id: number | null };
 
@@ -110,7 +112,7 @@ async function purgeCandidates(target: PurgeTarget): Promise<PurgeCandidate[]> {
       [target.olderThanDays],
     );
   }
-  const ids = await expand(target.publicIds, true);
+  const ids = "ids" in target ? target.ids : await expand(target.publicIds, true);
   if (!ids.length) return [];
   return query<PurgeCandidate>(`SELECT ${PURGE_COLUMNS} FROM photos WHERE id IN (?) AND deleted_at IS NOT NULL`, [ids]);
 }
@@ -166,4 +168,188 @@ export async function purgePhotos(target: PurgeTarget): Promise<{ deleted: numbe
     return rows.filter((r) => set.has(r.id) && !(r.parent_id && all.has(r.parent_id))).length;
   };
   return { deleted: shown(done), failed: shown(failedIds) };
+}
+
+// ---------------------------------------------------------------------
+// Album nel cestino (migrazione 010)
+// ---------------------------------------------------------------------
+
+/** Non sta in nessun altro album attivo (diverso da quello indicato). */
+const ONLY_IN_THIS_ALBUM = (alias: string) => `NOT EXISTS (
+  SELECT 1 FROM album_photos o JOIN albums oa ON oa.id = o.album_id AND oa.deleted_at IS NULL
+   WHERE o.photo_id = ${alias}.id AND o.album_id <> ?)`;
+
+/**
+ * Foto attive che andrebbero nel cestino con l'album: quelle che non stanno
+ * in nessun altro album, più i loro export collegati se anche loro non
+ * stanno altrove. Le altre restano dove sono.
+ */
+async function albumOnlyPhotoIds(albumId: number): Promise<{ ids: number[]; shown: number; elsewhere: number }> {
+  const only = await query<{ id: number }>(
+    `SELECT p.id FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+      WHERE ap.album_id = ? AND ${ONLY_IN_THIS_ALBUM("p")}`,
+    [albumId, albumId],
+  );
+  const onlyIds = only.map((r) => r.id);
+  const exports = onlyIds.length
+    ? await query<{ id: number }>(
+        `SELECT e.id FROM photos e
+          WHERE e.derived_from_id IN (?) AND e.${LINKED} AND e.deleted_at IS NULL AND ${ONLY_IN_THIS_ALBUM("e")}`,
+        [onlyIds, albumId],
+      )
+    : [];
+  const ids = [...new Set([...onlyIds, ...exports.map((r) => r.id)])];
+  const exportIds = new Set(exports.map((r) => r.id));
+  const total = await queryOne<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+      WHERE ap.album_id = ?`,
+    [albumId],
+  );
+  // Un export che sta nell'album insieme al suo CR2 si conta una volta sola.
+  const shown = onlyIds.filter((id) => !exportIds.has(id)).length;
+  return { ids, shown, elsewhere: Math.max(0, Number(total?.n ?? 0) - onlyIds.length) };
+}
+
+/** Quante foto andrebbero nel cestino con l'album e quante restano in altri album. */
+export async function albumTrashPreview(albumId: number): Promise<{ only: number; elsewhere: number }> {
+  const { shown, elsewhere } = await albumOnlyPhotoIds(albumId);
+  return { only: shown, elsewhere };
+}
+
+/** "Elimina album": l'album e le foto che stanno solo lì vanno nel cestino. */
+export async function trashAlbum(publicId: string): Promise<{ photos: number } | null> {
+  const album = await queryOne<{ id: number }>("SELECT id FROM albums WHERE public_id = ? AND deleted_at IS NULL", [
+    publicId,
+  ]);
+  if (!album) return null;
+  const { ids, shown } = await albumOnlyPhotoIds(album.id);
+  const conn = await pool().getConnection();
+  try {
+    await conn.beginTransaction();
+    if (ids.length) {
+      await conn.query(
+        `UPDATE photos SET deleted_at = UTC_TIMESTAMP(), trashed_with_album_id = ?
+          WHERE id IN (?) AND deleted_at IS NULL`,
+        [album.id, ids],
+      );
+    }
+    await conn.query("UPDATE albums SET deleted_at = UTC_TIMESTAMP() WHERE id = ?", [album.id]);
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+  return { photos: shown };
+}
+
+/** Riporta l'album e le foto andate nel cestino con lui. */
+export async function restoreAlbum(publicId: string): Promise<boolean> {
+  const album = await queryOne<{ id: number }>(
+    "SELECT id FROM albums WHERE public_id = ? AND deleted_at IS NOT NULL AND merged_into_id IS NULL",
+    [publicId],
+  );
+  if (!album) return false;
+  const conn = await pool().getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query("UPDATE photos SET deleted_at = NULL, trashed_with_album_id = NULL WHERE trashed_with_album_id = ?", [
+      album.id,
+    ]);
+    await conn.query("UPDATE albums SET deleted_at = NULL WHERE id = ?", [album.id]);
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+  return true;
+}
+
+export type TrashedAlbum = {
+  id: number;
+  public_id: string;
+  title: string;
+  deleted_at: Date;
+  days_left: number;
+  photos: number;
+  bytes: number;
+  cover_thumb: string | null;
+};
+
+/** Album eliminati (non quelli uniti a un altro, che restano per i vecchi URL). */
+export async function listTrashedAlbums(retentionDays: number): Promise<TrashedAlbum[]> {
+  return query<TrashedAlbum>(
+    `SELECT a.id, a.public_id, a.title, a.deleted_at,
+            GREATEST(0, CEIL(TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), a.deleted_at + INTERVAL ? DAY) / 86400)) AS days_left,
+            (SELECT COUNT(*) FROM photos p WHERE p.trashed_with_album_id = a.id
+                AND NOT (p.${LINKED} AND p.derived_from_id IN
+                         (SELECT q.id FROM photos q WHERE q.trashed_with_album_id = a.id))) AS photos,
+            (SELECT COALESCE(SUM(p.file_size), 0) FROM photos p WHERE p.trashed_with_album_id = a.id) AS bytes,
+            (SELECT p.gcs_thumb_key FROM photos p WHERE p.trashed_with_album_id = a.id
+              ORDER BY p.id = a.cover_photo_id DESC, p.taken_at IS NULL, p.taken_at LIMIT 1) AS cover_thumb
+       FROM albums a
+      WHERE a.deleted_at IS NOT NULL AND a.merged_into_id IS NULL
+      ORDER BY a.deleted_at DESC, a.id DESC`,
+    [retentionDays],
+  );
+}
+
+export type AlbumPurgeTarget = { publicIds: string[] } | { all: true } | { olderThanDays: number };
+
+/**
+ * Elimina definitivamente album nel cestino con le foto andate con loro
+ * (file compresi). Un album con foto non cancellate dall'archivio resta nel
+ * cestino, con quelle foto, per riprovare.
+ */
+export async function purgeAlbums(
+  target: AlbumPurgeTarget,
+): Promise<{ albums: number; photos: number; failed: number }> {
+  const base = "deleted_at IS NOT NULL AND merged_into_id IS NULL";
+  const albums =
+    "all" in target
+      ? await query<{ id: number }>(`SELECT id FROM albums WHERE ${base}`)
+      : "olderThanDays" in target
+        ? await query<{ id: number }>(
+            `SELECT id FROM albums WHERE ${base} AND deleted_at < UTC_TIMESTAMP() - INTERVAL ? DAY`,
+            [target.olderThanDays],
+          )
+        : target.publicIds.length
+          ? await query<{ id: number }>(`SELECT id FROM albums WHERE ${base} AND public_id IN (?)`, [target.publicIds])
+          : [];
+
+  let done = 0;
+  let photos = 0;
+  let failed = 0;
+  for (const { id } of albums) {
+    const rows = await query<{ id: number }>("SELECT id FROM photos WHERE trashed_with_album_id = ?", [id]);
+    const res = rows.length ? await purgePhotos({ ids: rows.map((r) => r.id) }) : { deleted: 0, failed: 0 };
+    photos += res.deleted;
+    failed += res.failed;
+    if (res.failed) continue;
+    const conn = await pool().getConnection();
+    try {
+      await conn.beginTransaction();
+      // Album uniti in questo: non servono più per i vecchi URL.
+      const [merged] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM albums WHERE merged_into_id = ?",
+        [id],
+      );
+      const ids = [id, ...merged.map((r) => Number(r.id))];
+      // Condivisioni dell'album (destinatari e registro vanno con loro).
+      await conn.query("DELETE FROM shares WHERE album_id IN (?)", [ids]);
+      // Posti delle foto e tag dell'album: ON DELETE CASCADE.
+      await conn.query("DELETE FROM albums WHERE id IN (?)", [ids]);
+      await conn.commit();
+      done++;
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+  }
+  return { albums: done, photos, failed };
 }
