@@ -186,6 +186,18 @@ button.link.danger {
   border-radius: 4px;
 }
 
+/* Lo swipe orizzontale lo gestisce SwipeNav; scroll verticale e zoom restano al browser. */
+.swipe-area {
+  min-width: 0;
+  touch-action: pan-y pinch-zoom;
+  will-change: transform;
+}
+
+.swipe-area img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 div.photo-preview {
   min-height: 300px;
   width: 100%;
@@ -612,4 +624,102 @@ button.danger {
 .photo-trash {
   margin-top: 16px;
   font-size: 0.9rem;
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Unione di album --- */
+
+.merge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.merge-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: var(--card);
+}
+
+.merge-list li.chosen {
+  border-color: var(--accent);
+}
+
+.form .merge-list label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+.form .merge-list input,
+.form .merge-summary .choice input {
+  width: auto;
+}
+
+.merge-pick {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.merge-pick img,
+.merge-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--border);
+  flex: none;
+}
+
+.merge-pick > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.merge-pick strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.merge-pick .muted {
+  font-size: 0.85rem;
+}
+
+.form .merge-list .merge-keep {
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.merge-summary {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.merge-summary p {
+  margin: 0;
 }

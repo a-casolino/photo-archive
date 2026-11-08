@@ -77,6 +77,7 @@ con altre persone.
 - [x] Gallerie e album (griglia masonry senza ritaglio, filtro "solo con regolazioni")
 - [x] Condivisioni (protette e link liberi) e download con signed URL
 - [x] Tag su album e foto (solo proprietario)
+- [x] Unire due o più album in uno (solo proprietario)
 - [ ] Riconoscimento facciale (proposta da preparare)
 - [ ] Deploy su xCloud e backup notturno del DB
 - [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 006)

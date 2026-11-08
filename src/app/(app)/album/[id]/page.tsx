@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { updateAlbum } from "@/app/actions/shares";
 import { trashPhotosAction } from "@/app/actions/trash";
 import { ActionForm } from "@/app/ui/action-form";
@@ -11,6 +11,8 @@ import { ShareList } from "@/app/ui/gallery/share-list";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
 import { env } from "@/lib/env";
+
+import { mergedInto } from "@/lib/albums";
 import { formatCount } from "@/lib/format";
 import { albumCounts, albumPhotos, getAlbum, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
@@ -22,7 +24,13 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
   const { id } = await params;
   const sp = await searchParams;
   const album = await getAlbum(id);
-  if (!album) notFound();
+  if (!album) {
+    // Album unito a un altro: il vecchio indirizzo porta a quello tenuto.
+    const into = await mergedInto(id);
+    if (into) redirect(`/album/${into}`);
+    notFound();
+  }
+  const merged = typeof sp.unito === "string" ? Number(sp.unito) : 0;
 
   const onlyEdited = sp.solo === "regolazioni";
   const selecting = sp.seleziona === "1";
@@ -55,6 +63,11 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
       <p>
         <Link href="/album">← Album</Link>
       </p>
+      {merged > 0 && (
+        <p className="msg msg-ok card" role="status">
+          {merged === 1 ? "Un album è confluito" : `${merged} album sono confluiti`} in questo.
+        </p>
+      )}
       <div className="page-head">
         <div>
           <h1>{album.title}</h1>
@@ -112,6 +125,9 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
             </label>
           </ActionForm>
           {album.origin_ref && <p className="muted origin-ref">Origine: {album.origin_ref}</p>}
+          <p>
+            <Link href={`/album/unisci?in=${album.public_id}`}>Unisci altri album in questo…</Link>
+          </p>
         </div>
       </details>
 

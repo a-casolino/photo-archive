@@ -122,3 +122,40 @@ export function parseTagInput(raw: string): string[] {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------
+// Swipe sulla pagina della foto (telefono)
+// ---------------------------------------------------------------------
+
+/**
+ * Direzione di uno swipe orizzontale, o null se il gesto non conta:
+ * troppo corto, troppo lento o più verticale che orizzontale (scroll).
+ * Dito verso destra (dx > 0) = foto precedente, come sfogliare un album.
+ */
+export function swipeDirection(dx: number, dy: number, ms: number, width: number): "prev" | "next" | null {
+  const ax = Math.abs(dx);
+  if (ax < 30 || ax < Math.abs(dy) * 1.5) return null;
+  const longEnough = ax >= Math.max(50, width * 0.18);
+  const fastEnough = ms > 0 && ax / ms >= 0.5; // colpo rapido: px/ms
+  if (!longEnough && !fastEnough) return null;
+  return dx > 0 ? "prev" : "next";
+}
+
+// ---------------------------------------------------------------------
+// Unione di album
+// ---------------------------------------------------------------------
+
+export const MERGE_MAX_ALBUMS = 50;
+
+/**
+ * Scelta degli album da unire: almeno due, al massimo MERGE_MAX_ALBUMS,
+ * e l'album di destinazione deve essere tra quelli scelti.
+ * Restituisce gli album di partenza (tutti tranne la destinazione).
+ */
+export function mergeSelection(selected: string[], into: string): { sources: string[] } | { error: string } {
+  const unique = [...new Set(selected)];
+  if (unique.length < 2) return { error: "Scegli almeno due album da unire." };
+  if (unique.length > MERGE_MAX_ALBUMS) return { error: `Si possono unire al massimo ${MERGE_MAX_ALBUMS} album alla volta.` };
+  if (!unique.includes(into)) return { error: "Scegli quale album tenere tra quelli selezionati." };
+  return { sources: unique.filter((id) => id !== into) };
+}

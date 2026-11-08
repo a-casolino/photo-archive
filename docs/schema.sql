@@ -400,3 +400,12 @@ CREATE TABLE share_events (
 -- per le foto ruotate di 90° (Orientation 5-8): le scambia displaySize()
 -- quando le mostra. La migrazione corregge le foto importate prima, che
 -- avevano le dimensioni già scambiate.
+
+-- =====================================================================
+-- Migrazione 009_album_uniti.sql (2026-11-08)
+-- =====================================================================
+
+-- albums.merged_into_id (-> albums ON DELETE SET NULL): album confluito in
+-- un altro con "Unisci album". L'album di partenza va nel cestino
+-- (deleted_at); l'import e i vecchi URL seguono merged_into_id. Sempre un
+-- solo passaggio (l'app aggiorna chi puntava a un album poi unito a sua volta).
