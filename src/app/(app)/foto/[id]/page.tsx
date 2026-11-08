@@ -9,6 +9,7 @@ import { albumNeighbors, albumsOfPhoto, getAlbum, getPhoto, signKeys } from "@/l
 import { requireOwner } from "@/lib/session";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
+import { peopleInPhoto } from "@/lib/people";
 
 export default async function OwnerPhotoPage({ params, searchParams }: PageProps<"/foto/[id]">) {
   await requireOwner();
@@ -20,13 +21,14 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
   const onlyEdited = sp.solo === "regolazioni";
   const album = typeof sp.album === "string" ? await getAlbum(sp.album) : null;
   const neighbors = album ? await albumNeighbors(album.id, photo.id, onlyEdited) : null;
-  const [urls, albums, shares, people, tags, allTags] = await Promise.all([
+  const [urls, albums, shares, people, tags, allTags, faces] = await Promise.all([
     signKeys([photo.preview_key]),
     albumsOfPhoto(photo.id),
     listShares({ photoId: photo.id }),
     shareableUsers(),
     tagsOf({ kind: "photo", id: photo.id }),
     listTags(),
+    peopleInPhoto(photo.id),
   ]);
 
   const q = album ? `?${new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) })}` : "";
@@ -49,6 +51,19 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
       showPrivate
     >
       <TagEditor kind="photo" targetId={photo.public_id} tags={tags} allTags={allTags} />
+      {faces.length > 0 && (
+        <p className="photo-people">
+          Persone:{" "}
+          {faces.map((f, i) => (
+            <span key={f.public_id}>
+              {i > 0 && ", "}
+              <Link href={`/persone/${f.public_id}`} prefetch={false}>
+                {f.name}
+              </Link>
+            </span>
+          ))}
+        </p>
+      )}
       <section className="photo-links">
         {photo.export_public_id && (
           <p>

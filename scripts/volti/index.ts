@@ -7,12 +7,17 @@
  *   npm run volti -- --pausa 300         pausa (ms) tra una foto e l'altra
  *   npm run volti -- --rifai             rianalizza anche quelle già fatte
  *                                        (i volti ritrovati nello stesso punto tengono il nome)
+ *   npm run volti -- --raggruppa         solo raggruppamento e suggerimenti, senza analizzare
+ *                                        (dopo aver dato molti nomi, per aggiornare i suggerimenti)
  *   npm run volti -- --scarica-modelli   scarica i modelli InsightFace in FACES_MODEL_DIR
  *                    [--zip buffalo_l.zip]  oppure li prende da uno zip già scaricato
  *   npm run volti -- --file a.jpg --file b.jpg
  *                                        prova su file locali, senza database: salva le
  *                                        immagini con i riquadri in ./prova-volti e
  *                                        stampa quanto si somigliano i volti trovati
+ *
+ * Alla fine di ogni analisi raggruppa i volti senza nome (pagina Persone →
+ * Da riconoscere) e propone le persone già nominate (Suggerimenti).
  *
  * Configurazione (.env): FACES_MODEL_DIR, FACES_THREADS, FACES_DET_SIZE,
  * FACES_MIN_SIZE, più database e archivio come il sito.
@@ -31,6 +36,7 @@ import { thumbnailRegion } from "../../src/lib/faces/geometry";
 import { faceThumbKey, landmarkFractions, matchPrevious, toFractions } from "../../src/lib/faces/records";
 import { env } from "../../src/lib/env";
 import { storage } from "../../src/lib/storage";
+import { groupFaces } from "./group";
 import { downloadModels } from "./models";
 
 const FACE_THUMB_SIZE = 160;
@@ -41,6 +47,7 @@ function options() {
       max: { type: "string" },
       pausa: { type: "string" },
       rifai: { type: "boolean", default: false },
+      raggruppa: { type: "boolean", default: false },
       "scarica-modelli": { type: "boolean", default: false },
       zip: { type: "string" },
       file: { type: "string", multiple: true },
@@ -50,6 +57,7 @@ function options() {
     max: values.max ? Number(values.max) : Infinity,
     pause: values.pausa ? Number(values.pausa) : 0,
     redo: values.rifai,
+    groupOnly: values.raggruppa,
     download: values["scarica-modelli"],
     zip: values.zip,
     files: values.file ?? [],
@@ -290,13 +298,24 @@ async function main() {
       minSize: e.FACES_MIN_SIZE,
     });
   }
+  if (opts.groupOnly) {
+    try {
+      await groupFaces();
+    } finally {
+      await pool().end();
+    }
+    return;
+  }
   console.log(
     `Modello ${FACE_MODEL_ID}, ${settings.threads} thread, rilevatore ${settings.detSize} px, volti da ${settings.minSize} px.`,
   );
   const engine = await createFaceEngine(settings);
   try {
     if (opts.files.length) await tryFiles(engine, opts.files);
-    else await scanArchive(engine, opts);
+    else {
+      await scanArchive(engine, opts);
+      await groupFaces();
+    }
   } finally {
     await engine.release();
     if (!opts.files.length) await pool().end();
