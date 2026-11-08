@@ -560,6 +560,71 @@ a.tag-chip {
   opacity: 0.6;
 }
 
+/* --- Selezione di più foto (cestino) --- */
+
+.tile-pick {
+  cursor: pointer;
+}
+
+.tile-pick input {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  z-index: 1;
+  accent-color: var(--danger, #c0392b);
+}
+
+.tile-pick:has(input:checked) {
+  outline: 3px solid var(--danger, #c0392b);
+  outline-offset: -3px;
+}
+
+.tile-pick:has(input:checked) img {
+  opacity: 0.6;
+}
+
+.select-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.select-bar .confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+button.danger {
+  background: var(--danger, #c0392b);
+  border-color: var(--danger, #c0392b);
+  color: #fff;
+}
+
+.album-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-trash {
+  margin-top: 16px;
+  font-size: 0.9rem;
+
 .sr-only {
   position: absolute;
   width: 1px;

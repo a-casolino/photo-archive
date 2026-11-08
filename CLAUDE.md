@@ -65,6 +65,7 @@ npm run volti [-- --max N] [--rifai]   # trova i volti nelle anteprime e li ragg
 npm run volti -- --raggruppa           # solo raggruppamento e suggerimenti, senza analizzare
 npm run volti -- --scarica-modelli [--zip buffalo_l.zip]  # modelli InsightFace in FACES_MODEL_DIR (da GitHub o da uno zip già scaricato)
 npm run volti -- --file foto.jpg        # prova su file locali, senza database
+npm run cestino [-- --giorni N]         # elimina per sempre (anche dal bucket) le foto nel cestino da più di 30 giorni (cron sulla VPS)
 ```
 
 Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm run build`.
@@ -92,7 +93,7 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Fusi orari EXIF (DateTimeOriginal è ora locale della fotocamera).
 - Bucket GCS da creare (chiedere ad Antonio prima: costa). Senza bucket l'archivio
   è una cartella locale (`STORAGE_DRIVER=local`), solo per prove.
-- Da fare: backup DB.
+- Da fare: backup DB; cron giornaliero di `npm run cestino` su xCloud.
 - Volti: fatti calcolo, raggruppamento, pagine Persone / Da riconoscere /
   Suggerimenti / persona. Misurato sulla VPS (8/11): ~1 s per foto, ~1 GB di memoria.
   Da fare: riquadri dei volti nel visore ("Mostra volti"), soglie da tarare su foto vere.
