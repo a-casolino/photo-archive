@@ -1,6 +1,6 @@
 import "server-only";
 import { query } from "./db";
-import { LINKED_EXPORT } from "./gallery";
+import { albumCoverId, LINKED_EXPORT } from "./gallery";
 import { escapeLike, SUGGEST_LIMIT } from "./search-rules";
 
 /*
@@ -42,14 +42,17 @@ export type Suggestions = {
   people: PersonSuggestion[];
 };
 
-/** Condizione e ordine per la colonna `col`; parametri: contiene, ordine (inizio, parola). */
+/**
+ * Condizione e posizione per la colonna `col`: `rank` vale 0 se il nome
+ * inizia con il testo, 1 se una sua parola inizia con il testo, 2 altrimenti.
+ */
 function matching(col: string, q: string) {
   const e = escapeLike(q);
   return {
     where: `${col} LIKE ?`,
-    order: `CASE WHEN ${col} LIKE ? THEN 0 WHEN ${col} LIKE ? THEN 1 ELSE 2 END, ${col}`,
     whereParams: [`%${e}%`],
-    orderParams: [`${e}%`, `% ${e}%`],
+    rank: `CASE WHEN ${col} LIKE ? THEN 0 WHEN ${col} LIKE ? THEN 1 ELSE 2 END`,
+    rankParams: [`${e}%`, `% ${e}%`],
   };
 }
 
@@ -59,17 +62,24 @@ export async function suggest(q: string): Promise<Suggestions> {
   const people = matching("pe.name", q);
   const [a, t, p] = await Promise.all([
     query<AlbumSuggestion>(
-      `SELECT a.public_id, a.title, a.date_from, a.date_to,
-              (SELECT COUNT(*) FROM album_photos ap JOIN photos q ON q.id = ap.photo_id
-                WHERE ap.album_id = a.id AND q.deleted_at IS NULL) AS photo_count,
+      // Prima i 5 album, poi la loro copertina effettiva (come in listAlbums).
+      `SELECT a.public_id, a.title, a.date_from, a.date_to, a.photo_count,
               COALESCE(x.gcs_thumb_key, p.gcs_thumb_key) AS thumb_key
-         FROM albums a
-         LEFT JOIN photos p ON p.id = a.cover_photo_id AND p.deleted_at IS NULL
+         FROM (
+           SELECT a.id, a.public_id, a.title, a.date_from, a.date_to,
+                  (SELECT COUNT(*) FROM album_photos ap JOIN photos q ON q.id = ap.photo_id
+                    WHERE ap.album_id = a.id AND q.deleted_at IS NULL) AS photo_count,
+                  ${albumCoverId("a")} AS shown_cover_id,
+                  ${albums.rank} AS rank_order
+             FROM albums a
+            WHERE a.deleted_at IS NULL AND ${albums.where}
+            ORDER BY rank_order, a.title
+            LIMIT ${SUGGEST_LIMIT}
+         ) a
+         LEFT JOIN photos p ON p.id = a.shown_cover_id
          ${LINKED_EXPORT}
-        WHERE a.deleted_at IS NULL AND ${albums.where}
-        ORDER BY ${albums.order}
-        LIMIT ${SUGGEST_LIMIT}`,
-      [...albums.whereParams, ...albums.orderParams],
+        ORDER BY a.rank_order, a.title`,
+      [...albums.rankParams, ...albums.whereParams],
     ),
     query<TagSuggestion>(
       `SELECT t.slug, t.name,
@@ -79,9 +89,9 @@ export async function suggest(q: string): Promise<Suggestions> {
                 WHERE at.tag_id = t.id) AS album_count
          FROM tags t
         WHERE ${tags.where}
-        ORDER BY ${tags.order}
+        ORDER BY ${tags.rank}, t.name
         LIMIT ${SUGGEST_LIMIT}`,
-      [...tags.whereParams, ...tags.orderParams],
+      [...tags.whereParams, ...tags.rankParams],
     ),
     query<PersonSuggestion>(
       `SELECT pe.public_id, pe.name,
@@ -91,9 +101,9 @@ export async function suggest(q: string): Promise<Suggestions> {
          FROM people pe
          LEFT JOIN faces cf ON cf.id = pe.cover_face_id
         WHERE ${people.where}
-        ORDER BY ${people.order}
+        ORDER BY ${people.rank}, pe.name
         LIMIT ${SUGGEST_LIMIT}`,
-      [...people.whereParams, ...people.orderParams],
+      [...people.whereParams, ...people.rankParams],
     ),
   ]);
   return { albums: a, tags: t, people: p };

@@ -108,6 +108,13 @@ regione europe-west3 (Francoforte).
   `/tag` elenca i tag, `/tag/<slug>` mostra album e foto con quel tag, con
   rinomina ed eliminazione. La ricerca degli album cerca anche nei tag. Chi
   riceve una condivisione per ora non vede i tag.
+- **Copertina dell'album** (solo proprietario): "Usa come copertina" nella
+  pagina della foto (per l'album da cui arrivi, altrimenti per ogni album che
+  la contiene) salva `albums.cover_photo_id`. La copertina mostrata è quella
+  scelta se la foto è ancora nell'album e non è nel cestino, altrimenti la
+  prima foto dell'album (`albumCoverId()` in `src/lib/gallery.ts`): una foto
+  cestinata viene sostituita senza toccare il dato e torna se la ripristini.
+  Nell'album la miniatura della copertina ha il badge "Copertina".
 - **Ricerca con suggerimenti** (solo proprietario, `src/app/ui/search-suggest.tsx`):
   mentre si scrive nel campo di `/album` compare una tendina con fino a 5
   album, 5 tag e 5 persone il cui nome contiene il testo (maiuscole e accenti
