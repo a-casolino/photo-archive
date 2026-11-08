@@ -19,8 +19,11 @@ export interface FileStorage {
   readonly driver: "local" | "gcs";
   /** Dove e come caricare un file (valido qualche ora). */
   uploadTarget(key: string, contentType: string, storageClass: StorageClass): Promise<UploadTarget>;
-  /** URL di lettura temporaneo. */
-  readUrl(key: string, ttlSeconds?: number): Promise<string>;
+  /**
+   * URL di lettura temporaneo. Con `downloadName` il browser scarica il
+   * file con quel nome invece di aprirlo.
+   */
+  readUrl(key: string, ttlSeconds?: number, downloadName?: string): Promise<string>;
   /** Dimensione del file, o null se non esiste. */
   size(key: string): Promise<number | null>;
 }
@@ -64,11 +67,18 @@ export function localPath(key: string): string {
   return full;
 }
 
-function localUrl(method: "GET" | "PUT", key: string, ttl: number): string {
+function localUrl(method: "GET" | "PUT", key: string, ttl: number, downloadName?: string): string {
   const exp = Math.floor(Date.now() / 1000) + ttl;
   const sig = signLocal(method, key, exp);
   // Relativo: il programma di import lo risolve rispetto all'indirizzo del server.
-  return `/api/storage/${key.split("/").map(encodeURIComponent).join("/")}?exp=${exp}&sig=${sig}`;
+  const dl = downloadName ? `&dl=${encodeURIComponent(downloadName)}` : "";
+  return `/api/storage/${key.split("/").map(encodeURIComponent).join("/")}?exp=${exp}&sig=${sig}${dl}`;
+}
+
+/** Header Content-Disposition per scaricare con un nome (anche non ASCII). */
+export function attachmentDisposition(name: string): string {
+  const ascii = name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }
 
 const localStorage: FileStorage = {
@@ -81,8 +91,8 @@ const localStorage: FileStorage = {
       headers: { "Content-Type": contentType, "x-goog-storage-class": storageClass },
     };
   },
-  async readUrl(key, ttl = READ_TTL_SECONDS) {
-    return localUrl("GET", key, ttl);
+  async readUrl(key, ttl = READ_TTL_SECONDS, downloadName) {
+    return localUrl("GET", key, ttl, downloadName);
   },
   async size(key) {
     try {
@@ -124,11 +134,12 @@ const gcsStorage: FileStorage = {
     });
     return { url, method: "PUT", headers: { "Content-Type": contentType, ...headers } };
   },
-  async readUrl(key, ttl = READ_TTL_SECONDS) {
+  async readUrl(key, ttl = READ_TTL_SECONDS, downloadName) {
     const [url] = await (await bucket()).file(key).getSignedUrl({
       version: "v4",
       action: "read",
       expires: Date.now() + ttl * 1000,
+      ...(downloadName ? { responseDisposition: attachmentDisposition(downloadName) } : {}),
     });
     return url;
   },
