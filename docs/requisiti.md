@@ -52,6 +52,7 @@ con altre persone.
 | Permesso effettivo | Il minimo tra quanto concede la condivisione e il ruolo dell'utente | 2026-11-06 |
 | Stack | Next.js + MySQL 8 sulla VPS xCloud, GCS solo per i file (vedi [architettura](architettura.md)) | 2026-11-06 |
 | Modello dati | [schema.sql](schema.sql), v1 | 2026-11-06 |
+| Griglia degli album | Masonry, foto intere senza ritaglio | 2026-11-08 |
 | Riconoscimento facciale | Calcolo sulla VPS ogni tanto (`npm run volti`, bassa priorità); modello InsightFace buffalo_l (il progetto non è commerciale); nomi e volti visibili solo al proprietario; suggerimenti sempre da confermare | 2026-11-08 |
 | Versioning | `main` stabile + PR, Conventional Commits, SemVer < 1.0, migrazioni numerate | 2026-11-06 |
 
@@ -72,8 +73,10 @@ con altre persone.
 - [x] Import dal disco CR2 (programma locale: exiftool, anteprime, upload con URL firmati) e pagina Import
 - [x] Import da Google Takeout e match export → CR2 con pagina di revisione
 - [ ] Bucket Google Cloud Storage (da creare con Antonio; fino ad allora archivio in cartella locale)
-- [ ] Gallerie e album
-- [ ] Condivisioni (protette e link liberi) e download con signed URL
+- [x] Gallerie e album (griglia masonry senza ritaglio, filtro "solo con regolazioni")
+- [x] Condivisioni (protette e link liberi) e download con signed URL
+- [ ] Tag su album e foto
+- [ ] Riconoscimento facciale (proposta da preparare)
 - [ ] Deploy su xCloud e backup notturno del DB
-- [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 004)
+- [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 006)
 - [ ] Volti: raggruppamento, "Volti da riconoscere", suggerimenti, pagina persona

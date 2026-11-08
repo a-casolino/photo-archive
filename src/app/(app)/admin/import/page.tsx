@@ -2,6 +2,7 @@ import Link from "next/link";
 import { markImportInterrupted, revokeDeviceKey } from "@/app/actions/imports";
 import { query, queryOne } from "@/lib/db";
 import { dateTimeFmt, formatBytes, formatCount } from "@/lib/format";
+import { countDuplicatePairs } from "@/lib/duplicates";
 import { CANDIDATE_JOIN, isStale, type ImportRow } from "@/lib/imports";
 import { requireOwner } from "@/lib/session";
 import { storage } from "@/lib/storage";
@@ -25,7 +26,7 @@ const KIND_LABEL = { raw: "CR2", phone: "Foto del telefono", edit: "Export modif
 export default async function ImportPage() {
   await requireOwner();
 
-  const [imports, devices, kinds, review] = await Promise.all([
+  const [imports, devices, kinds, review, duplicates] = await Promise.all([
     query<ImportRow>("SELECT * FROM imports ORDER BY started_at DESC, id DESC LIMIT 100"),
     query<DeviceRow>(
       `SELECT id, name, token_hint, created_at, last_used_at, revoked_at
@@ -41,6 +42,7 @@ export default async function ImportPage() {
                   WHERE e.kind = 'edit' AND e.match_status = 'none' AND e.deleted_at IS NULL
                   GROUP BY e.id HAVING COUNT(*) > 1) x) AS ambiguous`,
     ),
+    countDuplicatePairs(),
   ]);
 
   const running = imports.filter((i) => i.status === "running");
@@ -73,9 +75,13 @@ export default async function ImportPage() {
           <div className="stat-value">{formatBytes(totalBytes)}</div>
           <div className="stat-label">Spazio occupato dagli originali</div>
         </div>
-        <Link className="card" href="/admin/import/collegamenti">
+        <Link prefetch={false} className="card" href="/admin/import/collegamenti">
           <div className="stat-value">{formatCount(toReview)}</div>
           <div className="stat-label">Collegamenti export → CR2 da rivedere</div>
+        </Link>
+        <Link prefetch={false} className="card" href="/admin/import/doppioni">
+          <div className="stat-value">{formatCount(duplicates)}</div>
+          <div className="stat-label">Probabili doppioni da rivedere</div>
         </Link>
       </div>
 
@@ -83,12 +89,13 @@ export default async function ImportPage() {
         <section className="card" key={imp.id}>
           <div className="import-head">
             <h2>
-              <Link href={`/admin/import/${imp.public_id}`}>{imp.label}</Link>
+              <Link prefetch={false} href={`/admin/import/${imp.public_id}`}>
+                {imp.label}
+              </Link>
             </h2>
             <StatusBadge imp={imp} />
           </div>
           <ImportProgress imp={imp} />
-          {imp.current_file && !isStale(imp) && <p className="current-file">{imp.current_file}</p>}
           {isStale(imp) && (
             <form action={markImportInterrupted} className="actions">
               <span className="muted">
@@ -127,7 +134,9 @@ export default async function ImportPage() {
                 <tr key={imp.id}>
                   <td>{dateTimeFmt.format(imp.started_at)}</td>
                   <td>
-                    <Link href={`/admin/import/${imp.public_id}`}>{imp.label}</Link>
+                    <Link prefetch={false} href={`/admin/import/${imp.public_id}`}>
+                      {imp.label}
+                    </Link>
                   </td>
                   <td>{SOURCE_LABEL[imp.source]}</td>
                   <td>

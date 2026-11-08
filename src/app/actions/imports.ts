@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { execute, queryOne } from "@/lib/db";
+import { execute, query, queryOne } from "@/lib/db";
 import { autoMatch, createDevice, STALE_AFTER_MS } from "@/lib/imports";
 import { requireOwner } from "@/lib/session";
 import { firstError } from "@/lib/validation";
@@ -33,7 +33,7 @@ export async function markImportInterrupted(formData: FormData): Promise<void> {
   await requireOwner();
   const publicId = z.string().length(22).parse(formData.get("importId"));
   await execute(
-    `UPDATE imports SET status = 'interrupted', finished_at = UTC_TIMESTAMP(), current_file = NULL
+    `UPDATE imports SET status = 'interrupted', finished_at = UTC_TIMESTAMP(), current_file = NULL, activity_json = NULL
       WHERE public_id = ? AND status = 'running'
         AND COALESCE(last_seen_at, started_at) < UTC_TIMESTAMP() - INTERVAL ? SECOND`,
     [publicId, STALE_AFTER_MS / 1000],
@@ -97,5 +97,60 @@ export async function rerunMatching(): Promise<void> {
   await requireOwner();
   await autoMatch();
   revalidatePath("/admin/import/collegamenti");
+  revalidatePath("/admin/import");
+}
+
+// ---------------------------------------------------------------------
+// Probabili doppioni
+// ---------------------------------------------------------------------
+
+const pairForm = z.object({ a: z.string().length(22), b: z.string().length(22) });
+
+async function rawIds(a: string, b: string) {
+  const rows = await query<{ id: number; public_id: string }>(
+    "SELECT id, public_id FROM photos WHERE public_id IN (?, ?) AND kind = 'raw' AND deleted_at IS NULL",
+    [a, b],
+  );
+  const byPid = new Map(rows.map((r) => [r.public_id, Number(r.id)]));
+  const ia = byPid.get(a);
+  const ib = byPid.get(b);
+  return ia && ib && ia !== ib ? { a: ia, b: ib } : null;
+}
+
+/** "Sono foto diverse": la coppia non viene più proposta. */
+export async function keepBothDuplicates(formData: FormData): Promise<void> {
+  const owner = await requireOwner();
+  const p = pairForm.parse(Object.fromEntries(formData));
+  const ids = await rawIds(p.a, p.b);
+  if (!ids) return;
+  await execute("INSERT IGNORE INTO duplicate_dismissals (photo_a, photo_b, decided_by) VALUES (?, ?, ?)", [
+    Math.min(ids.a, ids.b),
+    Math.max(ids.a, ids.b),
+    owner.id,
+  ]);
+  revalidatePath("/admin/import/doppioni");
+  revalidatePath("/admin/import");
+}
+
+/**
+ * Scarta il doppione: va nel cestino (deleted_at), i suoi album e gli
+ * export collegati passano alla foto tenuta.
+ */
+export async function discardDuplicate(formData: FormData): Promise<void> {
+  await requireOwner();
+  const p = z.object({ discard: z.string().length(22), keep: z.string().length(22) }).parse(Object.fromEntries(formData));
+  const ids = await rawIds(p.discard, p.keep);
+  if (!ids) return;
+  const [discard, keep] = [ids.a, ids.b];
+  await execute(
+    `INSERT IGNORE INTO album_photos (album_id, photo_id, position)
+     SELECT album_id, ?, position FROM album_photos WHERE photo_id = ?`,
+    [keep, discard],
+  );
+  await execute("DELETE FROM album_photos WHERE photo_id = ?", [discard]);
+  await execute("UPDATE albums SET cover_photo_id = ? WHERE cover_photo_id = ?", [keep, discard]);
+  await execute("UPDATE photos SET derived_from_id = ? WHERE derived_from_id = ?", [keep, discard]);
+  await execute("UPDATE photos SET deleted_at = UTC_TIMESTAMP() WHERE id = ?", [discard]);
+  revalidatePath("/admin/import/doppioni");
   revalidatePath("/admin/import");
 }

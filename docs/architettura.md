@@ -51,6 +51,17 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   candidato → `auto`; più candidati (raffiche) → scelta manuale nella pagina
   `/admin/import/collegamenti`, dove si conferma, si sceglie o si scarta.
   Il calcolo gira a fine import e con il pulsante "Ricalcola".
+- **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
+  più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
+  FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in
+  `/admin/import/doppioni` (`src/lib/duplicates.ts`). "Scarta" mette la foto nel
+  cestino (`deleted_at`) e sposta album, copertine ed export collegati su quella
+  tenuta; "Sono foto diverse" salva la coppia in `duplicate_dismissals`.
+- **Avanzamento**: ogni 2 secondi il programma manda contatori e attività
+  (`activity_json`: file in lavorazione con la fase di ognuno, velocità di upload
+  e di lavorazione su una finestra mobile). Le pagine di import si aggiornano
+  ogni 3 secondi con `router.refresh()`; i link hanno `prefetch={false}` perché
+  ogni refresh rifarebbe il prefetch di tutti i link della pagina.
 - **Archivio di prova**: con `STORAGE_DRIVER=local` i file finiscono in
   `STORAGE_LOCAL_DIR` sul server, con URL firmati serviti da `/api/storage/...`.
   Solo per prove: in produzione serve il bucket (la VPS ha 40 GB).
@@ -60,6 +71,38 @@ chiave (`GCS_KEY_FILE`, oppure il contenuto del JSON in `GCS_KEY_JSON`) con ruol
 "Storage Object Admin" sul solo bucket: firma gli URL e scrive i file.
 Bucket deciso con Antonio il 2026-11-07: Google Cloud (non Hetzner né Amazon),
 regione europe-west3 (Francoforte).
+
+## Gallerie e condivisioni
+
+- **Proprietario**: `/album` (elenco con ricerca e filtro per origine),
+  `/album/<id>` (griglia), `/foto/<id>?album=<id>` (foto con frecce ← →, Esc
+  torna all'album), `/admin/condivisioni` (tutte le condivisioni).
+- **Griglia masonry senza ritaglio** (`src/app/ui/gallery/masonry.tsx`):
+  ogni foto con le sue proporzioni (da `width`/`height`, lati scambiati se
+  Orientation 5–8); ogni foto va nella colonna più bassa, così l'ordine per
+  data si legge da sinistra a destra. Colonne secondo la larghezza (2 su
+  telefono, fino a 6). 200 foto per pagina.
+- **Versione mostrata**: se un CR2 ha un export collegato (`match_status`
+  `auto` o `confirmed`) si usano miniatura e anteprima dell'export; filtro
+  "Tutte / Solo con regolazioni". Il download "originale" resta il CR2.
+- **Condivisioni protette**: `/condivisi/<public_id>`, solo per i destinatari
+  (il proprietario le può aprire per vedere cosa vedono gli altri). Email ai
+  destinatari (nel log se manca l'SMTP). La dashboard "Condivisi con me" le
+  elenca con la copertina; "nuovo" finché non le apre.
+- **Link liberi**: `/l/<token>`, senza login, noindex; nel DB solo lo SHA-256
+  del token, quindi il link si vede una volta sola ("Nuovo link" lo
+  sostituisce). Scadenza `SHARE_LINK_TTL_DAYS` (30), "Rinnova" la sposta di
+  nuovo a 30 giorni da oggi. Link scaduti, revocati e sbagliati danno la
+  stessa pagina "Link non disponibile".
+- **Download**: `/api/download?p=<foto>&v=preview|original` (+ `s=` o `t=`)
+  controlla il permesso con `effectiveDownload()` e reindirizza a un URL
+  firmato di 5 minuti che scarica con il nome del file. "preview" = JPEG da
+  2048 px della versione mostrata. Le immagini delle pagine sono URL firmati
+  di 15 minuti.
+- **Registro**: viste (pagina iniziale della condivisione) e download in
+  `share_events`, contatore in `shares.view_count`; il proprietario non viene
+  contato.
+- **Privacy**: posizione GPS e nome/dimensione del file solo al proprietario.
 
 ## Volti
 
@@ -134,15 +177,22 @@ src/lib/
   imports.ts           import lato server: chiavi computer, registrazione foto, album, match
   import-shared.ts     schemi e funzioni condivise con il programma di import
   format.ts            formattazione (byte, durate, date) per l'interfaccia
+  gallery.ts           album e foto per le gallerie (versione mostrata, vicine, URL firmati)
+  gallery-rules.ts     regole pure: stato condivisioni, proporzioni, masonry (testate)
+  shares.ts            condivisioni: accesso, creazione, destinatari, registro
   faces/               volti: geometria (SCRFD, ArcFace), motore ONNX, impronte, righe DB
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
-  (app)/               area riservata: dashboard, account, admin/utenti,
+  (app)/               area riservata: dashboard, account, album, foto,
+                       condivisi/<id>, admin/utenti, admin/condivisioni,
                        admin/import (elenco, dettaglio, collegamenti)
+  (public)/l/[token]   link liberi (senza login)
+  api/download/        download con controllo dei permessi
   api/import/v1/       API usata dal programma di import (chiave del computer)
   api/storage/         file dell'archivio di prova (solo STORAGE_DRIVER=local)
-  actions/             Server Actions (auth.ts, users.ts)
+  actions/             Server Actions (auth.ts, users.ts, imports.ts, shares.ts)
   ui/action-form.tsx   form con messaggi di errore/esito
+  ui/gallery/          masonry, pagina foto, form e elenco condivisioni
 tests/                 test vitest
 docs/                  requisiti, architettura, schema.sql
 ```

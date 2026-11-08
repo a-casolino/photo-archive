@@ -1,5 +1,5 @@
 -- =====================================================================
--- 004: volti e persone
+-- 006: volti e persone
 --
 -- `npm run volti` (sulla VPS) trova i volti nelle anteprime con
 -- InsightFace, ne calcola l'impronta e li registra qui. Antonio dà un

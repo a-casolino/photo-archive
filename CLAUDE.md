@@ -91,6 +91,6 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Fusi orari EXIF (DateTimeOriginal è ora locale della fotocamera).
 - Bucket GCS da creare (chiedere ad Antonio prima: costa). Senza bucket l'archivio
   è una cartella locale (`STORAGE_DRIVER=local`), solo per prove.
-- Da fare: gallerie, condivisioni, backup DB.
+- Da fare: tag su album e foto, backup DB.
 - Volti: fatto il calcolo (`npm run volti`); da fare raggruppamento, pagina
   "Volti da riconoscere", suggerimenti e pagina persona. Carichi sulla VPS da misurare.

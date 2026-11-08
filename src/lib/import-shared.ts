@@ -116,12 +116,82 @@ export const createImportBody = z.object({
   resume: z.string().length(22).optional(),
 });
 
+// ---------------------------------------------------------------------
+// Attività in corso (cosa sta facendo il programma, velocità)
+// ---------------------------------------------------------------------
+
+/** Le fasi di lavorazione di un file, nell'ordine. */
+export const IMPORT_STEPS = ["hash", "check", "exif", "previews", "upload_previews", "upload_original", "commit"] as const;
+export type ImportStep = (typeof IMPORT_STEPS)[number];
+
+export const STEP_LABEL: Record<ImportStep, string> = {
+  hash: "Calcolo impronta",
+  check: "Controllo se è già nell'archivio",
+  exif: "Lettura EXIF",
+  previews: "Creazione anteprime",
+  upload_previews: "Caricamento anteprime",
+  upload_original: "Caricamento originale",
+  commit: "Registrazione",
+};
+
+export const activitySchema = z.object({
+  /** Un elemento per file in lavorazione (uno per ogni lavoro in parallelo). */
+  workers: z
+    .array(
+      z.object({
+        file: z.string().max(1024),
+        step: z.enum(IMPORT_STEPS),
+        size: z.number().int().nonnegative(),
+        /** Byte dell'originale già inviati (solo durante il caricamento). */
+        sent: z.number().int().nonnegative().optional(),
+      }),
+    )
+    .max(16),
+  /** Byte al secondo inviati all'archivio, sugli ultimi secondi. */
+  uploadBps: z.number().nonnegative(),
+  /** Byte al secondo di file lavorati (caricati o già presenti): serve alla stima della fine. */
+  doneBps: z.number().nonnegative(),
+  parallel: z.number().int().positive().max(16),
+});
+export type ImportActivity = z.infer<typeof activitySchema>;
+
+/**
+ * Velocità su una finestra mobile: si aggiungono byte man mano e
+ * `rate()` dà i byte al secondo degli ultimi `windowMs`.
+ */
+export class RateMeter {
+  private samples: { t: number; n: number }[] = [];
+  private readonly start: number;
+
+  constructor(
+    private readonly windowMs = 20_000,
+    private readonly now: () => number = Date.now,
+  ) {
+    this.start = now();
+  }
+
+  add(bytes: number) {
+    if (bytes > 0) this.samples.push({ t: this.now(), n: bytes });
+  }
+
+  rate(): number {
+    const t = this.now();
+    const from = t - this.windowMs;
+    while (this.samples.length && this.samples[0].t < from) this.samples.shift();
+    const total = this.samples.reduce((s, x) => s + x.n, 0);
+    // All'inizio la finestra è più corta: si divide per il tempo trascorso davvero.
+    const span = Math.max(1000, Math.min(this.windowMs, t - this.start));
+    return (total * 1000) / span;
+  }
+}
+
 export const progressBody = z.object({
   filesSeen: z.number().int().nonnegative(),
   filesTotal: z.number().int().nonnegative().optional(),
   bytesTotal: z.number().int().nonnegative().optional(),
   bytesDone: z.number().int().nonnegative(),
   currentFile: z.string().max(1024).nullable().optional(),
+  activity: activitySchema.nullable().optional(),
 });
 
 export const checkBody = z.object({
