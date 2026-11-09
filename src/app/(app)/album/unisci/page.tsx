@@ -20,7 +20,7 @@ export default async function MergeAlbumsPage({ searchParams }: PageProps<"/albu
     publicId: a.public_id,
     // I sotto-album con il percorso, per riconoscerli.
     title: a.parent_id ? `${parentsLabel(a.id, byId)}${PATH_SEP}${a.title}` : a.title,
-    detail: albumDetail(a),
+    detail: albumDetail(a, { withSize: true }),
     thumb: a.cover_thumb ? (urls.get(a.cover_thumb) ?? null) : null,
     users: shares.get(a.id)?.users ?? 0,
     links: shares.get(a.id)?.links ?? 0,

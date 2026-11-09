@@ -98,6 +98,8 @@ export type AlbumListItem = AlbumRow & {
   /** Foto dell'album e dei suoi sotto-album, senza doppioni. */
   photo_count: number;
   child_count: number;
+  /** Peso dei file originali dell'album e dei sotto-album, in byte, senza doppioni. */
+  total_bytes: number;
   cover_thumb: string | null;
   cover_width: number | null;
   cover_height: number | null;
@@ -200,7 +202,7 @@ export async function listAlbums(
   return query<AlbumListItem>(
     `${treeCte(cond)}
      SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.parent_id, a.date_from, a.date_to,
-            a.cover_photo_id, a.photo_count, a.child_count,
+            a.cover_photo_id, a.photo_count, a.child_count, a.total_bytes,
             COALESCE(x.gcs_thumb_key, p.gcs_thumb_key) AS cover_thumb,
             IF(x.id IS NULL, p.width, x.width) AS cover_width,
             IF(x.id IS NULL, p.height, x.height) AS cover_height,
@@ -213,6 +215,10 @@ export async function listAlbums(
                    JOIN album_photos ap ON ap.album_id = t.id
                    JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
                   WHERE t.root_id = a.id) AS photo_count,
+                (SELECT COALESCE(SUM(q.file_size), 0) FROM photos q
+                  WHERE q.deleted_at IS NULL AND q.id IN (
+                    SELECT ap.photo_id FROM tree t JOIN album_photos ap ON ap.album_id = t.id WHERE t.root_id = a.id)
+                ) AS total_bytes,
                 (SELECT COUNT(*) FROM albums c WHERE c.parent_id = a.id AND c.deleted_at IS NULL) AS child_count,
                 COALESCE(${albumCoverId("a")}, ${branchCoverId("a")}) AS shown_cover_id
            FROM albums a

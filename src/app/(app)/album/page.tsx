@@ -31,8 +31,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
     src: a.cover_thumb ? (urls.get(a.cover_thumb) ?? null) : null,
     title: a.title,
     path: a.parent_id ? parentsLabel(a.id, byId) : undefined,
-    detail: albumDetail(a),
-    origin: ORIGIN_LABEL[a.origin],
+    detail: albumDetail(a, { withSize: true }),
   }));
 
   return (

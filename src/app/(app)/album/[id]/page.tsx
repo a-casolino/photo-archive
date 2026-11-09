@@ -131,8 +131,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
     href: `/album/${c.public_id}`,
     src: c.cover_thumb ? (urls.get(c.cover_thumb) ?? null) : null,
     title: c.title,
-    detail: albumDetail(c),
-    origin: ORIGIN_LABEL[c.origin],
+    detail: albumDetail(c, { withSize: true }),
   }));
   const parentHref = ancestors.length ? `/album/${ancestors[ancestors.length - 1].public_id}` : "/album";
   const base = `/album/${album.public_id}`;
