@@ -56,8 +56,8 @@ function initials(name: string) {
 }
 
 /**
- * Navigazione in testa alla pagina: voci con icona (dal tablet in su) e menu
- * dell'utente con Account ed Esci.
+ * Navigazione in testa alla pagina, allineata a destra: voci con icona (dal
+ * tablet in su) e, subito accanto, il menu dell'utente con Account ed Esci.
  */
 export function AppNav({
   owner,
@@ -74,7 +74,8 @@ export function AppNav({
   const items = owner ? OWNER_ITEMS : VIEWER_ITEMS;
 
   return (
-    <>
+    // ml-auto: voci e avatar stanno a destra, il titolo resta solo a sinistra.
+    <div className="ml-auto flex shrink-0 items-center gap-3">
       <nav aria-label="Sezioni" className="hidden items-center gap-0.5 md:flex">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
@@ -95,8 +96,6 @@ export function AppNav({
           );
         })}
       </nav>
-
-      <div className="flex-1" />
 
       <form id={LOGOUT_FORM} action={logout} hidden />
       <DropdownMenu>
@@ -126,7 +125,7 @@ export function AppNav({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </>
+    </div>
   );
 }
 
