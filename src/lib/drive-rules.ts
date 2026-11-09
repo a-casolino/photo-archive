@@ -4,6 +4,9 @@
  * file sicuri, suddivisione in lotti.
  */
 
+/** Nome della chiave di import usata da `npm run drive`: così la pagina Import sa che un import viene da Drive. */
+export const DRIVE_DEVICE_NAME = "VPS · Google Drive";
+
 export type DriveFileLite = { id: string; name: string; size: number; modifiedTime?: string };
 
 export type TakeoutExport = {

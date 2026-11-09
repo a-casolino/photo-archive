@@ -29,13 +29,12 @@ import { pipeline } from "node:stream/promises";
 import type yauzl from "yauzl";
 import { newToken, sha256 } from "../../src/lib/crypto";
 import { execute, pool, queryOne } from "../../src/lib/db";
-import { makeBatches, safeSegment, uniqueName, zipEntrySegments } from "../../src/lib/drive-rules";
+import { DRIVE_DEVICE_NAME, makeBatches, safeSegment, uniqueName, zipEntrySegments } from "../../src/lib/drive-rules";
 import { env } from "../../src/lib/env";
 import { DriveClient, driveQuote, FOLDER_MIME } from "../../src/lib/google-drive";
 import { mimeFor, VIDEO_EXT } from "../import/metadata";
 import { openDriveZip, zipEntries } from "./zip-reader";
 
-const DEVICE_NAME = "VPS · Google Drive";
 const MARGIN_BYTES = 2e9;
 
 type Job = {
@@ -113,11 +112,11 @@ async function importKey(ownerId: number): Promise<string> {
   const res = await execute(
     `UPDATE import_devices SET token_hash = ?, token_hint = ?
       WHERE name = ? AND revoked_at IS NULL ORDER BY id DESC LIMIT 1`,
-    [sha256(token), token.slice(-4), DEVICE_NAME],
+    [sha256(token), token.slice(-4), DRIVE_DEVICE_NAME],
   );
   if (res.affectedRows === 0) {
     await execute("INSERT INTO import_devices (name, token_hash, token_hint, created_by) VALUES (?, ?, ?, ?)", [
-      DEVICE_NAME,
+      DRIVE_DEVICE_NAME,
       sha256(token),
       token.slice(-4),
       ownerId,
