@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { formatCount } from "@/lib/format";
 import { listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "@/lib/gallery";
-import { displaySize } from "@/lib/gallery-rules";
 import { requireOwner } from "@/lib/session";
-import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
+import { AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
+import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
 import { albumDates } from "@/app/ui/gallery/dates";
 import { SearchSuggest } from "@/app/ui/search-suggest";
 
@@ -17,20 +18,16 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
   const albums = await listAlbums({ q: q || undefined, origin });
   const urls = await signKeys(albums.map((a) => a.cover_thumb));
 
-  const items: MasonryItem[] = albums.map((a) => {
-    const size = displaySize(a.cover_width, a.cover_height, a.cover_orientation);
-    return {
-      key: a.public_id,
-      href: `/album/${a.public_id}`,
-      src: a.cover_thumb ? (urls.get(a.cover_thumb) ?? null) : null,
-      alt: a.title,
-      ratio: size ? size.height / size.width : null,
-      caption: {
-        title: a.title,
-        detail: [albumDates(a), `${formatCount(a.photo_count)} foto`].filter(Boolean).join(" · "),
-      },
-    };
-  });
+  const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
+
+  const entries: AlbumEntry[] = albums.map((a) => ({
+    key: a.public_id,
+    href: `/album/${a.public_id}`,
+    src: a.cover_thumb ? (urls.get(a.cover_thumb) ?? null) : null,
+    title: a.title,
+    detail: [albumDates(a), `${formatCount(a.photo_count)} foto`].filter(Boolean).join(" · "),
+    origin: ORIGIN_LABEL[a.origin],
+  }));
 
   return (
     <>
@@ -48,11 +45,14 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
           </select>
           <button type="submit">Filtra</button>
         </form>
-        {albums.length > 1 && (
-          <Link className="button secondary" href="/album/unisci">
-            Unisci album
-          </Link>
-        )}
+        <div className="page-head-actions">
+          {albums.length > 1 && (
+            <Link className="button secondary" href="/album/unisci">
+              Unisci album
+            </Link>
+          )}
+          {albums.length > 0 && <AlbumViewSwitch view={view} />}
+        </div>
       </div>
       {typeof sp.album_cestino === "string" && /^\d+$/.test(sp.album_cestino) && (
         <p className="msg msg-ok card" role="status">
@@ -73,8 +73,10 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
             </>
           )}
         </p>
+      ) : view === "lista" ? (
+        <AlbumList albums={entries} />
       ) : (
-        <Masonry items={items} />
+        <AlbumGrid albums={entries} />
       )}
     </>
   );
