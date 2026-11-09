@@ -30,7 +30,15 @@ export async function sendMail(msg: { to: string; subject: string; text: string 
     console.info(`[mail] SMTP non configurato, email non inviata:\nA: ${msg.to}\nOggetto: ${msg.subject}\n\n${msg.text}\n`);
     return;
   }
-  await t.sendMail({ from: env().MAIL_FROM, ...msg });
+  await t.sendMail({
+    from: env().MAIL_FROM,
+    ...msg,
+    // Elastic Email (xCloud Mail Delivery): le nostre email sono tutte
+    // transazionali (inviti, reset). Senza questo header vengono trattate come
+    // newsletter: link riscritti per il tracciamento e link di disiscrizione,
+    // che le mandano in spam e fanno passare i token da un redirect esterno.
+    headers: { isTransactional: "True" },
+  });
 }
 
 export function appUrl(path: string): string {
