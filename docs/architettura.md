@@ -302,8 +302,12 @@ Standard).
   `npm run start -- -p 3200` e OpenLiteSpeed fa da proxy sulla porta 3200.
 - Database MySQL `photo_archive` con utente `photo_archive` (solo locale).
 - Le variabili d'ambiente stanno nel `.env` gestito da xCloud (Site → impostazioni
-  di deploy), non nel repository. SMTP e Google Cloud ancora vuoti: i link di
-  invito e reset finiscono nel log PM2 del sito.
+  di deploy), non nel repository. Email via xCloud Mail Delivery
+  (Elastic Email, `smtp.elasticemail.com:2525`, STARTTLS), mittente
+  `noreply@foto.acasolino.com`: il sito è associato all'abbonamento in Site →
+  Email Config → Mail Delivery e i record DNS di foto.acasolino.com li gestisce
+  xCloud su Cloudflare. Le variabili `SMTP_*` si modificano in Site → Node.js →
+  Environment.
 
 ## Codice
 

@@ -3,7 +3,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "./env";
 
 /*
- * Invio email via SMTP generico: il provider non è ancora scelto, basta
+ * Invio email via SMTP generico (in produzione xCloud Mail Delivery): basta
  * impostare le variabili SMTP_* nel .env. Senza SMTP_HOST le email vengono
  * scritte nel log del server (comodo in sviluppo).
  */

@@ -65,8 +65,6 @@ con altre persone.
 - **Misure delle anteprime**: 2048 px e 400 px proposte, da confermare.
 - **Video** (Takeout): per ora ignorati dall'import.
 
-- **Provider SMTP** per inviti e reset password: lo indicherà Antonio
-  (probabilmente non Brevo).
 - **Fusi orari EXIF**: `DateTimeOriginal` è l'ora locale della fotocamera; per il
   match conta l'uguaglianza, per l'ordinamento potrebbe servire l'offset.
 

@@ -15,7 +15,7 @@ const schema = z.object({
   DATABASE_PASSWORD: z.string().default(""),
   DATABASE_NAME: z.string().min(1),
 
-  // SMTP: provider non ancora scelto. Se SMTP_HOST è vuoto le email
+  // SMTP (in produzione xCloud Mail Delivery). Se SMTP_HOST è vuoto le email
   // vengono scritte nel log del server invece di essere inviate.
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().default(587),
