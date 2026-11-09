@@ -227,7 +227,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
                 Condividi
               </Button>
             </DialogTrigger>
-            <DialogContent className="md:max-w-4xl">
+            <DialogContent className="md:max-w-xl">
               <DialogHeader>
                 <DialogTitle>Condividi «{album.title}»</DialogTitle>
                 <DialogDescription>
@@ -235,14 +235,19 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
                   di Lightroom collegato si vedono e si scaricano nella versione con le regolazioni.
                 </DialogDescription>
               </DialogHeader>
-              <div className="owner-grid">
+              <div className="share-panel">
                 <ShareForm
                   targetType="album"
                   targetId={album.public_id}
                   people={people}
                   defaultDays={defaultLinkDays()}
                 />
-                <ShareList shares={shares} back={base} defaultDays={defaultLinkDays()} people={people} />
+                {shares.length > 0 && (
+                  <section>
+                    <h3>Condivisioni</h3>
+                    <ShareList shares={shares} back={base} defaultDays={defaultLinkDays()} people={people} />
+                  </section>
+                )}
               </div>
             </DialogContent>
           </Dialog>

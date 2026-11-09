@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { createShareAction, regenerateLink, type ShareFormState } from "@/app/actions/shares";
+import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/roles";
 import { CopyField } from "./copy-field";
 
@@ -122,9 +123,9 @@ export function RegenerateLinkForm({ shareId, back }: { shareId: string; back?: 
     <form action={action} className="regen">
       <input type="hidden" name="shareId" value={shareId} />
       {back && <input type="hidden" name="back" value={back} />}
-      <button type="submit" className="link" disabled={pending}>
+      <Button type="submit" variant="outline" size="sm" disabled={pending}>
         Nuovo link
-      </button>
+      </Button>
       <Result state={state} />
     </form>
   );

@@ -212,6 +212,8 @@ CREATE TABLE shares (
   mode            ENUM('users','link') NOT NULL,
   token           CHAR(32) NULL,                   -- solo per 'link'. Dalla 005: CHAR(64), SHA-256 del token
                                                    -- (32 caratteri base62, ~190 bit), mai in chiaro
+  token_enc       VARCHAR(255) NULL,               -- dalla 013: token cifrato AES-256-GCM (chiave nel .env),
+                                                   -- solo per rimostrare il link al proprietario
   message         TEXT NULL,                       -- nota per i destinatari
   -- Tetto di download della condivisione. Il permesso effettivo è il
   -- minimo tra questo e il ruolo dell'utente:

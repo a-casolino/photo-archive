@@ -9,10 +9,10 @@ export default async function SharesPage() {
     <>
       <h1>Condivisioni</h1>
       <p className="muted">
-        Le nuove condivisioni si creano dalla pagina dell&apos;album o della foto. I link liberi si vedono una volta
-        sola: per riaverne uno usa &quot;Nuovo link&quot; (quello vecchio smette di funzionare).
+        Le nuove condivisioni si creano dalla pagina dell&apos;album o della foto. Dei link liberi attivi trovi qui
+        l&apos;indirizzo da copiare; &quot;Nuovo link&quot; ne crea uno diverso e quello vecchio smette di funzionare.
       </p>
-      <section className="card">
+      <section>
         <ShareList shares={shares} showTarget defaultDays={defaultLinkDays()} people={people} />
       </section>
     </>

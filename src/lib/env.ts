@@ -67,6 +67,10 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   // Segreto per cifrare il refresh token di Drive nel database (almeno 32 caratteri).
   GOOGLE_TOKEN_SECRET: z.string().min(32).optional(),
+  // Segreto per cifrare i link liberi nel database, così il proprietario li
+  // rivede (almeno 32 caratteri). Se manca si usa GOOGLE_TOKEN_SECRET; senza
+  // nessuno dei due il link si vede solo quando viene creato.
+  SHARE_LINK_SECRET: z.string().min(32).optional(),
   // Cartella di lavoro sulla VPS: ci finisce un lotto di file alla volta.
   DRIVE_WORK_DIR: z.string().default("./lavoro-drive"),
   // Dimensione massima di un lotto (GB): tanto spazio libero serve sul disco, più 2 GB.
