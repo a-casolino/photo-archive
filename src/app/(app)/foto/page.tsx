@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FilterBar } from "@/app/ui/gallery/filter-bar";
 import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
 import { Masonry } from "@/app/ui/gallery/masonry";
 import { PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
@@ -31,6 +32,14 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
   const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true });
   const dateLabel = dateFilterLabel(filter.date ?? {});
   const tagSlug = tags.find((t) => t.id === filter.tagId)?.slug;
+  // Filtri attivi in parole, per il riepilogo sul telefono (la ricerca si vede già nel campo).
+  const activeLabels = [
+    dateLabel,
+    tagSlug && `#${tags.find((t) => t.slug === tagSlug)?.name}`,
+    filter.origin && ORIGIN_LABEL[filter.origin],
+    filter.personId && peopleList.find((p) => p.id === filter.personId)?.name,
+    filter.onlyEdited && "Con regolazioni",
+  ].filter((x): x is string => !!x);
 
   return (
     <>
@@ -41,15 +50,20 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
             {formatCount(total)} foto{dateLabel ? ` · ${dateLabel}` : ""}
           </p>
         </div>
-        <form className="album-search" role="search">
-          <input
-            type="search"
-            name={FILTER_PARAMS.q}
-            defaultValue={filter.q ?? ""}
-            placeholder="Cerca nome file, tag, album o persone"
-            aria-label="Cerca"
-            maxLength={100}
-          />
+        <FilterBar
+          active={activeLabels}
+          resetHref={active ? "/foto" : undefined}
+          search={
+            <input
+              type="search"
+              name={FILTER_PARAMS.q}
+              defaultValue={filter.q ?? ""}
+              placeholder="Cerca foto, tag, album"
+              aria-label="Cerca"
+              maxLength={100}
+            />
+          }
+        >
           <DateSelects value={filter.date ?? {}} years={years} />
           {tags.length > 0 && (
             <select name={FILTER_PARAMS.tag} defaultValue={tagSlug ?? ""} aria-label="Tag">
@@ -79,13 +93,7 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
             />
             Solo con regolazioni
           </label>
-          <button type="submit">Filtra</button>
-          {active && (
-            <Link className="button secondary" href="/foto">
-              Azzera
-            </Link>
-          )}
-        </form>
+        </FilterBar>
       </div>
 
       {photos.length === 0 ? (
