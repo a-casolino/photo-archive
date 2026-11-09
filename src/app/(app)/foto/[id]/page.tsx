@@ -6,7 +6,7 @@ import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { PhotoView } from "@/app/ui/gallery/views";
-import { albumNeighbors, albumsOfPhoto, getAlbum, getPhoto, signKeys } from "@/lib/gallery";
+import { albumNeighbors, albumsAbovePhoto, albumsOfPhoto, getAlbum, getPhoto, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
@@ -36,9 +36,10 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
   const photosList = photosCtx
     ? `/foto${Object.keys(photosCtx.query).length ? `?${new URLSearchParams(photosCtx.query)}` : ""}`
     : null;
-  const [urls, albums, shares, people, tags, allTags, faces] = await Promise.all([
+  const [urls, albums, above, shares, people, tags, allTags, faces] = await Promise.all([
     signKeys([photo.preview_key]),
     albumsOfPhoto(photo.id),
+    albumsAbovePhoto(photo.id),
     listShares({ photoId: photo.id }),
     shareableUsers(),
     tagsOf({ kind: "photo", id: photo.id }),
@@ -59,7 +60,14 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
     href(neighbors?.prev ?? null) ??
     (album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : (photosList ?? "/album"));
   // "Usa come copertina": per l'album da cui arrivi, altrimenti per ogni album che contiene la foto.
-  const coverTargets = albums.filter((a) => !a.is_cover && (!album || a.public_id === album.public_id));
+  // Anche per gli album che li contengono (sotto-album): così un album con soli sotto-album ha la sua copertina.
+  const direct = albums.filter((a) => !album || a.public_id === album.public_id);
+  const directIds = new Set(direct.map((a) => a.public_id));
+  const seen = new Set<string>();
+  const coverTargets = [
+    ...direct,
+    ...above.filter((u) => directIds.has(u.child_public_id) && !directIds.has(u.public_id)),
+  ].filter((a) => !a.is_cover && !seen.has(a.public_id) && seen.add(a.public_id));
 
   return (
     <PhotoView
