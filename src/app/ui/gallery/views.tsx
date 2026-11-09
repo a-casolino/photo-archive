@@ -5,6 +5,7 @@ import { cameraLabel, displaySize, exposureLabel } from "@/lib/gallery-rules";
 import type { PhotoCard, PhotoDetail } from "@/lib/gallery";
 import { canDownload, type DownloadLevel } from "@/lib/roles";
 import { KeyNav } from "./key-nav";
+import { PhotoLightbox } from "./lightbox";
 import { SwipeNav } from "./swipe-nav";
 import type { MasonryItem } from "./masonry";
 
@@ -149,20 +150,23 @@ export function PhotoView({
         ) : (
           <span className="stage-nav" />
         )}
-        <SwipeNav key={photo.public_id} prev={nav.prev} next={nav.next}>
-          {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei, niente ottimizzazione
-            <img
-              src={previewUrl}
-              alt={title}
-              width={size?.width}
-              height={size?.height}
-              className="photo-preview"
-            />
-          ) : (
+        {previewUrl ? (
+          <PhotoLightbox
+            key={photo.public_id}
+            src={previewUrl}
+            alt={title}
+            filename={photo.original_filename}
+            width={size?.width}
+            height={size?.height}
+            prev={nav.prev}
+            next={nav.next}
+            position={nav.position}
+          />
+        ) : (
+          <SwipeNav key={photo.public_id} prev={nav.prev} next={nav.next}>
             <div className="photo-preview tile-empty">Anteprima non disponibile</div>
-          )}
-        </SwipeNav>
+          </SwipeNav>
+        )}
         {nav.next ? (
           <Link href={nav.next} className="stage-nav next" aria-label="Foto successiva" title="Successiva (→)">
             ›

@@ -11,6 +11,7 @@ import {
   masonryColumns,
   shareState,
   swipeDirection,
+  withQueryParam,
 } from "../src/lib/gallery-rules";
 
 describe("stato delle condivisioni", () => {
@@ -119,5 +120,19 @@ describe("unione di album", () => {
   it("ha un massimo di album alla volta", () => {
     const many = Array.from({ length: MERGE_MAX_ALBUMS + 1 }, (_, i) => `a${i}`);
     expect(mergeSelection(many, "a0")).toHaveProperty("error");
+  });
+});
+
+describe("parametri dei link del lightbox", () => {
+  it("aggiunge il parametro senza perdere la query", () => {
+    expect(withQueryParam("/foto/abc?album=xyz", "schermo", "1")).toBe("/foto/abc?album=xyz&schermo=1");
+    expect(withQueryParam("/foto/abc", "schermo", "1")).toBe("/foto/abc?schermo=1");
+  });
+  it("toglie il parametro", () => {
+    expect(withQueryParam("/foto/abc?album=xyz&schermo=1", "schermo", null)).toBe("/foto/abc?album=xyz");
+    expect(withQueryParam("/foto/abc?schermo=1", "schermo", null)).toBe("/foto/abc");
+  });
+  it("non lo ripete se c'è già", () => {
+    expect(withQueryParam("/l/tok/foto/a?schermo=1", "schermo", "1")).toBe("/l/tok/foto/a?schermo=1");
   });
 });
