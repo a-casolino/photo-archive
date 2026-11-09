@@ -1321,3 +1321,25 @@ button.danger:not(.link) {
   padding-top: 12px;
   border-top: 1px solid var(--border);
 }
+
+/* --- Filtri di Album e Foto --- */
+
+.filter-date {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.filter-check input {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}

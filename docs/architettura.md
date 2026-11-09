@@ -118,6 +118,17 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
 - **Proprietario**: `/album` (elenco con ricerca e filtro per origine),
   `/album/<id>` (griglia), `/foto/<id>?album=<id>` (foto con frecce ← →, Esc
   torna all'album; su telefono swipe a destra/sinistra), `/admin/condivisioni` (tutte le condivisioni).
+- **Filtri di Album e Foto** (solo proprietario): `/album` filtra anche per data di
+  scatto (`anno`, `mese`, `giorno`, ognuno facoltativo: "agosto" = tutti gli agosti) e
+  per `persona`; un album passa se lui o un suo sotto-album ha una foto che soddisfa
+  data e persona insieme. `/foto` mostra tutte le foto dalla più recente, in masonry,
+  con ricerca (nome file, titolo, descrizione, tag, album, persone), data, `tag`,
+  `origine` (dell'album che contiene la foto), `solo=regolazioni` e `persona`
+  (volti confermati). Un export collegato a un CR2 non compare da solo: si vede il
+  CR2 nella versione dell'export. La foto aperta da `/foto` ha `?da=foto` e gli stessi
+  filtri, così frecce, swipe e lightbox scorrono l'elenco filtrato. La data è
+  `taken_at` (EXIF, ora locale della fotocamera), senza conversioni di fuso. Regole
+  pure in `src/lib/filter-rules.ts`, query in `src/lib/photos.ts`.
 - **Lightbox** (`src/app/ui/gallery/lightbox.tsx`): un click sulla foto la apre a
   schermo intero su nero trasparente, in tutte le pagine foto (proprietario,
   condivisioni, link liberi). Swipe e frecce per le foto vicine, Esc / X / tocco

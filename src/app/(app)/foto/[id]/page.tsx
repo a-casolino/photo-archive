@@ -10,7 +10,9 @@ import { albumNeighbors, albumsOfPhoto, getAlbum, getPhoto, signKeys } from "@/l
 import { requireOwner } from "@/lib/session";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
-import { peopleInPhoto } from "@/lib/people";
+import { peopleInPhoto, peopleOptions } from "@/lib/people";
+import { photoNeighbors } from "@/lib/photos";
+import { photoFilterFromParams } from "@/lib/photo-filter-params";
 
 export default async function OwnerPhotoPage({ params, searchParams }: PageProps<"/foto/[id]">) {
   await requireOwner();
@@ -21,7 +23,19 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
 
   const onlyEdited = sp.solo === "regolazioni";
   const album = typeof sp.album === "string" ? await getAlbum(sp.album) : null;
-  const neighbors = album ? await albumNeighbors(album.id, photo.id, onlyEdited) : null;
+  // Aperta dalla pagina Foto: si scorre con gli stessi filtri.
+  const fromPhotos = !album && sp.da === "foto";
+  const photosCtx = fromPhotos
+    ? await Promise.all([peopleOptions(), listTags()]).then(([people, tags]) => photoFilterFromParams(sp, { people, tags }))
+    : null;
+  const neighbors = album
+    ? await albumNeighbors(album.id, photo.id, onlyEdited)
+    : photosCtx
+      ? await photoNeighbors(photosCtx.filter, photo.id)
+      : null;
+  const photosList = photosCtx
+    ? `/foto${Object.keys(photosCtx.query).length ? `?${new URLSearchParams(photosCtx.query)}` : ""}`
+    : null;
   const [urls, albums, shares, people, tags, allTags, faces] = await Promise.all([
     signKeys([photo.preview_key]),
     albumsOfPhoto(photo.id),
@@ -32,14 +46,18 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
     peopleInPhoto(photo.id),
   ]);
 
-  const q = album ? `?${new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) })}` : "";
+  const q = album
+    ? `?${new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) })}`
+    : photosCtx
+      ? `?${new URLSearchParams({ da: "foto", ...photosCtx.query })}`
+      : "";
   const href = (pid: string | null) => (pid ? `/foto/${pid}${q}` : null);
   const self = `/foto/${photo.public_id}`;
   // Dopo "Sposta nel cestino" si passa alla foto successiva dell'album (comodo per scremare).
   const afterTrash =
     href(neighbors?.next ?? null) ??
     href(neighbors?.prev ?? null) ??
-    (album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : "/album");
+    (album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : (photosList ?? "/album"));
   // "Usa come copertina": per l'album da cui arrivi, altrimenti per ogni album che contiene la foto.
   const coverTargets = albums.filter((a) => !a.is_cover && (!album || a.public_id === album.public_id));
 
@@ -50,8 +68,8 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
       nav={{
         prev: href(neighbors?.prev ?? null),
         next: href(neighbors?.next ?? null),
-        up: album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : "/album",
-        upLabel: album ? album.title : "Album",
+        up: album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : (photosList ?? "/album"),
+        upLabel: album ? album.title : photosList ? "Foto" : "Album",
         position: neighbors ? `${neighbors.index} di ${neighbors.total}` : undefined,
       }}
       level="original"
