@@ -88,6 +88,8 @@ export default async function TrashPage({ searchParams }: PageProps<"/admin/cest
                   <div>
                     <strong>{a.title}</strong>
                     <p className="muted">
+                      {Number(a.subalbums) > 0 &&
+                        `${formatCount(Number(a.subalbums))} sotto-album · `}
                       {formatCount(Number(a.photos))} foto che stavano solo qui · {formatBytes(Number(a.bytes))} ·{" "}
                       {leftLabel(Number(a.days_left))}
                     </p>

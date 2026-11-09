@@ -1,6 +1,9 @@
 import "server-only";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { pool, query, queryOne } from "./db";
+import { depthOf, MAX_ALBUM_DEPTH, mergeTreeProblem, moveProblem } from "./album-tree-rules";
+import { randomBase62 } from "./crypto";
+import { execute, pool, query, queryOne } from "./db";
+import { albumTreeIndex } from "./gallery";
 
 /*
  * Unione di album (solo proprietario: i chiamanti fanno requireOwner).
@@ -16,6 +19,9 @@ import { pool, query, queryOne } from "./db";
  *     ("move" = passano all'album tenuto, chi le ha vede tutte le foto
  *     unite; "revoke" = vengono revocate). Quelle dell'album tenuto restano
  *     e da subito mostrano anche le foto arrivate;
+ *   - sotto-album: quelli degli album uniti passano dentro l'album tenuto
+ *     (non si può unire un album con uno che lo contiene, né superare i 3
+ *     livelli);
  *   - gli album uniti vanno nel cestino (deleted_at) con merged_into_id:
  *     un nuovo import della loro cartella e i vecchi URL portano all'album
  *     tenuto. Le loro righe in album_photos restano, come traccia.
@@ -65,6 +71,16 @@ export async function mergeAlbums(m: {
   title: string | null;
   shares: MergeShares | null;
 }): Promise<MergeResult> {
+  // Sotto-album: quelli degli album uniti passano a quello tenuto.
+  const nodes = await albumTreeIndex();
+  const byPublicId = new Map(nodes.map((n) => [n.public_id, n.id]));
+  const intoNode = byPublicId.get(m.intoPublicId);
+  const sourceNodes = m.sourcePublicIds.map((p) => byPublicId.get(p)).filter((id): id is number => id !== undefined);
+  if (intoNode !== undefined) {
+    const problem = mergeTreeProblem(intoNode, sourceNodes, nodes);
+    if (problem) return { ok: false, error: problem };
+  }
+
   const conn = await pool().getConnection();
   try {
     await conn.beginTransaction();
@@ -142,6 +158,10 @@ export async function mergeAlbums(m: {
     );
 
     await conn.query(
+      "UPDATE albums SET parent_id = ? WHERE parent_id IN (?) AND id NOT IN (?) AND deleted_at IS NULL",
+      [into.id, sourceIds, sourceIds],
+    );
+    await conn.query(
       "UPDATE albums SET deleted_at = UTC_TIMESTAMP(), merged_into_id = ? WHERE id IN (?)",
       [into.id, sourceIds],
     );
@@ -163,4 +183,52 @@ export async function mergeAlbums(m: {
   } finally {
     conn.release();
   }
+}
+
+// ---------------------------------------------------------------------
+// Sotto-album (migrazione 012)
+// ---------------------------------------------------------------------
+
+/** Nuovo album vuoto, al primo livello o dentro `parentPublicId`. */
+export async function createAlbum(
+  title: string,
+  parentPublicId: string | null,
+): Promise<{ ok: true; publicId: string } | { ok: false; error: string }> {
+  let parentId: number | null = null;
+  if (parentPublicId) {
+    const nodes = await albumTreeIndex();
+    const parent = nodes.find((n) => n.public_id === parentPublicId);
+    if (!parent) return { ok: false, error: "L'album non esiste più." };
+    if (depthOf(parent.id, new Map(nodes.map((n) => [n.id, n]))) >= MAX_ALBUM_DEPTH) {
+      return { ok: false, error: `Qui non si possono creare sotto-album: al massimo ${MAX_ALBUM_DEPTH} livelli.` };
+    }
+    parentId = parent.id;
+  }
+  const publicId = randomBase62(22);
+  await execute("INSERT INTO albums (public_id, title, origin, parent_id) VALUES (?, ?, 'manual', ?)", [
+    publicId,
+    title,
+    parentId,
+  ]);
+  return { ok: true, publicId };
+}
+
+/** "Sposta in…": dentro un altro album, o al primo livello (null). */
+export async function moveAlbum(
+  publicId: string,
+  parentPublicId: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const nodes = await albumTreeIndex();
+  const album = nodes.find((n) => n.public_id === publicId);
+  if (!album) return { ok: false, error: "L'album non esiste più." };
+  let parentId: number | null = null;
+  if (parentPublicId) {
+    const parent = nodes.find((n) => n.public_id === parentPublicId);
+    if (!parent) return { ok: false, error: "L'album di destinazione non esiste più." };
+    parentId = parent.id;
+  }
+  const problem = moveProblem(album.id, parentId, nodes);
+  if (problem) return { ok: false, error: problem };
+  await execute("UPDATE albums SET parent_id = ? WHERE id = ? AND deleted_at IS NULL", [parentId, album.id]);
+  return { ok: true };
 }

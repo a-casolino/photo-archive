@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import {
   CalendarIcon,
   CheckIcon,
   ChevronRightIcon,
   FolderIcon,
+  FolderOpenIcon,
   ImageIcon,
   PencilIcon,
   Share2Icon,
@@ -14,6 +16,15 @@ import {
 import { setAlbumCover, updateAlbum } from "@/app/actions/shares";
 import { trashAlbumAction, trashPhotosAction } from "@/app/actions/trash";
 import { ActionForm } from "@/app/ui/action-form";
+import {
+  AlbumTrashedMsg,
+  MoveAlbumDialog,
+  NewAlbumDialog,
+  parentsLabel,
+  type MoveOption,
+} from "@/app/ui/gallery/album-tree";
+import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
+import { albumDetail, AlbumGrid, AlbumList, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { albumDates } from "@/app/ui/gallery/dates";
 import { Masonry } from "@/app/ui/gallery/masonry";
 import { SelectBar } from "@/app/ui/gallery/select-bar";
@@ -31,9 +42,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { env } from "@/lib/env";
-import { mergedInto } from "@/lib/albums";
+import { activeSharesByAlbum, mergedInto } from "@/lib/albums";
+import { depthOf, MAX_ALBUM_DEPTH, moveTargets, PATH_SEP } from "@/lib/album-tree-rules";
 import { formatCount } from "@/lib/format";
-import { albumCounts, albumPhotos, getAlbum, getAlbumCover, ORIGIN_LABEL, signKeys } from "@/lib/gallery";
+import {
+  albumBranchSummary,
+  albumCounts,
+  albumPhotos,
+  albumTreeIndex,
+  getAlbum,
+  getAlbumCover,
+  listAlbums,
+  ORIGIN_LABEL,
+  signKeys,
+} from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
 import { albumTrashPreview } from "@/lib/trash";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
@@ -56,7 +78,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
   const selecting = sp.seleziona === "1";
   const trashed = typeof sp.cestino === "string" && /^\d+$/.test(sp.cestino) ? Number(sp.cestino) : 0;
   const page = parsePage(sp.pagina);
-  const [counts, photos, shares, people, tags, allTags, cover] = await Promise.all([
+  const [counts, photos, shares, people, tags, allTags, cover, children, branch, nodes, sharedAlbums] = await Promise.all([
     albumCounts(album.id),
     albumPhotos(album.id, { onlyEdited, offset: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }),
     listShares({ albumId: album.id }),
@@ -64,9 +86,55 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
     tagsOf({ kind: "album", id: album.id }),
     listTags(),
     getAlbumCover(album),
+    page === 1 ? listAlbums({ parentId: album.id }) : Promise.resolve([]),
+    albumBranchSummary(album.id),
+    albumTreeIndex(),
+    activeSharesByAlbum(),
   ]);
   const trashPreview = await albumTrashPreview(album.id);
-  const urls = await signKeys([...photos.map((p) => p.thumb_key), cover?.thumb_key ?? null]);
+  const urls = await signKeys([
+    ...photos.map((p) => p.thumb_key),
+    ...children.map((c) => c.cover_thumb),
+    cover?.thumb_key ?? null,
+  ]);
+
+  // Albero: percorso, livello, destinazioni di "Sposta in…".
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const ancestors: { public_id: string; title: string }[] = [];
+  for (let cur = album.parent_id; cur !== null && ancestors.length < MAX_ALBUM_DEPTH; ) {
+    const n = byId.get(cur);
+    if (!n) break;
+    ancestors.unshift(n);
+    cur = n.parent_id;
+  }
+  const canHaveChildren = depthOf(album.id, byId) < MAX_ALBUM_DEPTH;
+  /** L'album o uno di quelli che lo contengono ha condivisioni attive. */
+  const branchShared = (id: number): boolean => {
+    for (let cur: number | null = id, n = 0; cur !== null && n <= MAX_ALBUM_DEPTH; n++) {
+      if (sharedAlbums.has(cur)) return true;
+      cur = byId.get(cur)?.parent_id ?? null;
+    }
+    return false;
+  };
+  const moveOptions: MoveOption[] = moveTargets(album.id, nodes)
+    .map((id) => {
+      const n = byId.get(id)!;
+      const parents = parentsLabel(id, byId);
+      return { publicId: n.public_id, label: parents ? `${parents}${PATH_SEP}${n.title}` : n.title, shared: branchShared(id) };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "it"));
+  const inheritedShare = album.parent_id !== null && branchShared(album.parent_id);
+
+  const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
+  const childEntries: AlbumEntry[] = children.map((c) => ({
+    key: c.public_id,
+    href: `/album/${c.public_id}`,
+    src: c.cover_thumb ? (urls.get(c.cover_thumb) ?? null) : null,
+    title: c.title,
+    detail: albumDetail(c),
+    origin: ORIGIN_LABEL[c.origin],
+  }));
+  const parentHref = ancestors.length ? `/album/${ancestors[ancestors.length - 1].public_id}` : "/album";
   const base = `/album/${album.public_id}`;
   const photoQuery = new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) });
   const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true }).map((it) =>
@@ -88,9 +156,23 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
         <Link href="/album" className="text-muted-foreground no-underline hover:text-foreground">
           Album
         </Link>
-        <ChevronRightIcon className="size-3.5" aria-hidden />
+        {ancestors.map((a) => (
+          <span key={a.public_id} className="contents">
+            <ChevronRightIcon className="size-3.5 shrink-0" aria-hidden />
+            <Link href={`/album/${a.public_id}`} className="truncate text-muted-foreground no-underline hover:text-foreground">
+              {a.title}
+            </Link>
+          </span>
+        ))}
+        <ChevronRightIcon className="size-3.5 shrink-0" aria-hidden />
         <span className="truncate text-foreground">{album.title}</span>
       </nav>
+      <AlbumTrashedMsg sp={sp} />
+      {sp.spostato === "1" && (
+        <p className="msg msg-ok card mt-4" role="status">
+          Album spostato.
+        </p>
+      )}
       {merged > 0 && (
         <p className="msg msg-ok card mt-4" role="status">
           {merged === 1 ? "Un album è confluito" : `${merged} album sono confluiti`} in questo.
@@ -100,16 +182,23 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
         <div className="min-w-0">
           <h1 className="m-0 text-[1.75rem] leading-tight font-semibold md:text-[2rem]">{album.title}</h1>
           <p className="mt-1.5 mb-0 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {albumDates(album) && (
+            {albumDates(branch) && (
               <span className="inline-flex items-center gap-1.5">
                 <CalendarIcon className="size-4" aria-hidden />
-                {albumDates(album)}
+                {albumDates(branch)}
               </span>
             )}
             <span className="inline-flex items-center gap-1.5">
               <ImageIcon className="size-4" aria-hidden />
               {formatCount(counts.total)} foto
+              {branch.children > 0 && branch.photos !== counts.total && ` (${formatCount(branch.photos)} con i sotto-album)`}
             </span>
+            {branch.children > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <FolderOpenIcon className="size-4" aria-hidden />
+                {formatCount(branch.children)} sotto-album
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5">
               <FolderIcon className="size-4" aria-hidden />
               {ORIGIN_LABEL[album.origin]}
@@ -118,6 +207,12 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               <span className="inline-flex items-center gap-1.5">
                 <Share2Icon className="size-4" aria-hidden />
                 {activeShares} condivision{activeShares === 1 ? "e" : "i"}
+              </span>
+            )}
+            {inheritedShare && (
+              <span className="inline-flex items-center gap-1.5">
+                <Share2Icon className="size-4" aria-hidden />
+                condiviso con l&apos;album che lo contiene
               </span>
             )}
           </p>
@@ -136,8 +231,8 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               <DialogHeader>
                 <DialogTitle>Condividi «{album.title}»</DialogTitle>
                 <DialogDescription>
-                  Chi riceve l&apos;album vede anche le foto aggiunte dopo. Le foto con un export di Lightroom collegato
-                  si vedono e si scaricano nella versione con le regolazioni.
+                  Chi riceve l&apos;album vede anche i suoi sotto-album e le foto aggiunte dopo. Le foto con un export
+                  di Lightroom collegato si vedono e si scaricano nella versione con le regolazioni.
                 </DialogDescription>
               </DialogHeader>
               <div className="owner-grid">
@@ -195,14 +290,18 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
                 </p>
                 <form action={trashAlbumAction} className="album-trash">
                   <input type="hidden" name="albumId" value={album.public_id} />
+                  <input type="hidden" name="back" value={parentHref} />
                   <Button type="submit" variant="destructive">
                     <Trash2Icon />
                     Elimina album
                   </Button>
                   <p className="muted">
                     L&apos;album va nel cestino
+                    {trashPreview.subalbums > 0
+                      ? ` con ${trashPreview.subalbums === 1 ? "il suo sotto-album" : `i suoi ${formatCount(trashPreview.subalbums)} sotto-album`}`
+                      : ""}
                     {trashPreview.only > 0
-                      ? ` con ${trashPreview.only === 1 ? "la foto che sta" : `le ${formatCount(trashPreview.only)} foto che stanno`} solo qui`
+                      ? ` con ${trashPreview.only === 1 ? "la foto che sta" : `le ${formatCount(trashPreview.only)} foto che stanno`} solo ${trashPreview.subalbums > 0 ? "lì" : "qui"}`
                       : ""}
                     {trashPreview.elsewhere > 0
                       ? `; ${trashPreview.elsewhere === 1 ? "la foto che è" : `le ${formatCount(trashPreview.elsewhere)} foto che sono`} anche in altri album ${trashPreview.elsewhere === 1 ? "resta" : "restano"} lì`
@@ -214,6 +313,12 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               </div>
             </DialogContent>
           </Dialog>
+          {canHaveChildren && <NewAlbumDialog parent={{ publicId: album.public_id, title: album.title }} />}
+          <MoveAlbumDialog
+            album={{ publicId: album.public_id, title: album.title }}
+            options={moveOptions}
+            atTop={album.parent_id === null}
+          />
           {photos.length > 0 && (
             <Button asChild variant={selecting ? "secondary" : "outline"}>
               <Link href={selecting ? withQuery() : withQuery({ seleziona: "1" })} prefetch={false}>
@@ -225,6 +330,12 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
         </div>
       </div>
 
+      {childEntries.length > 0 && (
+        <section className="subalbums" aria-label="Sotto-album">
+          {view === "lista" ? <AlbumList albums={childEntries} /> : <AlbumGrid albums={childEntries} />}
+        </section>
+      )}
+
       <EditedFilter base={base} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
 
       {trashed > 0 && (
@@ -235,7 +346,13 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
       )}
 
       {photos.length === 0 ? (
-        <p className="muted">{onlyEdited ? "Nessuna foto con regolazioni." : "L'album è vuoto."}</p>
+        <p className="muted">
+          {onlyEdited
+            ? "Nessuna foto con regolazioni."
+            : branch.children > 0
+              ? "Nessuna foto direttamente in questo album: sono nei sotto-album."
+              : "L'album è vuoto."}
+        </p>
       ) : selecting ? (
         <form>
           <input type="hidden" name="back" value={withQuery()} />

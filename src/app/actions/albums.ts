@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { mergeAlbums } from "@/lib/albums";
+import { createAlbum, mergeAlbums, moveAlbum } from "@/lib/albums";
 import { mergeSelection } from "@/lib/gallery-rules";
 import { requireOwner } from "@/lib/session";
-import { firstError } from "@/lib/validation";
+import { firstError, type FormState } from "@/lib/validation";
 
 export type MergeFormState = { error?: string; needsShareChoice?: boolean } | undefined;
 
@@ -47,4 +47,47 @@ export async function mergeAlbumsAction(_: MergeFormState, formData: FormData): 
   revalidatePath("/admin/condivisioni");
   revalidatePath("/dashboard");
   redirect(`/album/${res.intoPublicId}?unito=${res.merged}`);
+}
+
+// ---------------------------------------------------------------------
+// Sotto-album
+// ---------------------------------------------------------------------
+
+const newAlbumForm = z.object({
+  title: z.string().trim().min(1, { error: "Scrivi il titolo." }).max(255, { error: "Il titolo è troppo lungo." }),
+  parent: publicId.optional(),
+});
+
+/** "Nuovo album" / "Nuovo sotto-album" (solo proprietario): poi si apre l'album creato. */
+export async function createAlbumAction(_: FormState, formData: FormData): Promise<FormState> {
+  await requireOwner();
+  const parsed = newAlbumForm.safeParse({
+    title: formData.get("title") ?? "",
+    parent: formData.get("parent") || undefined,
+  });
+  if (!parsed.success) return { error: firstError(parsed.error) };
+  const res = await createAlbum(parsed.data.title, parsed.data.parent ?? null);
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/album", "layout");
+  redirect(`/album/${res.publicId}`);
+}
+
+const moveForm = z.object({
+  albumId: publicId,
+  parent: publicId.optional(),
+});
+
+/** "Sposta in…": dentro un altro album o al primo livello (solo proprietario). */
+export async function moveAlbumAction(_: FormState, formData: FormData): Promise<FormState> {
+  await requireOwner();
+  const parsed = moveForm.safeParse({
+    albumId: formData.get("albumId"),
+    parent: formData.get("parent") || undefined,
+  });
+  if (!parsed.success) return { error: firstError(parsed.error) };
+  const res = await moveAlbum(parsed.data.albumId, parsed.data.parent ?? null);
+  if (!res.ok) return { error: res.error };
+  revalidatePath("/album", "layout");
+  revalidatePath("/dashboard");
+  redirect(`/album/${parsed.data.albumId}?spostato=1`);
 }

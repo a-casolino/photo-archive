@@ -2,6 +2,7 @@ import "server-only";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { execute, pool, query, queryOne } from "./db";
 import { newToken, randomBase62, sha256 } from "./crypto";
+import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
 import { countDuplicatePairs } from "./duplicates";
 import { storage } from "./storage";
 import {
@@ -337,7 +338,24 @@ async function upsertCamera(conn: PoolConnection, cam: { make: string; model: st
 
 type Runner = Pick<PoolConnection, "query">;
 
+/**
+ * Album della cartella (o dell'album di Takeout), creato se manca, con gli
+ * album delle cartelle che la contengono. Restituisce l'id in cui mettere
+ * la foto (se l'album è stato unito a un altro, quello tenuto).
+ */
 async function ensureAlbum(album: AlbumRef, conn: Runner = pool()): Promise<number> {
+  let parentId: number | null = null;
+  for (const p of album.parents ?? []) {
+    const id = await upsertAlbum({ origin: album.origin, ref: p.ref, title: p.title }, conn);
+    if (parentId !== null) await attachToParent(id, parentId, conn);
+    parentId = id;
+  }
+  const id = await upsertAlbum(album, conn);
+  if (parentId !== null) await attachToParent(id, parentId, conn);
+  return id;
+}
+
+async function upsertAlbum(album: { origin: AlbumRef["origin"]; ref: string; title: string }, conn: Runner): Promise<number> {
   const [res] = await conn.query<ResultSetHeader>(
     `INSERT INTO albums (public_id, title, origin, origin_ref) VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
@@ -349,6 +367,39 @@ async function ensureAlbum(album: AlbumRef, conn: Runner = pool()): Promise<numb
     [res.insertId],
   );
   return Number(rows[0]?.id ?? res.insertId);
+}
+
+/**
+ * Mette l'album dentro quello della cartella sopra, solo se oggi è al primo
+ * livello: un album che Antonio ha spostato altrove resta dove l'ha messo.
+ * Non lo fa se il genitore è nel cestino, se l'album è il genitore stesso o
+ * un suo antenato, o se si supererebbero i 3 livelli.
+ */
+async function attachToParent(childId: number, parentId: number, conn: Runner): Promise<void> {
+  if (childId === parentId) return;
+  const [[child]] = await conn.query<RowDataPacket[]>("SELECT parent_id FROM albums WHERE id = ?", [childId]);
+  if (!child || child.parent_id !== null) return;
+  // Antenati del genitore (lui compreso), al massimo 3 livelli.
+  const chain: number[] = [];
+  for (let cur: number | null = parentId; cur !== null && chain.length <= MAX_ALBUM_DEPTH; ) {
+    const [[row]]: [RowDataPacket[], unknown] = await conn.query<RowDataPacket[]>(
+      "SELECT id, parent_id, deleted_at FROM albums WHERE id = ?",
+      [cur],
+    );
+    if (!row || (chain.length === 0 && row.deleted_at !== null)) return;
+    if (Number(row.id) === childId) return;
+    chain.push(Number(row.id));
+    cur = row.parent_id === null ? null : Number(row.parent_id);
+  }
+  const [[h]] = await conn.query<RowDataPacket[]>(
+    `SELECT EXISTS (SELECT 1 FROM albums c WHERE c.parent_id = ? AND c.deleted_at IS NULL) AS c1,
+            EXISTS (SELECT 1 FROM albums c JOIN albums g ON g.parent_id = c.id AND g.deleted_at IS NULL
+                     WHERE c.parent_id = ? AND c.deleted_at IS NULL) AS c2`,
+    [childId, childId],
+  );
+  const height = 1 + Number(h?.c1 ?? 0) + Number(h?.c2 ?? 0);
+  if (chain.length + height > MAX_ALBUM_DEPTH) return;
+  await conn.query("UPDATE albums SET parent_id = ? WHERE id = ? AND parent_id IS NULL", [parentId, childId]);
 }
 
 async function addToAlbum(albumId: number, photoId: number, conn: Runner = pool()) {

@@ -57,6 +57,7 @@ con altre persone.
 | Eliminare foto | Dalla foto o in blocco dall'album (selezione multipla) le foto vanno nel **cestino**, ripristinabili; dopo 30 giorni si eliminano da sole (`npm run cestino` da cron), oppure prima con "Elimina definitivamente" / "Svuota cestino". L'eliminazione definitiva cancella i file dal bucket (CR2, anteprime, volti) e i dati collegati. Un CR2 e il suo export collegato si eliminano insieme | 2026-11-08 |
 | Eliminare un album | "Elimina album" manda nel cestino l'album e le foto che stanno solo lì (senza album resterebbero irraggiungibili); quelle presenti anche in altri album restano. Si ripristina o si elimina per sempre come le foto | 2026-11-08 |
 | Import da Google Foto e Drive | Niente download e ricarico dal computer: Takeout consegnato su Google Drive e cartelle di Drive importati dalla VPS (`npm run drive`). Poi, a parte, un pulsante "Importa da Google Foto" (Picker API) per le aggiunte piccole | 2026-11-09 |
+| Sotto-album | Un album può contenere foto e altri album, al massimo 3 livelli (es. Viaggi › 2019 › Roma). Condividere un album include sempre i suoi sotto-album, anche quelli aggiunti dopo. Import da disco e da Drive: le cartelle diventano l'albero (oltre il terzo livello il resto del percorso va nel titolo); Takeout resta piatto. Gli album esistenti restano al primo livello: si sistemano con "Sposta in…" | 2026-11-09 |
 | Versioning | `main` stabile + PR, Conventional Commits, SemVer < 1.0, migrazioni numerate | 2026-11-06 |
 
 ## Aperti
@@ -76,6 +77,8 @@ con altre persone.
 - [x] Import dal disco CR2 (programma locale: exiftool, anteprime, upload con URL firmati) e pagina Import
 - [x] Import da Google Takeout e match export → CR2 con pagina di revisione
 - [x] Import da Google Drive dalla VPS: export di Takeout e cartelle di Drive
+- [x] Sotto-album (3 livelli), con "Nuovo sotto-album" e "Sposta in…"
+- [ ] Pagina "Organizza": proporre i raggruppamenti degli album già importati
 - [ ] Pulsante "Importa da Google Foto" con la Picker API (aggiunte piccole; senza GPS)
 - [ ] Bucket Google Cloud Storage (da creare con Antonio; fino ad allora archivio in cartella locale)
 - [x] Gallerie e album (griglia masonry senza ritaglio, filtro "solo con regolazioni")

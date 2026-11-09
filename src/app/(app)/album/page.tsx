@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { formatCount } from "@/lib/format";
-import { listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "@/lib/gallery";
+import { albumTreeIndex, listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
-import { AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
+import { AlbumTrashedMsg, NewAlbumDialog, parentsLabel } from "@/app/ui/gallery/album-tree";
+import { albumDetail, AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
-import { albumDates } from "@/app/ui/gallery/dates";
 import { SearchSuggest } from "@/app/ui/search-suggest";
 
 const ORIGINS = Object.keys(ORIGIN_LABEL) as AlbumRow["origin"][];
@@ -15,7 +14,13 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
   const origin = ORIGINS.find((o) => o === sp.origine);
-  const albums = await listAlbums({ q: q || undefined, origin });
+  // Senza ricerca né filtro solo il primo livello; cercando, anche i sotto-album (con il percorso).
+  const searching = !!(q || origin);
+  const [albums, nodes] = await Promise.all([
+    listAlbums({ q: q || undefined, origin, parentId: searching ? undefined : null }),
+    searching ? albumTreeIndex() : Promise.resolve([]),
+  ]);
+  const byId = new Map(nodes.map((n) => [n.id, n]));
   const urls = await signKeys(albums.map((a) => a.cover_thumb));
 
   const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
@@ -25,7 +30,8 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
     href: `/album/${a.public_id}`,
     src: a.cover_thumb ? (urls.get(a.cover_thumb) ?? null) : null,
     title: a.title,
-    detail: [albumDates(a), `${formatCount(a.photo_count)} foto`].filter(Boolean).join(" · "),
+    path: a.parent_id ? parentsLabel(a.id, byId) : undefined,
+    detail: albumDetail(a),
     origin: ORIGIN_LABEL[a.origin],
   }));
 
@@ -46,6 +52,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
           <button type="submit">Filtra</button>
         </form>
         <div className="page-head-actions">
+          <NewAlbumDialog />
           {albums.length > 1 && (
             <Link className="button secondary" href="/album/unisci">
               Unisci album
@@ -54,12 +61,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
           {albums.length > 0 && <AlbumViewSwitch view={view} />}
         </div>
       </div>
-      {typeof sp.album_cestino === "string" && /^\d+$/.test(sp.album_cestino) && (
-        <p className="msg msg-ok card" role="status">
-          Album spostato nel <Link href="/admin/cestino">cestino</Link>
-          {Number(sp.album_cestino) > 0 ? ` con ${sp.album_cestino} foto` : ""}: puoi ripristinarlo da lì.
-        </p>
-      )}
+      <AlbumTrashedMsg sp={sp} />
       {albums.length === 0 ? (
         <p className="muted">
           {q || origin ? (

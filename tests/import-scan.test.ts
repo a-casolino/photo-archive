@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { scan } from "../scripts/import/scan";
+import { diskAlbum, scan } from "../scripts/import/scan";
 
 describe("scan del disco", () => {
   it("mette in un album anche i CR2 direttamente nella cartella scelta", async () => {
@@ -21,9 +21,54 @@ describe("scan del disco", () => {
     expect(ignored).toBe(1);
     const byName = Object.fromEntries(files.map((f) => [f.name, f.album]));
     expect(byName["IMG_0001.CR2"]).toEqual({ origin: "disk_folder", ref: "panciona", title: "panciona" });
-    expect(byName["IMG_0002.CR2"]).toEqual({ origin: "disk_folder", ref: "Mare", title: "Mare" });
+    // Le sottocartelle diventano sotto-album della cartella scelta.
+    expect(byName["IMG_0002.CR2"]).toEqual({
+      origin: "disk_folder",
+      ref: "Mare",
+      title: "Mare",
+      parents: [{ ref: "panciona", title: "panciona" }],
+    });
 
     const senza = await scan(root, "cr2_disk", { albums: false });
     expect(senza.files.every((f) => f.album === null)).toBe(true);
+  });
+});
+
+describe("album delle cartelle del disco (sotto-album)", () => {
+  it("costruisce i livelli dalla cartella scelta, con i riferimenti di sempre", () => {
+    expect(diskAlbum("Foto", "")).toEqual({ origin: "disk_folder", ref: "Foto", title: "Foto" });
+    expect(diskAlbum("Foto", "Viaggi/Roma")).toEqual({
+      origin: "disk_folder",
+      ref: "Viaggi/Roma",
+      title: "Roma",
+      parents: [
+        { ref: "Foto", title: "Foto" },
+        { ref: "Viaggi", title: "Viaggi" },
+      ],
+    });
+  });
+
+  it("oltre il terzo livello resta nel terzo, con il percorso nel titolo", () => {
+    expect(diskAlbum("Foto", "Viaggi/Roma/Giorno 1")).toEqual({
+      origin: "disk_folder",
+      ref: "Viaggi/Roma/Giorno 1",
+      title: "Roma › Giorno 1",
+      parents: [
+        { ref: "Foto", title: "Foto" },
+        { ref: "Viaggi", title: "Viaggi" },
+      ],
+    });
+  });
+
+  it("dalla radice di un disco (senza nome) il primo livello è la prima cartella", () => {
+    expect(diskAlbum("", "2019/Roma/Giorno 1")).toEqual({
+      origin: "disk_folder",
+      ref: "2019/Roma/Giorno 1",
+      title: "Giorno 1",
+      parents: [
+        { ref: "2019", title: "2019" },
+        { ref: "2019/Roma", title: "Roma" },
+      ],
+    });
   });
 });

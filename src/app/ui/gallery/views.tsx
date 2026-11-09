@@ -71,7 +71,7 @@ export function EditedFilter({
         Tutte ({total})
       </Link>
       <Link
-        href={`${base}?solo=regolazioni`}
+        href={`${base}${base.includes("?") ? "&" : "?"}solo=regolazioni`}
         className={onlyEdited ? "active" : undefined}
         aria-current={onlyEdited ? "page" : undefined}
       >

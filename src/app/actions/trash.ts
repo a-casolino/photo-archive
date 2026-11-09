@@ -64,13 +64,15 @@ export async function purgePhotosAction(formData: FormData): Promise<void> {
 
 const albumId = z.string().regex(/^[0-9A-Za-z]{22}$/);
 
-/** "Elimina album": l'album e le foto che stanno solo lì vanno nel cestino. */
+/** "Elimina album": l'album, i sotto-album e le foto che stanno solo lì vanno nel cestino. */
 export async function trashAlbumAction(formData: FormData): Promise<void> {
   await requireOwner();
   const id = albumId.parse(formData.get("albumId"));
+  const back = safeBack(formData.get("back"), "/album");
   const res = await trashAlbum(id);
   refreshGalleries();
-  redirect(res ? `/album?album_cestino=${res.photos}` : "/album");
+  const sep = back.includes("?") ? "&" : "?";
+  redirect(res ? `${back}${sep}album_cestino=${res.photos}&sotto_album=${res.subalbums}` : back);
 }
 
 export async function restoreAlbumAction(formData: FormData): Promise<void> {
