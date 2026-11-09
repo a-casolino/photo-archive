@@ -54,10 +54,135 @@ button.link.danger {
   margin: 4px 0 0;
 }
 
-.album-search {
+/* --- Ricerca e filtri (Album, Foto): vedi filter-bar.tsx --- */
+
+.filter-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Sul computer tutto in una riga che va a capo, come una volta. */
+.filter-bar-search,
+.filter-panel,
+.filter-fields,
+.filter-actions {
+  display: contents;
+}
+
+/* Riepilogo dei filtri attivi: solo sul telefono, dove i campi sono nel pannello. */
+.filter-summary {
+  display: none;
+}
+
+.filters-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  /* Sul telefono: ricerca + «Filtri», il resto in un pannello che si apre. */
+  .filter-bar {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .filter-bar-search {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .filter-bar-search > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .filter-bar-search input {
+    width: 100%;
+  }
+
+  .filter-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .filter-bar[data-open] .filter-summary {
+    display: none;
+  }
+
+  .filter-chip {
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+  }
+
+  .filter-summary-reset {
+    margin-left: 4px;
+  }
+
+  .filter-bar[data-open] .filters-toggle {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .filter-panel {
+    display: none;
+  }
+
+  .filter-bar[data-open] .filter-panel {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+  }
+
+  .filter-fields {
+    display: grid;
+    gap: 8px;
+  }
+
+  .filter-fields select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-fields .filter-date {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .filter-fields .filter-check {
+    padding: 4px 0;
+  }
+
+  .filter-actions {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 8px;
+  }
+
+  .filter-actions > * {
+    text-align: center;
+  }
 }
 
 .page-head-actions {

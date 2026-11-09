@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { cookies } from "next/headers";
 import { albumTreeIndex, listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
@@ -6,8 +7,9 @@ import { AlbumTrashedMsg, NewAlbumDialog, parentsLabel } from "@/app/ui/gallery/
 import { albumDetail, AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
 import { SearchSuggest } from "@/app/ui/search-suggest";
+import { FilterBar } from "@/app/ui/gallery/filter-bar";
 import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
-import { FILTER_PARAMS, hasDateFilter, parseDateFilter } from "@/lib/filter-rules";
+import { dateFilterLabel, FILTER_PARAMS, hasDateFilter, parseDateFilter } from "@/lib/filter-rules";
 import { peopleOptions } from "@/lib/people";
 import { photoYears } from "@/lib/photos";
 
@@ -23,6 +25,10 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
   const person = peopleList.find((p) => p.public_id === sp[FILTER_PARAMS.person]);
   // Senza ricerca né filtro solo il primo livello; cercando, anche i sotto-album (con il percorso).
   const searching = !!(q || origin || hasDateFilter(date) || person);
+  // Filtri attivi in parole, per il riepilogo sul telefono.
+  const activeLabels = [dateFilterLabel(date), origin && ORIGIN_LABEL[origin], person?.name].filter(
+    (x): x is string => !!x,
+  );
   const [albums, nodes] = await Promise.all([
     listAlbums({ q: q || undefined, origin, date, personId: person?.id, parentId: searching ? undefined : null }),
     searching ? albumTreeIndex() : Promise.resolve([]),
@@ -45,8 +51,12 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
     <>
       <div className="page-head">
         <h1>Album</h1>
-        <form className="album-search" role="search">
-          <SearchSuggest name="q" defaultValue={q} placeholder="Cerca album, tag o persone" label="Cerca" />
+        <FilterBar
+          active={activeLabels}
+          resetHref={searching ? "/album" : undefined}
+          search={<SearchSuggest name="q" defaultValue={q} placeholder="Cerca album, tag o persone" label="Cerca" />}
+        >
+          <DateSelects value={date} years={years} />
           <select name="origine" defaultValue={origin ?? ""} aria-label="Origine">
             <option value="">Tutte le origini</option>
             {ORIGINS.map((o) => (
@@ -55,21 +65,16 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
               </option>
             ))}
           </select>
-          <DateSelects value={date} years={years} />
           <PersonSelect value={person?.public_id} people={peopleList} />
-          <button type="submit">Filtra</button>
-          {searching && (
-            <Link className="button secondary" href="/album">
-              Azzera
-            </Link>
-          )}
-        </form>
+        </FilterBar>
         <div className="page-head-actions">
           <NewAlbumDialog />
           {albums.length > 1 && (
-            <Link className="button secondary" href="/album/unisci">
-              Unisci album
-            </Link>
+            <Button asChild variant="outline">
+              <Link href="/album/unisci">
+                Unisci album
+              </Link>
+            </Button>
           )}
           {albums.length > 0 && <AlbumViewSwitch view={view} />}
         </div>
