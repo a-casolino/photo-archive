@@ -1,8 +1,15 @@
+import { DRIVE_DEVICE_NAME } from "@/lib/drive-rules";
 import { estimateRemainingMs, formatBytes, formatCount, formatDuration, formatRate } from "@/lib/format";
 import { STEP_LABEL, type ImportActivity } from "@/lib/import-shared";
 import { isStale, type ImportRow } from "@/lib/imports";
 
-export const SOURCE_LABEL = { cr2_disk: "Disco", google_takeout: "Google Takeout" } as const;
+const SOURCE_LABEL = { cr2_disk: "Disco", google_takeout: "Google Takeout" } as const;
+
+/** Fonte di un import; quelli fatti dalla VPS leggendo Google Drive si riconoscono dalla chiave usata. */
+export function sourceLabel(source: ImportRow["source"], deviceName: string | null | undefined): string {
+  if (deviceName === DRIVE_DEVICE_NAME) return source === "google_takeout" ? "Takeout da Drive" : "Google Drive";
+  return SOURCE_LABEL[source];
+}
 
 const STATUS_LABEL: Record<ImportRow["status"], string> = {
   running: "In corso",

@@ -7,7 +7,7 @@ import { CANDIDATE_JOIN, isStale, type ImportRow } from "@/lib/imports";
 import { requireOwner } from "@/lib/session";
 import { storage } from "@/lib/storage";
 import { AutoRefresh } from "./auto-refresh";
-import { ImportProgress, SOURCE_LABEL, StatusBadge } from "./import-status";
+import { ImportProgress, sourceLabel, StatusBadge } from "./import-status";
 import { NewDeviceForm } from "./new-device-form";
 
 type DeviceRow = {
@@ -27,7 +27,10 @@ export default async function ImportPage() {
   await requireOwner();
 
   const [imports, devices, kinds, review, duplicates] = await Promise.all([
-    query<ImportRow>("SELECT * FROM imports ORDER BY started_at DESC, id DESC LIMIT 100"),
+    query<ImportRow & { device_name: string | null }>(
+      `SELECT i.*, d.name AS device_name FROM imports i LEFT JOIN import_devices d ON d.id = i.device_id
+        ORDER BY i.started_at DESC, i.id DESC LIMIT 100`,
+    ),
     query<DeviceRow>(
       `SELECT id, name, token_hint, created_at, last_used_at, revoked_at
          FROM import_devices ORDER BY revoked_at IS NOT NULL, created_at DESC`,
@@ -144,7 +147,7 @@ export default async function ImportPage() {
                       {imp.label}
                     </Link>
                   </td>
-                  <td>{SOURCE_LABEL[imp.source]}</td>
+                  <td>{sourceLabel(imp.source, imp.device_name)}</td>
                   <td>
                     <StatusBadge imp={imp} />
                   </td>

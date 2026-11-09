@@ -5,7 +5,7 @@ import { dateTimeFmt, formatCount } from "@/lib/format";
 import { isStale, type ImportRow } from "@/lib/imports";
 import { requireOwner } from "@/lib/session";
 import { AutoRefresh } from "../auto-refresh";
-import { ImportProgress, SOURCE_LABEL, StatusBadge } from "../import-status";
+import { ImportProgress, sourceLabel, StatusBadge } from "../import-status";
 
 type ErrorRow = { id: number; source_path: string; message: string; created_at: Date };
 
@@ -42,7 +42,7 @@ export default async function ImportDetailPage({ params }: PageProps<"/admin/imp
 
       <section className="card">
         <div className="counters">
-          <span>Fonte: {SOURCE_LABEL[imp.source]}</span>
+          <span>Fonte: {sourceLabel(imp.source, imp.device_name)}</span>
           <span>Computer: {imp.device_name ?? "—"}</span>
           <span>Iniziato: {dateTimeFmt.format(imp.started_at)}</span>
           {imp.finished_at && <span>Finito: {dateTimeFmt.format(imp.finished_at)}</span>}
