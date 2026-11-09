@@ -8,7 +8,7 @@ import {
   startDriveConnection,
 } from "@/app/actions/drive";
 import { query } from "@/lib/db";
-import { browseFolder, listTakeoutFiles, type FolderView } from "@/lib/drive-browse";
+import { browseFolder, listTakeoutFiles, storageQuota, type FolderView, type StorageQuota } from "@/lib/drive-browse";
 import { groupTakeoutExports, type TakeoutExport } from "@/lib/drive-rules";
 import { dateTimeFmt, formatBytes, formatCount } from "@/lib/format";
 import { DriveAuthError, DriveClient, driveAccount, driveConfigured, driveRedirectUri } from "@/lib/google-drive";
@@ -111,12 +111,14 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
 
   let exports: TakeoutExport[] = [];
   let view: FolderView | null = null;
+  let quota: StorageQuota | null = null;
   let driveError: string | null = null;
   try {
     const client = (await DriveClient.forOwner())!;
-    [exports, view] = await Promise.all([
+    [exports, view, quota] = await Promise.all([
       listTakeoutFiles(client).then(groupTakeoutExports),
       browseFolder(client, folderParam),
+      storageQuota(client).catch(() => null),
     ]);
   } catch (e) {
     driveError = e instanceof DriveAuthError ? e.message : `Drive non risponde: ${(e as Error).message}`;
@@ -142,6 +144,7 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
             </button>
           </form>
         </div>
+        {quota && <QuotaInfo quota={quota} />}
         {driveError && (
           <p className="msg msg-error" role="alert">
             {driveError}
@@ -417,5 +420,25 @@ GOOGLE_TOKEN_SECRET=...`}</pre>
         </li>
       </ol>
     </section>
+  );
+}
+
+/** Spazio dell'account Google (condiviso fra Drive, Gmail e Google Foto). */
+function QuotaInfo({ quota }: { quota: StorageQuota }) {
+  const other = Math.max(0, quota.usage - quota.usageInDrive - quota.usageInDriveTrash);
+  return (
+    <p className="muted">
+      Spazio Google: {formatBytes(quota.usage)} usati
+      {quota.limit !== null && (
+        <>
+          {" "}
+          di {formatBytes(quota.limit)}, <strong>{formatBytes(Math.max(0, quota.limit - quota.usage))} liberi</strong>
+        </>
+      )}
+      . Drive {formatBytes(quota.usageInDrive)}
+      {quota.usageInDriveTrash > 0 && <> (più {formatBytes(quota.usageInDriveTrash)} nel cestino)</>}, Google Foto e
+      Gmail {formatBytes(other)}. L&apos;export di Takeout occupa su Drive circa quanto le foto esportate, finché non
+      cancelli gli zip.
+    </p>
   );
 }

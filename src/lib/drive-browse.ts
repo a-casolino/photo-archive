@@ -36,3 +36,19 @@ export async function browseFolder(client: DriveClient, id: string | "root" | "s
   const images = children.filter((c) => c.mimeType.startsWith("image/")).length;
   return { folder, folders, images, others: children.length - folders.length - images };
 }
+
+/** Spazio dell'account Google in byte; `limit` è null per gli spazi illimitati. */
+export type StorageQuota = { limit: number | null; usage: number; usageInDrive: number; usageInDriveTrash: number };
+
+export async function storageQuota(client: DriveClient): Promise<StorageQuota> {
+  const { storageQuota: q } = await client.get<{ storageQuota: Record<string, string | undefined> }>("about", {
+    fields: "storageQuota",
+  });
+  const n = (v: string | undefined) => Number(v ?? 0) || 0;
+  return {
+    limit: q.limit ? n(q.limit) : null,
+    usage: n(q.usage),
+    usageInDrive: n(q.usageInDrive),
+    usageInDriveTrash: n(q.usageInDriveTrash),
+  };
+}
