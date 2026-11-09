@@ -1,6 +1,7 @@
 import "server-only";
 import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
 import { query, queryOne } from "./db";
+import { dateFilterSql, hasDateFilter, type DateFilter } from "./filter-rules";
 import { storage } from "./storage";
 
 /*
@@ -169,7 +170,16 @@ const ALBUM_COLUMNS = "id, public_id, title, description, origin, origin_ref, pa
  * quell'album (null = primo livello); se manca, tutti i livelli.
  */
 export async function listAlbums(
-  filter: { q?: string; origin?: AlbumRow["origin"]; tagId?: number; parentId?: number | null } = {},
+  filter: {
+    q?: string;
+    origin?: AlbumRow["origin"];
+    tagId?: number;
+    parentId?: number | null;
+    /** Solo gli album (con i sotto-album) che hanno almeno una foto scattata in quella data… */
+    date?: DateFilter;
+    /** …e/o in cui compare quella persona (volti confermati, nella stessa foto se c'è anche la data). */
+    personId?: number;
+  } = {},
 ): Promise<AlbumListItem[]> {
   const where = ["a.deleted_at IS NULL"];
   const params: unknown[] = [];
@@ -194,6 +204,16 @@ export async function listAlbums(
   if (filter.origin) {
     where.push("a.origin = ?");
     params.push(filter.origin);
+  }
+  const date = filter.date && hasDateFilter(filter.date) ? dateFilterSql("q.taken_at", filter.date) : null;
+  if (date || filter.personId) {
+    const photoCond = [...(date?.sql ?? [])];
+    if (filter.personId) {
+      photoCond.push("EXISTS (SELECT 1 FROM faces f WHERE f.photo_id = q.id AND f.person_id = ? AND f.status = 'confirmed')");
+    }
+    where.push(`EXISTS (SELECT 1 FROM album_photos ap JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
+                         WHERE (ap.album_id = a.id OR ${inSubalbums("ap.album_id", "a")}) AND ${photoCond.join(" AND ")})`);
+    params.push(...(date?.params ?? []), ...(filter.personId ? [filter.personId] : []));
   }
   const cond = where.join(" AND ");
   // La copertina effettiva si calcola in una tabella derivata: il join su photos resta per chiave primaria.

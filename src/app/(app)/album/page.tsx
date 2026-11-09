@@ -6,6 +6,10 @@ import { AlbumTrashedMsg, NewAlbumDialog, parentsLabel } from "@/app/ui/gallery/
 import { albumDetail, AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
 import { SearchSuggest } from "@/app/ui/search-suggest";
+import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
+import { FILTER_PARAMS, hasDateFilter, parseDateFilter } from "@/lib/filter-rules";
+import { peopleOptions } from "@/lib/people";
+import { photoYears } from "@/lib/photos";
 
 const ORIGINS = Object.keys(ORIGIN_LABEL) as AlbumRow["origin"][];
 
@@ -14,10 +18,13 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
   const origin = ORIGINS.find((o) => o === sp.origine);
+  const date = parseDateFilter(sp);
+  const [years, peopleList] = await Promise.all([photoYears(), peopleOptions()]);
+  const person = peopleList.find((p) => p.public_id === sp[FILTER_PARAMS.person]);
   // Senza ricerca né filtro solo il primo livello; cercando, anche i sotto-album (con il percorso).
-  const searching = !!(q || origin);
+  const searching = !!(q || origin || hasDateFilter(date) || person);
   const [albums, nodes] = await Promise.all([
-    listAlbums({ q: q || undefined, origin, parentId: searching ? undefined : null }),
+    listAlbums({ q: q || undefined, origin, date, personId: person?.id, parentId: searching ? undefined : null }),
     searching ? albumTreeIndex() : Promise.resolve([]),
   ]);
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -49,7 +56,14 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
               </option>
             ))}
           </select>
+          <DateSelects value={date} years={years} />
+          <PersonSelect value={person?.public_id} people={peopleList} />
           <button type="submit">Filtra</button>
+          {searching && (
+            <Link className="button secondary" href="/album">
+              Azzera
+            </Link>
+          )}
         </form>
         <div className="page-head-actions">
           <NewAlbumDialog />
@@ -64,7 +78,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
       <AlbumTrashedMsg sp={sp} />
       {albums.length === 0 ? (
         <p className="muted">
-          {q || origin ? (
+          {searching ? (
             <>
               Nessun album trovato. <Link href="/album">Mostra tutti</Link>
             </>

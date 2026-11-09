@@ -54,6 +54,15 @@ export async function listPeople(): Promise<PersonListItem[]> {
   );
 }
 
+/** Persone con almeno una foto confermata, per i filtri (solo proprietario). */
+export async function peopleOptions(): Promise<{ id: number; public_id: string; name: string }[]> {
+  return query(
+    `SELECT pe.id, pe.public_id, pe.name FROM people pe
+      WHERE EXISTS (SELECT 1 FROM faces f WHERE f.person_id = pe.id AND f.status = 'confirmed')
+      ORDER BY pe.name`,
+  );
+}
+
 export async function getPerson(publicId: string): Promise<Person | null> {
   return queryOne<Person>("SELECT id, public_id, name, cover_face_id FROM people WHERE public_id = ?", [publicId]);
 }

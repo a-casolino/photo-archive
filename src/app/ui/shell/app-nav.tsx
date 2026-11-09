@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ImageIcon,
   ImagesIcon,
   InboxIcon,
   LogOutIcon,
@@ -32,7 +33,9 @@ type NavItem = { href: string; label: string; icon: LucideIcon; mobile?: boolean
 // telefono, le altre nel menu «Altro».
 const OWNER_ITEMS: NavItem[] = [
   { href: "/album", label: "Album", icon: ImagesIcon, mobile: true },
-  { href: "/tag", label: "Tag", icon: TagsIcon, mobile: true },
+  { href: "/foto", label: "Foto", icon: ImageIcon, mobile: true },
+  // Sul telefono Tag va in «Altro» per fare posto a Foto.
+  { href: "/tag", label: "Tag", icon: TagsIcon },
   { href: "/persone", label: "Persone", icon: UsersIcon, mobile: true },
   { href: "/admin/condivisioni", label: "Condivisioni", icon: Share2Icon, mobile: true },
   { href: "/admin/import", label: "Import", icon: UploadIcon },
@@ -45,7 +48,6 @@ const VIEWER_ITEMS: NavItem[] = [{ href: "/dashboard", label: "Condivisi con me"
 const LOGOUT_FORM = "logout-form";
 
 function isActive(pathname: string, href: string) {
-  if (href === "/album" && pathname.startsWith("/foto/")) return true;
   if (href === "/dashboard" && pathname.startsWith("/condivisi/")) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
