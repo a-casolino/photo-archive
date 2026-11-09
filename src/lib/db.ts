@@ -18,6 +18,11 @@ export function pool(): Pool {
       timezone: "Z", // tutte le date in UTC, come da schema
       charset: "utf8mb4",
     });
+    // Anche per MySQL la sessione è in UTC: così i DEFAULT CURRENT_TIMESTAMP
+    // (created_at, ...) sono in UTC come il resto, non nell'ora del server.
+    g.__photoArchivePool.on("connection", (conn) => {
+      conn.query("SET time_zone = '+00:00'");
+    });
   }
   return g.__photoArchivePool;
 }
