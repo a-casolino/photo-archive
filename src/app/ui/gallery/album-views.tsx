@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LayoutGrid, List } from "lucide-react";
-import { formatCount } from "@/lib/format";
+import { formatBytes, formatCount } from "@/lib/format";
 import { ViewSwitchButton } from "./view-switch";
 import { ALBUM_VIEW_COOKIE, type AlbumView } from "./album-view-pref";
 import { albumDates } from "./dates";
@@ -19,23 +19,30 @@ export type AlbumEntry = {
   title: string;
   /** Album che lo contengono ("Viaggi › 2019"), nei risultati di una ricerca. */
   path?: string;
-  /** Periodo, numero di foto e di sotto-album. */
+  /** Periodo, numero di foto, sotto-album ed eventualmente peso. */
   detail: string;
-  /** Origine dell'album (solo nella lista). */
-  origin?: string;
 };
 
-/** "12 lug 2014 · 120 foto · 3 sotto-album" (foto comprese quelle dei sotto-album). */
-export function albumDetail(a: {
-  date_from: Date | null;
-  date_to: Date | null;
-  photo_count: number;
-  child_count: number;
-}): string {
+/**
+ * "12 lug 2014 · 120 foto · 3 sotto-album · 2,3 GB" (foto comprese quelle dei
+ * sotto-album). Il peso degli originali solo con `withSize`, cioè per il
+ * proprietario.
+ */
+export function albumDetail(
+  a: {
+    date_from: Date | null;
+    date_to: Date | null;
+    photo_count: number;
+    child_count: number;
+    total_bytes: number;
+  },
+  { withSize = false }: { withSize?: boolean } = {},
+): string {
   return [
     albumDates(a),
     `${formatCount(a.photo_count)} foto`,
     a.child_count > 0 ? `${formatCount(a.child_count)} sotto-album` : "",
+    withSize && a.photo_count > 0 ? formatBytes(a.total_bytes) : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -83,7 +90,7 @@ export function AlbumList({ albums }: { albums: AlbumEntry[] }) {
             <span className="album-row-text">
               {a.path && <span className="album-path">{a.path}</span>}
               <strong>{a.title}</strong>
-              <span>{[a.detail, a.origin].filter(Boolean).join(" · ")}</span>
+              {a.detail && <span>{a.detail}</span>}
             </span>
           </Link>
         </li>
