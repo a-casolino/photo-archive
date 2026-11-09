@@ -1,11 +1,5 @@
 /* Gallerie, pagina foto e condivisioni (separati da globals.css). */
 
-main:has(.masonry),
-main:has(.album-grid),
-main:has(.photo-page) {
-  max-width: 1600px;
-}
-
 textarea {
   font: inherit;
   padding: 8px 10px;

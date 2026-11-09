@@ -110,10 +110,20 @@
     border-color: var(--border);
   }
 
+  /*
+   * Contenitore delle pagine: a tutta larghezza, con gli stessi margini
+   * laterali della barra in alto (px-4, da md px-6 in HEADER_CLASS).
+   * Il lightbox è position: fixed e non ne dipende.
+   */
   main {
-    max-width: 960px;
-    margin: 0 auto;
+    margin: 0;
     padding: 24px 16px;
+  }
+
+  @media (min-width: 768px) {
+    main {
+      padding-inline: 24px;
+    }
   }
 
   .auth-card {
