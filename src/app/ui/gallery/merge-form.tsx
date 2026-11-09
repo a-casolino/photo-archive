@@ -110,7 +110,7 @@ export function MergeForm({ albums, preset }: { albums: MergeAlbum[]; preset: st
         <div className="card merge-summary">
           <p>
             Le foto di {sources.length === 1 ? "«" + sources[0].title + "»" : `${sources.length} album`} confluiscono in{" "}
-            <strong>«{target.title}»</strong>, senza doppioni, insieme ai loro tag.{" "}
+            <strong>«{target.title}»</strong>, senza doppioni, insieme ai loro tag e ai loro sotto-album.{" "}
             {sources.length === 1 ? "L'album unito va" : "Gli album uniti vanno"} nel cestino; i vecchi indirizzi e i
             nuovi import della stessa cartella portano all&apos;album tenuto.
           </p>

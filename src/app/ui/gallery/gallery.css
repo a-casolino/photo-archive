@@ -190,6 +190,20 @@ button.link.danger {
   font-size: 0.82rem;
 }
 
+/* Percorso dell'album nei risultati di una ricerca (sotto-album). */
+.album-card-text .album-path,
+.album-row-text .album-path {
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sotto-album dentro un album, sopra le foto. */
+.subalbums {
+  margin-bottom: 1.75rem;
+}
+
 @media (max-width: 520px) {
   .album-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

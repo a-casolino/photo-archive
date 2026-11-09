@@ -1,4 +1,5 @@
 import "server-only";
+import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
 import { query, queryOne } from "./db";
 import { storage } from "./storage";
 
@@ -87,13 +88,16 @@ export type AlbumRow = {
   description: string | null;
   origin: "disk_folder" | "google_photos" | "manual";
   origin_ref: string | null;
+  parent_id: number | null;
   date_from: Date | null;
   date_to: Date | null;
   cover_photo_id: number | null;
 };
 
 export type AlbumListItem = AlbumRow & {
+  /** Foto dell'album e dei suoi sotto-album, senza doppioni. */
   photo_count: number;
+  child_count: number;
   cover_thumb: string | null;
   cover_width: number | null;
   cover_height: number | null;
@@ -110,11 +114,72 @@ export const ORIGIN_LABEL: Record<AlbumRow["origin"], string> = {
 // Album
 // ---------------------------------------------------------------------
 
+/**
+ * Albero degli album: per ogni album che soddisfa `anchorWhere` (alias `a`),
+ * una riga (root_id, id, lvl) per lui (lvl 0) e per ogni sotto-album attivo.
+ * Al massimo 3 livelli: il limite su lvl ferma anche un eventuale ciclo.
+ */
+export function treeCte(anchorWhere: string): string {
+  return `WITH RECURSIVE tree (root_id, id, lvl) AS (
+    SELECT a.id, a.id, 0 FROM albums a WHERE ${anchorWhere}
+    UNION ALL
+    SELECT t.root_id, c.id, t.lvl + 1 FROM tree t
+      JOIN albums c ON c.parent_id = t.id AND c.deleted_at IS NULL
+     WHERE t.lvl < ${MAX_ALBUM_DEPTH - 1}
+  )`;
+}
+
+/**
+ * Condizione SQL: l'album `col` è un sotto-album attivo (2° o 3° livello
+ * sotto) dell'album `alias`. Senza CTE, così si usa anche in sottoquery
+ * correlate.
+ */
+export function inSubalbums(col: string, alias: string): string {
+  return `(${col} IN (SELECT c1.id FROM albums c1 WHERE c1.parent_id = ${alias}.id AND c1.deleted_at IS NULL)
+        OR ${col} IN (SELECT c2.id FROM albums c2 JOIN albums c1 ON c1.id = c2.parent_id AND c1.deleted_at IS NULL
+                       WHERE c1.parent_id = ${alias}.id AND c2.deleted_at IS NULL))`;
+}
+
+/**
+ * Copertina presa dai sotto-album di `alias`, per gli album che non hanno
+ * foto loro: prima le copertine scelte dei sotto-album diretti, poi la foto
+ * più vecchia.
+ */
+export function branchCoverId(alias: string): string {
+  return `(SELECT p.id FROM albums d
+             JOIN album_photos ap ON ap.album_id = d.id
+             JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+            WHERE ${inSubalbums("d.id", alias)}
+            ORDER BY (d.parent_id = ${alias}.id) DESC, (p.id <=> d.cover_photo_id) DESC,
+                     p.taken_at IS NULL, p.taken_at, p.id LIMIT 1)`;
+}
+
+/** Foto (senza doppioni) dell'album `alias` e dei suoi sotto-album. */
+export function branchPhotoCount(alias: string): string {
+  return `(SELECT COUNT(DISTINCT ap.photo_id) FROM album_photos ap
+             JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
+            WHERE ap.album_id = ${alias}.id OR ${inSubalbums("ap.album_id", alias)})`;
+}
+
+const ALBUM_COLUMNS = "id, public_id, title, description, origin, origin_ref, parent_id, date_from, date_to, cover_photo_id";
+
+/**
+ * Album con copertina, numero di foto (comprese quelle dei sotto-album) e
+ * periodo (anche dei sotto-album). `parentId`: solo gli album dentro
+ * quell'album (null = primo livello); se manca, tutti i livelli.
+ */
 export async function listAlbums(
-  filter: { q?: string; origin?: AlbumRow["origin"]; tagId?: number } = {},
+  filter: { q?: string; origin?: AlbumRow["origin"]; tagId?: number; parentId?: number | null } = {},
 ): Promise<AlbumListItem[]> {
   const where = ["a.deleted_at IS NULL"];
   const params: unknown[] = [];
+  if (filter.parentId !== undefined) {
+    if (filter.parentId === null) where.push("a.parent_id IS NULL");
+    else {
+      where.push("a.parent_id = ?");
+      params.push(filter.parentId);
+    }
+  }
   if (filter.q) {
     // Titolo, cartella d'origine o un tag dell'album.
     where.push(`(a.title LIKE ? OR a.origin_ref LIKE ? OR EXISTS (
@@ -130,44 +195,103 @@ export async function listAlbums(
     where.push("a.origin = ?");
     params.push(filter.origin);
   }
+  const cond = where.join(" AND ");
   // La copertina effettiva si calcola in una tabella derivata: il join su photos resta per chiave primaria.
   return query<AlbumListItem>(
-    `SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.date_from, a.date_to,
-            a.cover_photo_id, a.photo_count,
+    `${treeCte(cond)}
+     SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.parent_id, a.date_from, a.date_to,
+            a.cover_photo_id, a.photo_count, a.child_count,
             COALESCE(x.gcs_thumb_key, p.gcs_thumb_key) AS cover_thumb,
             IF(x.id IS NULL, p.width, x.width) AS cover_width,
             IF(x.id IS NULL, p.height, x.height) AS cover_height,
             IF(x.id IS NULL, p.orientation, x.orientation) AS cover_orientation
        FROM (
-         SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.date_from, a.date_to,
-                a.cover_photo_id,
-                (SELECT COUNT(*) FROM album_photos ap JOIN photos q ON q.id = ap.photo_id
-                  WHERE ap.album_id = a.id AND q.deleted_at IS NULL) AS photo_count,
-                ${albumCoverId("a")} AS shown_cover_id
+         SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.parent_id, a.cover_photo_id,
+                (SELECT MIN(d.date_from) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = a.id) AS date_from,
+                (SELECT MAX(d.date_to) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = a.id) AS date_to,
+                (SELECT COUNT(DISTINCT ap.photo_id) FROM tree t
+                   JOIN album_photos ap ON ap.album_id = t.id
+                   JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
+                  WHERE t.root_id = a.id) AS photo_count,
+                (SELECT COUNT(*) FROM albums c WHERE c.parent_id = a.id AND c.deleted_at IS NULL) AS child_count,
+                COALESCE(${albumCoverId("a")}, ${branchCoverId("a")}) AS shown_cover_id
            FROM albums a
-          WHERE ${where.join(" AND ")}
+          WHERE ${cond}
        ) a
        LEFT JOIN photos p ON p.id = a.shown_cover_id
        ${LINKED_EXPORT}
       ORDER BY a.date_from IS NULL, a.date_from DESC, a.title`,
-    params,
+    [...params, ...params],
   );
 }
 
 export async function getAlbum(publicId: string): Promise<AlbumRow | null> {
-  return queryOne<AlbumRow>(
-    `SELECT id, public_id, title, description, origin, origin_ref, date_from, date_to, cover_photo_id
-       FROM albums WHERE public_id = ? AND deleted_at IS NULL`,
-    [publicId],
-  );
+  return queryOne<AlbumRow>(`SELECT ${ALBUM_COLUMNS} FROM albums WHERE public_id = ? AND deleted_at IS NULL`, [
+    publicId,
+  ]);
 }
 
 export async function getAlbumById(id: number): Promise<AlbumRow | null> {
-  return queryOne<AlbumRow>(
-    `SELECT id, public_id, title, description, origin, origin_ref, date_from, date_to, cover_photo_id
-       FROM albums WHERE id = ? AND deleted_at IS NULL`,
-    [id],
+  return queryOne<AlbumRow>(`SELECT ${ALBUM_COLUMNS} FROM albums WHERE id = ? AND deleted_at IS NULL`, [id]);
+}
+
+// ---------------------------------------------------------------------
+// Sotto-album
+// ---------------------------------------------------------------------
+
+export type AlbumCrumb = { id: number; public_id: string; title: string };
+
+/**
+ * Percorso dell'album: gli album che lo contengono, dal primo livello, e
+ * lui per ultimo. Con `stopAt` il percorso parte da quell'album (per chi
+ * riceve una condivisione: niente di quello che sta sopra).
+ */
+export async function albumPath(albumId: number, stopAt?: number): Promise<AlbumCrumb[]> {
+  const out: AlbumCrumb[] = [];
+  for (let cur: number | null = albumId; cur !== null && out.length < MAX_ALBUM_DEPTH; ) {
+    const row: (AlbumCrumb & { parent_id: number | null }) | null = await queryOne(
+      "SELECT id, public_id, title, parent_id FROM albums WHERE id = ? AND deleted_at IS NULL",
+      [cur],
+    );
+    if (!row) break;
+    out.unshift({ id: row.id, public_id: row.public_id, title: row.title });
+    if (row.id === stopAt) break;
+    cur = row.parent_id;
+  }
+  return out;
+}
+
+/** L'album sta nel ramo di `rootId` (o è lui)? Serve alle condivisioni. */
+export async function isAlbumInBranch(rootId: number, albumId: number): Promise<boolean> {
+  const path = await albumPath(albumId, rootId);
+  return path.length > 0 && path[0].id === rootId;
+}
+
+/** Numero di foto (senza doppioni) e di sotto-album del ramo, e periodo. */
+export async function albumBranchSummary(
+  albumId: number,
+): Promise<{ photos: number; children: number; date_from: Date | null; date_to: Date | null }> {
+  const row = await queryOne<{ photos: number; children: number; date_from: Date | null; date_to: Date | null }>(
+    `${treeCte("a.id = ?")}
+     SELECT (SELECT COUNT(DISTINCT ap.photo_id) FROM tree t
+               JOIN album_photos ap ON ap.album_id = t.id
+               JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL) AS photos,
+            (SELECT COUNT(*) FROM albums c WHERE c.parent_id = ? AND c.deleted_at IS NULL) AS children,
+            (SELECT MIN(d.date_from) FROM tree t JOIN albums d ON d.id = t.id) AS date_from,
+            (SELECT MAX(d.date_to) FROM tree t JOIN albums d ON d.id = t.id) AS date_to`,
+    [albumId, albumId],
   );
+  return {
+    photos: Number(row?.photos ?? 0),
+    children: Number(row?.children ?? 0),
+    date_from: row?.date_from ?? null,
+    date_to: row?.date_to ?? null,
+  };
+}
+
+/** Tutti gli album attivi, per "Sposta in…" e per i controlli sull'albero. */
+export async function albumTreeIndex(): Promise<{ id: number; public_id: string; title: string; parent_id: number | null }[]> {
+  return query("SELECT id, public_id, title, parent_id FROM albums WHERE deleted_at IS NULL ORDER BY title");
 }
 
 /** Copertina mostrata per l'album e se è stata scelta a mano (o è la prima foto). */
@@ -241,6 +365,19 @@ export async function isPhotoInAlbum(albumId: number, photoId: number): Promise<
   const row = await queryOne<{ ok: number }>(
     `SELECT 1 AS ok FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
       WHERE ap.album_id = ? AND ap.photo_id = ?`,
+    [albumId, photoId],
+  );
+  return !!row;
+}
+
+/** La foto sta nell'album o in uno dei suoi sotto-album? */
+export async function isPhotoInBranch(albumId: number, photoId: number): Promise<boolean> {
+  const row = await queryOne<{ ok: number }>(
+    `${treeCte("a.id = ? AND a.deleted_at IS NULL")}
+     SELECT 1 AS ok FROM tree t
+       JOIN album_photos ap ON ap.album_id = t.id AND ap.photo_id = ?
+       JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+      LIMIT 1`,
     [albumId, photoId],
   );
   return !!row;

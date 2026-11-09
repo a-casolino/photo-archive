@@ -445,3 +445,14 @@ CREATE TABLE share_events (
 -- DRIVE_WORK_DIR, lancia il programma di import (una riga in `imports` per
 -- lotto), cancella i file e passa al successivo. batches_done permette di
 -- riprendere dopo un'interruzione.
+
+-- =====================================================================
+-- Migrazione 012_sotto_album.sql (2026-11-09)
+-- =====================================================================
+
+-- albums.parent_id (-> albums ON DELETE SET NULL): album che contiene
+-- questo (NULL = primo livello). Al massimo 3 livelli, controllati dall'app.
+-- Una condivisione di album copre anche tutti i suoi sotto-album.
+-- albums.trashed_with_album_id (-> albums ON DELETE SET NULL): sotto-album
+-- andato nel cestino insieme all'album indicato ("Elimina album" agisce sul
+-- ramo intero; ripristino ed eliminazione definitiva anche).

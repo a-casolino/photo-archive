@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { LayoutGrid, List } from "lucide-react";
+import { formatCount } from "@/lib/format";
 import { ViewSwitchButton } from "./view-switch";
 import { ALBUM_VIEW_COOKIE, type AlbumView } from "./album-view-pref";
+import { albumDates } from "./dates";
 
 /*
  * Elenco degli album in due vedute: griglia di copertine tutte uguali
@@ -15,11 +17,29 @@ export type AlbumEntry = {
   /** URL firmato della copertina, null se manca. */
   src: string | null;
   title: string;
-  /** Periodo e numero di foto. */
+  /** Album che lo contengono ("Viaggi › 2019"), nei risultati di una ricerca. */
+  path?: string;
+  /** Periodo, numero di foto e di sotto-album. */
   detail: string;
   /** Origine dell'album (solo nella lista). */
   origin?: string;
 };
+
+/** "12 lug 2014 · 120 foto · 3 sotto-album" (foto comprese quelle dei sotto-album). */
+export function albumDetail(a: {
+  date_from: Date | null;
+  date_to: Date | null;
+  photo_count: number;
+  child_count: number;
+}): string {
+  return [
+    albumDates(a),
+    `${formatCount(a.photo_count)} foto`,
+    a.child_count > 0 ? `${formatCount(a.child_count)} sotto-album` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 export function AlbumViewSwitch({ view }: { view: AlbumView }) {
   return (
@@ -42,6 +62,7 @@ export function AlbumGrid({ albums }: { albums: AlbumEntry[] }) {
           <Link href={a.href} className="album-card" prefetch={false}>
             <Cover src={a.src} />
             <span className="album-card-text">
+              {a.path && <span className="album-path">{a.path}</span>}
               <strong>{a.title}</strong>
               {a.detail && <span>{a.detail}</span>}
             </span>
@@ -60,6 +81,7 @@ export function AlbumList({ albums }: { albums: AlbumEntry[] }) {
           <Link href={a.href} className="album-row" prefetch={false}>
             <Cover src={a.src} />
             <span className="album-row-text">
+              {a.path && <span className="album-path">{a.path}</span>}
               <strong>{a.title}</strong>
               <span>{[a.detail, a.origin].filter(Boolean).join(" · ")}</span>
             </span>

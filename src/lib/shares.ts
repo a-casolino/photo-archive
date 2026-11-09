@@ -2,7 +2,7 @@ import "server-only";
 import { execute, pool, query, queryOne } from "./db";
 import { randomBase62, sha256 } from "./crypto";
 import { env } from "./env";
-import { isPhotoInAlbum } from "./gallery";
+import { isPhotoInBranch } from "./gallery";
 import { appUrl, sendMail } from "./mail";
 import type { DownloadLevel } from "./roles";
 import type { SessionUser } from "./session";
@@ -69,10 +69,13 @@ export async function getLinkShare(token: string): Promise<ShareRow | null> {
   ]);
 }
 
-/** La foto fa parte della condivisione? (album: anche le foto aggiunte dopo). */
+/**
+ * La foto fa parte della condivisione? Per un album: anche le foto aggiunte
+ * dopo e quelle dei sotto-album (anche creati dopo).
+ */
 export async function shareCoversPhoto(share: ShareRow, photoId: number): Promise<boolean> {
   if (share.target_type === "photo") return share.photo_id === photoId;
-  return share.album_id !== null && isPhotoInAlbum(share.album_id, photoId);
+  return share.album_id !== null && isPhotoInBranch(share.album_id, photoId);
 }
 
 export type ShareEvent = "view" | "download_preview" | "download_original";

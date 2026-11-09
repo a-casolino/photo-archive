@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
 import { ratioOf } from "@/app/ui/gallery/views";
 import { query } from "@/lib/db";
-import { albumCoverId, signKeys } from "@/lib/gallery";
+import { albumCoverId, branchCoverId, branchPhotoCount, signKeys } from "@/lib/gallery";
 import { effectiveDownload, type DownloadLevel } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 
@@ -43,14 +43,12 @@ export default async function DashboardPage() {
             IF(x.id IS NULL, c.width, x.width) AS width,
             IF(x.id IS NULL, c.height, x.height) AS height,
             IF(x.id IS NULL, c.orientation, x.orientation) AS orientation,
-            IF(a.id IS NULL, NULL,
-               (SELECT COUNT(*) FROM album_photos ap JOIN photos q ON q.id = ap.photo_id
-                 WHERE ap.album_id = a.id AND q.deleted_at IS NULL)) AS photo_count
+            IF(a.id IS NULL, NULL, ${branchPhotoCount("a")}) AS photo_count
        FROM share_recipients sr
        JOIN shares s ON s.id = sr.share_id
        LEFT JOIN albums a ON a.id = s.album_id AND a.deleted_at IS NULL
        LEFT JOIN photos p ON p.id = s.photo_id AND p.deleted_at IS NULL
-       LEFT JOIN LATERAL (SELECT ${albumCoverId("a")} AS id) ac ON TRUE
+       LEFT JOIN LATERAL (SELECT COALESCE(${albumCoverId("a")}, ${branchCoverId("a")}) AS id) ac ON TRUE
        LEFT JOIN photos c ON c.id = COALESCE(p.id, ac.id) AND c.deleted_at IS NULL
        LEFT JOIN photos x ON x.id = (
          SELECT e.id FROM photos e

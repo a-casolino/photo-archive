@@ -1,7 +1,7 @@
 import "server-only";
 import type { RowDataPacket } from "mysql2/promise";
 import { execute, pool, query, queryOne } from "./db";
-import { CARD_COLUMNS, LINKED_EXPORT, type PhotoCard } from "./gallery";
+import { CARD_COLUMNS, LINKED_EXPORT, treeCte, type PhotoCard } from "./gallery";
 import { storage } from "./storage";
 import { runLimited, storageKeysOf, type PurgeRow } from "./trash-rules";
 
@@ -171,58 +171,77 @@ export async function purgePhotos(target: PurgeTarget): Promise<{ deleted: numbe
 }
 
 // ---------------------------------------------------------------------
-// Album nel cestino (migrazione 010)
+// Album nel cestino (migrazioni 010 e 012)
 // ---------------------------------------------------------------------
 
-/** Non sta in nessun altro album attivo (diverso da quello indicato). */
-const ONLY_IN_THIS_ALBUM = (alias: string) => `NOT EXISTS (
+/** L'album e i suoi sotto-album attivi (il ramo che va nel cestino con lui). */
+async function branchIds(albumId: number): Promise<number[]> {
+  const rows = await query<{ id: number }>(`${treeCte("a.id = ? AND a.deleted_at IS NULL")} SELECT id FROM tree`, [
+    albumId,
+  ]);
+  return rows.map((r) => Number(r.id));
+}
+
+/** Non sta in nessun altro album attivo fuori dal ramo. */
+const ONLY_IN_BRANCH = (alias: string) => `NOT EXISTS (
   SELECT 1 FROM album_photos o JOIN albums oa ON oa.id = o.album_id AND oa.deleted_at IS NULL
-   WHERE o.photo_id = ${alias}.id AND o.album_id <> ?)`;
+   WHERE o.photo_id = ${alias}.id AND o.album_id NOT IN (?))`;
 
 /**
- * Foto attive che andrebbero nel cestino con l'album: quelle che non stanno
- * in nessun altro album, più i loro export collegati se anche loro non
- * stanno altrove. Le altre restano dove sono.
+ * Foto attive che andrebbero nel cestino con il ramo: quelle che non stanno
+ * in nessun album fuori dal ramo, più i loro export collegati se anche loro
+ * non stanno altrove. Le altre restano dove sono.
  */
-async function albumOnlyPhotoIds(albumId: number): Promise<{ ids: number[]; shown: number; elsewhere: number }> {
+async function branchOnlyPhotoIds(branch: number[]): Promise<{ ids: number[]; shown: number; elsewhere: number }> {
+  if (!branch.length) return { ids: [], shown: 0, elsewhere: 0 };
   const only = await query<{ id: number }>(
-    `SELECT p.id FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-      WHERE ap.album_id = ? AND ${ONLY_IN_THIS_ALBUM("p")}`,
-    [albumId, albumId],
+    `SELECT DISTINCT p.id FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+      WHERE ap.album_id IN (?) AND ${ONLY_IN_BRANCH("p")}`,
+    [branch, branch],
   );
   const onlyIds = only.map((r) => r.id);
   const exports = onlyIds.length
     ? await query<{ id: number }>(
         `SELECT e.id FROM photos e
-          WHERE e.derived_from_id IN (?) AND e.${LINKED} AND e.deleted_at IS NULL AND ${ONLY_IN_THIS_ALBUM("e")}`,
-        [onlyIds, albumId],
+          WHERE e.derived_from_id IN (?) AND e.${LINKED} AND e.deleted_at IS NULL AND ${ONLY_IN_BRANCH("e")}`,
+        [onlyIds, branch],
       )
     : [];
   const ids = [...new Set([...onlyIds, ...exports.map((r) => r.id)])];
   const exportIds = new Set(exports.map((r) => r.id));
   const total = await queryOne<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-      WHERE ap.album_id = ?`,
-    [albumId],
+    `SELECT COUNT(DISTINCT p.id) AS n FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+      WHERE ap.album_id IN (?)`,
+    [branch],
   );
-  // Un export che sta nell'album insieme al suo CR2 si conta una volta sola.
+  // Un export che sta nel ramo insieme al suo CR2 si conta una volta sola.
   const shown = onlyIds.filter((id) => !exportIds.has(id)).length;
   return { ids, shown, elsewhere: Math.max(0, Number(total?.n ?? 0) - onlyIds.length) };
 }
 
-/** Quante foto andrebbero nel cestino con l'album e quante restano in altri album. */
-export async function albumTrashPreview(albumId: number): Promise<{ only: number; elsewhere: number }> {
-  const { shown, elsewhere } = await albumOnlyPhotoIds(albumId);
-  return { only: shown, elsewhere };
+/**
+ * Cosa andrebbe nel cestino con l'album: i sotto-album, le foto che stanno
+ * solo nel ramo, e quante foto restano perché sono anche in altri album.
+ */
+export async function albumTrashPreview(albumId: number): Promise<{ only: number; elsewhere: number; subalbums: number }> {
+  const branch = await branchIds(albumId);
+  const { shown, elsewhere } = await branchOnlyPhotoIds(branch);
+  return { only: shown, elsewhere, subalbums: Math.max(0, branch.length - 1) };
 }
 
-/** "Elimina album": l'album e le foto che stanno solo lì vanno nel cestino. */
-export async function trashAlbum(publicId: string): Promise<{ photos: number } | null> {
+/**
+ * "Elimina album": l'album, i suoi sotto-album e le foto che stanno solo lì
+ * vanno nel cestino. Tutto ricorda l'album da cui è partito
+ * (trashed_with_album_id), per ripristinarlo o eliminarlo insieme.
+ */
+export async function trashAlbum(publicId: string): Promise<{ photos: number; subalbums: number } | null> {
   const album = await queryOne<{ id: number }>("SELECT id FROM albums WHERE public_id = ? AND deleted_at IS NULL", [
     publicId,
   ]);
   if (!album) return null;
-  const { ids, shown } = await albumOnlyPhotoIds(album.id);
+  const branch = await branchIds(album.id);
+  const subalbums = branch.filter((id) => id !== album.id);
+  const { ids, shown } = await branchOnlyPhotoIds(branch);
   const conn = await pool().getConnection();
   try {
     await conn.beginTransaction();
@@ -233,6 +252,12 @@ export async function trashAlbum(publicId: string): Promise<{ photos: number } |
         [album.id, ids],
       );
     }
+    if (subalbums.length) {
+      await conn.query(
+        "UPDATE albums SET deleted_at = UTC_TIMESTAMP(), trashed_with_album_id = ? WHERE id IN (?) AND deleted_at IS NULL",
+        [album.id, subalbums],
+      );
+    }
     await conn.query("UPDATE albums SET deleted_at = UTC_TIMESTAMP() WHERE id = ?", [album.id]);
     await conn.commit();
   } catch (e) {
@@ -241,13 +266,18 @@ export async function trashAlbum(publicId: string): Promise<{ photos: number } |
   } finally {
     conn.release();
   }
-  return { photos: shown };
+  return { photos: shown, subalbums: subalbums.length };
 }
 
-/** Riporta l'album e le foto andate nel cestino con lui. */
+/**
+ * Riporta l'album con i sotto-album e le foto andati nel cestino con lui.
+ * Se l'album che lo conteneva non c'è più (nel cestino o eliminato), torna
+ * al primo livello.
+ */
 export async function restoreAlbum(publicId: string): Promise<boolean> {
-  const album = await queryOne<{ id: number }>(
-    "SELECT id FROM albums WHERE public_id = ? AND deleted_at IS NOT NULL AND merged_into_id IS NULL",
+  const album = await queryOne<{ id: number; parent_id: number | null }>(
+    `SELECT id, parent_id FROM albums
+      WHERE public_id = ? AND deleted_at IS NOT NULL AND merged_into_id IS NULL AND trashed_with_album_id IS NULL`,
     [publicId],
   );
   if (!album) return false;
@@ -257,7 +287,15 @@ export async function restoreAlbum(publicId: string): Promise<boolean> {
     await conn.query("UPDATE photos SET deleted_at = NULL, trashed_with_album_id = NULL WHERE trashed_with_album_id = ?", [
       album.id,
     ]);
-    await conn.query("UPDATE albums SET deleted_at = NULL WHERE id = ?", [album.id]);
+    await conn.query("UPDATE albums SET deleted_at = NULL, trashed_with_album_id = NULL WHERE trashed_with_album_id = ?", [
+      album.id,
+    ]);
+    await conn.query(
+      `UPDATE albums a LEFT JOIN albums parent ON parent.id = a.parent_id AND parent.deleted_at IS NULL
+          SET a.deleted_at = NULL, a.parent_id = parent.id
+        WHERE a.id = ?`,
+      [album.id],
+    );
     await conn.commit();
   } catch (e) {
     await conn.rollback();
@@ -275,11 +313,15 @@ export type TrashedAlbum = {
   deleted_at: Date;
   days_left: number;
   photos: number;
+  subalbums: number;
   bytes: number;
   cover_thumb: string | null;
 };
 
-/** Album eliminati (non quelli uniti a un altro, che restano per i vecchi URL). */
+/**
+ * Album eliminati (non quelli uniti a un altro, che restano per i vecchi URL,
+ * né i sotto-album andati nel cestino con un album: si vedono sotto di lui).
+ */
 export async function listTrashedAlbums(retentionDays: number): Promise<TrashedAlbum[]> {
   return query<TrashedAlbum>(
     `SELECT a.id, a.public_id, a.title, a.deleted_at,
@@ -287,11 +329,12 @@ export async function listTrashedAlbums(retentionDays: number): Promise<TrashedA
             (SELECT COUNT(*) FROM photos p WHERE p.trashed_with_album_id = a.id
                 AND NOT (p.${LINKED} AND p.derived_from_id IN
                          (SELECT q.id FROM photos q WHERE q.trashed_with_album_id = a.id))) AS photos,
+            (SELECT COUNT(*) FROM albums c WHERE c.trashed_with_album_id = a.id) AS subalbums,
             (SELECT COALESCE(SUM(p.file_size), 0) FROM photos p WHERE p.trashed_with_album_id = a.id) AS bytes,
             (SELECT p.gcs_thumb_key FROM photos p WHERE p.trashed_with_album_id = a.id
               ORDER BY p.id = a.cover_photo_id DESC, p.taken_at IS NULL, p.taken_at LIMIT 1) AS cover_thumb
        FROM albums a
-      WHERE a.deleted_at IS NOT NULL AND a.merged_into_id IS NULL
+      WHERE a.deleted_at IS NOT NULL AND a.merged_into_id IS NULL AND a.trashed_with_album_id IS NULL
       ORDER BY a.deleted_at DESC, a.id DESC`,
     [retentionDays],
   );
@@ -307,7 +350,7 @@ export type AlbumPurgeTarget = { publicIds: string[] } | { all: true } | { older
 export async function purgeAlbums(
   target: AlbumPurgeTarget,
 ): Promise<{ albums: number; photos: number; failed: number }> {
-  const base = "deleted_at IS NOT NULL AND merged_into_id IS NULL";
+  const base = "deleted_at IS NOT NULL AND merged_into_id IS NULL AND trashed_with_album_id IS NULL";
   const albums =
     "all" in target
       ? await query<{ id: number }>(`SELECT id FROM albums WHERE ${base}`)
@@ -332,12 +375,14 @@ export async function purgeAlbums(
     const conn = await pool().getConnection();
     try {
       await conn.beginTransaction();
-      // Album uniti in questo: non servono più per i vecchi URL.
-      const [merged] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM albums WHERE merged_into_id = ?",
-        [id],
-      );
-      const ids = [id, ...merged.map((r) => Number(r.id))];
+      // Sotto-album andati nel cestino con lui, e album uniti in questi
+      // (non servono più per i vecchi URL).
+      const [branch] = await conn.query<RowDataPacket[]>("SELECT id FROM albums WHERE trashed_with_album_id = ?", [id]);
+      const branchIds = [id, ...branch.map((r) => Number(r.id))];
+      const [merged] = await conn.query<RowDataPacket[]>("SELECT id FROM albums WHERE merged_into_id IN (?)", [
+        branchIds,
+      ]);
+      const ids = [...branchIds, ...merged.map((r) => Number(r.id))];
       // Condivisioni dell'album (destinatari e registro vanno con loro).
       await conn.query("DELETE FROM shares WHERE album_id IN (?)", [ids]);
       // Posti delle foto e tag dell'album: ON DELETE CASCADE.

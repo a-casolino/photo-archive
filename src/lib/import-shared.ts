@@ -115,6 +115,15 @@ export const albumRef = z.object({
   origin: z.enum(["disk_folder", "google_photos"]),
   ref: z.string().min(1).max(1024),
   title: z.string().min(1).max(255),
+  /**
+   * Album che lo contengono (cartelle sopra), dal primo livello in giù:
+   * al massimo 2, perché gli album hanno 3 livelli. Mancano per Takeout e
+   * per i programmi di import più vecchi (album tutti al primo livello).
+   */
+  parents: z
+    .array(z.object({ ref: z.string().min(1).max(1024), title: z.string().min(1).max(255) }))
+    .max(2)
+    .optional(),
 });
 export type AlbumRef = z.infer<typeof albumRef>;
 
