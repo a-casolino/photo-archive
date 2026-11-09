@@ -58,6 +58,19 @@ const schema = z.object({
   FACES_DET_SIZE: z.coerce.number().int().min(320).max(1600).multipleOf(32).default(640),
   // Lato minimo di un volto, in pixel dell'anteprima (2048 px): sotto si ignora.
   FACES_MIN_SIZE: z.coerce.number().int().min(16).default(40),
+
+  // Import da Google Drive (`npm run drive`, gira sulla VPS). Client OAuth
+  // "Applicazione web" del progetto Google Cloud, con URI di reindirizzamento
+  // <APP_URL>/api/google-drive/callback. Senza queste variabili la pagina
+  // Import → Google Drive spiega come configurarle.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // Segreto per cifrare il refresh token di Drive nel database (almeno 32 caratteri).
+  GOOGLE_TOKEN_SECRET: z.string().min(32).optional(),
+  // Cartella di lavoro sulla VPS: ci finisce un lotto di file alla volta.
+  DRIVE_WORK_DIR: z.string().default("./lavoro-drive"),
+  // Dimensione massima di un lotto (GB): tanto spazio libero serve sul disco, più 2 GB.
+  DRIVE_BATCH_GB: z.coerce.number().positive().max(50).default(4),
 });
 
 export type Env = z.infer<typeof schema>;

@@ -48,3 +48,6 @@ next-env.d.ts
 # modelli e prove del riconoscimento dei volti
 /modelli-volti/
 /prova-volti/
+
+# lavoro dell'import da Google Drive (sulla VPS)
+/lavoro-drive/

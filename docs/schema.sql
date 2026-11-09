@@ -428,3 +428,20 @@ CREATE TABLE share_events (
 -- "Ripristina album" riporta queste foto; eliminando l'album per sempre si
 -- eliminano anche loro (file compresi). Ripristinare la foto da sola la
 -- azzera.
+
+-- =====================================================================
+-- Migrazione 011_google_drive.sql (2026-11-09)
+-- =====================================================================
+
+-- google_drive_accounts: l'account Google Drive collegato dal proprietario
+-- (sola lettura). refresh_token_enc è cifrato con AES-256-GCM
+-- (GOOGLE_TOKEN_SECRET); "Scollega" revoca il token presso Google e
+-- cancella la riga.
+--
+-- drive_imports: coda degli import da Drive. kind 'takeout' = tutti gli
+-- zip di un export di Google Takeout consegnato su Drive; 'folder' = una
+-- cartella normale di Drive con le sottocartelle (ogni cartella un album).
+-- `npm run drive` (cron sulla VPS) li lavora a lotti: scarica un lotto in
+-- DRIVE_WORK_DIR, lancia il programma di import (una riga in `imports` per
+-- lotto), cancella i file e passa al successivo. batches_done permette di
+-- riprendere dopo un'interruzione.
