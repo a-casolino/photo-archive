@@ -19,7 +19,8 @@ PC di Antonio: npm run import ──exiftool + sharp──> anteprime + EXIF
   anteprime JPEG (estratte in locale durante l'import, `exiftool -b -PreviewImage`).
   La classe Archive costa poco da tenere ma è lenta e cara da leggere.
 - Google Foto: dal 31/03/2025 la Library API non legge più la libreria
-  dell'utente, quindi l'import passa da **Google Takeout** (zip + JSON).
+  dell'utente, quindi l'import passa da **Google Takeout** (zip + JSON),
+  consegnato su Google Drive e letto dalla VPS (vedi «Import da Google Drive»).
 - Costo stimato su Google: circa 3–5 €/mese di storage, oltre alla VPS.
 
 ## Import
@@ -78,6 +79,39 @@ chiave (`GCS_KEY_FILE`, oppure il contenuto del JSON in `GCS_KEY_JSON`) con ruol
 "Storage Object Admin" sul solo bucket: firma gli URL e scrive i file.
 Bucket deciso con Antonio il 2026-11-07: Google Cloud (non Hetzner né Amazon),
 regione europe-west3 (Francoforte).
+
+## Import da Google Drive
+
+Antonio non vuole scaricare il Takeout e ricaricarlo dal suo computer (upload
+~4 Mbit/s). Verificato il 2026-11-09: Google non offre un trasferimento diretto
+Google Foto → Cloud Storage. La Library API vede solo le foto create dall'app,
+la Data Portability API non comprende Google Foto, Takeout consegna solo su
+Drive/Dropbox/OneDrive/Box, e la Picker API toglie la posizione GPS e non dice
+l'album. Quindi: **Takeout su Drive, letto dalla VPS**. Lo stesso meccanismo
+importa le **cartelle normali di Drive** (album che stanno solo lì).
+
+- **Collegamento**: pagina `/admin/import/drive`, OAuth del proprietario con
+  scope `drive.readonly` (client "Applicazione web" del progetto Google Cloud,
+  redirect `<APP_URL>/api/google-drive/callback`, `state` in un cookie). Il
+  refresh token sta in `google_drive_accounts`, cifrato con AES-256-GCM
+  (`GOOGLE_TOKEN_SECRET`). "Scollega" lo revoca presso Google.
+- **Coda**: il proprietario sceglie un export di Takeout (riconosciuto dal nome
+  `takeout-AAAAMMGGThhmmssZ-NNN.zip`, tutti gli zip insieme) o una cartella
+  (con le sottocartelle); finiscono in `drive_imports`.
+- **Lavoro**: `npm run drive` (cron sulla VPS ogni 15 minuti, `nice`), un giro
+  alla volta (file di blocco in `DRIVE_WORK_DIR`). Gli zip si leggono **a pezzi**
+  con richieste `Range` (`scripts/drive/zip-reader.ts`, yauzl con cache a blocchi
+  di 64 KB per l'indice): niente zip interi sul disco. Prima si estraggono tutti
+  i JSON di tutti gli zip (Google mette a volte foto e JSON in zip diversi), poi
+  le foto a lotti di `DRIVE_BATCH_GB`. Per ogni lotto si lancia il normale
+  programma di import verso `APP_URL`, con una chiave "VPS · Google Drive" che
+  si rinnova a ogni giro; finito il lotto i file si cancellano. Le cartelle di
+  Drive si scaricano file per file con la stessa logica a lotti.
+- **Ripresa**: `batches_done` conta i lotti finiti; un giro interrotto o
+  "Riprova" riparte dal primo lotto non finito. "Annulla" ferma il programma di
+  import dopo i file in corso. Prima di ogni lotto si controlla lo spazio libero
+  (lotto + 2 GB).
+- I video sono saltati come nell'import dal computer. L'app non modifica Drive.
 
 ## Gallerie e condivisioni
 

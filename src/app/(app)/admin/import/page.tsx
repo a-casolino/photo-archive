@@ -60,6 +60,12 @@ export default async function ImportPage() {
           Archivio: {storage().driver === "gcs" ? "Google Cloud Storage" : "cartella locale (modalità di prova)"}
         </span>
       </div>
+      <p>
+        <Link prefetch={false} href="/admin/import/drive">
+          Importa da Google Drive →
+        </Link>{" "}
+        <span className="muted">zip di Google Takeout e cartelle di Drive, senza passare dal tuo computer</span>
+      </p>
 
       <div className="import-stats">
         {(["raw", "phone", "edit"] as const).map((k) => {
@@ -218,7 +224,12 @@ IMPORT_KEY=pa_...`}</pre>
             <pre className="cmd">{`npm run import -- "/Volumes/Disco foto" --etichetta "Disco WD 1TB"`}</pre>
           </li>
           <li>
-            Google Foto: scarica l&apos;archivio da Google Takeout, estrai gli zip in una cartella e lancia:
+            Google Foto: il modo più comodo è{" "}
+            <Link prefetch={false} href="/admin/import/drive">
+              Takeout su Google Drive
+            </Link>
+            , importato dalla VPS. In alternativa scarica l&apos;archivio da Google Takeout, estrai gli zip in una
+            cartella e lancia:
             <pre className="cmd">{`npm run import -- "/Users/antonio/Takeout" --takeout`}</pre>
           </li>
           <li>
