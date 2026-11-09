@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { execute, queryOne } from "@/lib/db";
 import { sha256 } from "@/lib/crypto";
-import { getAlbum, getPhoto } from "@/lib/gallery";
+import { getAlbum, getPhoto, inSubalbums } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
 import {
   addRecipients,
@@ -243,14 +243,17 @@ export async function setAlbumCover(formData: FormData): Promise<void> {
   const photoId = publicId.parse(
     fromSelection ? picked[0] : formData.get("photoId"),
   );
-  await execute(
-    `UPDATE albums a
-       JOIN photos p ON p.public_id = ? AND p.deleted_at IS NULL
-       JOIN album_photos ap ON ap.album_id = a.id AND ap.photo_id = p.id
-        SET a.cover_photo_id = p.id
-      WHERE a.public_id = ?`,
+  // La foto deve stare nell'album o in uno dei suoi sotto-album (controllo a parte:
+  // MySQL non permette una sottoquery su albums dentro l'UPDATE di albums).
+  const ok = await queryOne<{ album_id: number; photo_id: number }>(
+    `SELECT a.id AS album_id, p.id AS photo_id
+       FROM albums a JOIN photos p ON p.public_id = ? AND p.deleted_at IS NULL
+      WHERE a.public_id = ? AND a.deleted_at IS NULL
+        AND EXISTS (SELECT 1 FROM album_photos ap
+                     WHERE ap.photo_id = p.id AND (ap.album_id = a.id OR ${inSubalbums("ap.album_id", "a")}))`,
     [photoId, albumId],
   );
+  if (ok) await execute("UPDATE albums SET cover_photo_id = ? WHERE id = ?", [ok.photo_id, ok.album_id]);
   revalidatePath(`/album/${albumId}`);
   revalidatePath("/album");
   if (fromSelection) redirect(`/album/${albumId}`);

@@ -38,9 +38,12 @@ const ALBUM_ORDER = "ap.position, p.taken_at IS NULL, p.taken_at, p.taken_at_sub
  * cestinata viene sostituita senza toccare il dato, e torna se la foto viene ripristinata.
  */
 export function albumCoverId(alias: string): string {
+  // La copertina scelta può essere anche una foto di un sotto-album (album che contengono solo sotto-album).
   return `COALESCE(
     (SELECT cp.id FROM album_photos cap JOIN photos cp ON cp.id = cap.photo_id AND cp.deleted_at IS NULL
-      WHERE cap.album_id = ${alias}.id AND cap.photo_id = ${alias}.cover_photo_id),
+      WHERE cap.photo_id = ${alias}.cover_photo_id
+        AND (cap.album_id = ${alias}.id OR ${inSubalbums("cap.album_id", alias)})
+      LIMIT 1),
     (SELECT p.id FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
       WHERE ap.album_id = ${alias}.id ORDER BY ${ALBUM_ORDER} LIMIT 1))`;
 }
@@ -326,7 +329,8 @@ export async function getAlbumCover(
 ): Promise<{ public_id: string; thumb_key: string | null; chosen: boolean } | null> {
   const row = await queryOne<{ id: number; public_id: string; thumb_key: string | null }>(
     `SELECT p.id, p.public_id, COALESCE(x.gcs_thumb_key, p.gcs_thumb_key) AS thumb_key
-       FROM (SELECT ${albumCoverId("a")} AS shown_cover_id FROM albums a WHERE a.id = ?) a
+       FROM (SELECT COALESCE(${albumCoverId("a")}, ${branchCoverId("a")}) AS shown_cover_id
+               FROM albums a WHERE a.id = ?) a
        JOIN photos p ON p.id = a.shown_cover_id
        ${LINKED_EXPORT}`,
     [album.id],
@@ -416,6 +420,26 @@ export async function albumsOfPhoto(
   return query(
     `SELECT a.public_id, a.title, (a.cover_photo_id <=> ap.photo_id) AS is_cover FROM album_photos ap JOIN albums a ON a.id = ap.album_id AND a.deleted_at IS NULL
       WHERE ap.photo_id = ? ORDER BY a.title`,
+    [photoId],
+  );
+}
+
+/**
+ * Album che contengono gli album della foto (fino al primo livello): la
+ * foto può farne da copertina anche se non sta direttamente lì.
+ */
+export async function albumsAbovePhoto(
+  photoId: number,
+): Promise<{ public_id: string; title: string; is_cover: number; child_public_id: string }[]> {
+  return query(
+    `SELECT DISTINCT u.public_id, u.title, (u.cover_photo_id <=> ap.photo_id) AS is_cover, a.public_id AS child_public_id
+       FROM album_photos ap
+       JOIN albums a ON a.id = ap.album_id AND a.deleted_at IS NULL
+       JOIN albums u ON u.deleted_at IS NULL AND (
+            u.id = a.parent_id
+         OR u.id = (SELECT m.parent_id FROM albums m WHERE m.id = a.parent_id AND m.deleted_at IS NULL))
+      WHERE ap.photo_id = ?
+      ORDER BY u.title`,
     [photoId],
   );
 }

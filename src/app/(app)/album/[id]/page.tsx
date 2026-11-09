@@ -283,9 +283,11 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
                     {cover
                       ? cover.chosen
                         ? "Copertina scelta da te."
-                        : "Copertina automatica: la prima foto dell'album."
+                        : "Copertina automatica: la prima foto dell'album (o dei sotto-album, se non ne ha di sue)."
                       : "Nessuna copertina: l'album è vuoto."}{" "}
-                    Per cambiarla apri una foto dell&apos;album, o selezionane una, e scegli «Usa come copertina».
+                    Per cambiarla apri una foto dell&apos;album, o selezionane una, e scegli «Usa come copertina». Va
+                    bene anche una foto di un sotto-album: aprila dal sotto-album e scegli «Usa come copertina di
+                    “{album.title}”».
                   </p>
                 </div>
                 {album.origin_ref && <p className="muted origin-ref">Origine: {album.origin_ref}</p>}
