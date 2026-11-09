@@ -119,8 +119,15 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
         <summary>
           Condividi la foto{shares.length ? ` · ${shares.filter((s) => !s.revoked_at).length} attive` : ""}
         </summary>
-        <ShareForm targetType="photo" targetId={photo.public_id} people={people} defaultDays={defaultLinkDays()} />
-        <ShareList shares={shares} back={self} defaultDays={defaultLinkDays()} people={people} />
+        <div className="share-panel">
+          <ShareForm targetType="photo" targetId={photo.public_id} people={people} defaultDays={defaultLinkDays()} />
+          {shares.length > 0 && (
+            <section>
+              <h3>Condivisioni</h3>
+              <ShareList shares={shares} back={self} defaultDays={defaultLinkDays()} people={people} />
+            </section>
+          )}
+        </div>
       </details>
 
       <form action={trashPhotosAction} className="photo-trash">

@@ -1,11 +1,5 @@
 /* Gallerie, pagina foto e condivisioni (separati da globals.css). */
 
-main:has(.masonry),
-main:has(.album-grid),
-main:has(.photo-page) {
-  max-width: 1600px;
-}
-
 textarea {
   font: inherit;
   padding: 8px 10px;
@@ -40,6 +34,8 @@ button.small {
 button.link.danger {
   color: var(--error);
 }
+
+/* Pulsanti pieni "pericolosi" (es. Sposta nel cestino); le varianti testuali restano solo testo. */
 
 .page-head {
   display: flex;
@@ -655,17 +651,16 @@ a.stage-nav:hover {
   margin-bottom: 12px;
 }
 
-.owner-grid {
+/* Finestra Condividi: una colonna sola, prima il form poi le condivisioni. */
+.share-panel {
   display: grid;
-  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
+  gap: 20px;
 }
 
-@media (max-width: 800px) {
-  .owner-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.share-panel h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .choice {
@@ -716,38 +711,108 @@ a.stage-nav:hover {
   width: auto;
 }
 
-table.shares td {
-  vertical-align: top;
+.share-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
 }
 
-table.shares tr.inactive {
+.share-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.share-item.inactive {
   opacity: 0.6;
 }
 
-.people-list {
-  margin: 4px 0;
-  padding-left: 18px;
-  font-size: 0.9rem;
+.share-target {
+  font-weight: 600;
 }
 
-.people-list form {
-  margin-left: 6px;
+.share-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.share-state {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.share-state-active {
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  color: var(--ok);
+}
+
+.share-meta {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.people-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+  display: grid;
+  gap: 2px;
+}
+
+.people-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .share-msg {
+  margin: 0;
   font-size: 0.85rem;
 }
 
 .share-actions {
-  display: grid;
-  gap: 4px;
-  justify-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
 }
 
+.share-actions > form:not(.regen) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-actions select {
+  padding: 4px 8px;
+  font-size: 0.875rem;
+}
+
+/* "Revoca" sta in fondo a destra, staccato dalle altre azioni. */
+.share-revoke {
+  margin-left: auto;
+}
+
+/* Il form "Nuovo link" si apre nella riga delle azioni; il link nuovo va a capo. */
 .regen {
-  display: grid;
-  gap: 4px;
-  max-width: 420px;
+  display: contents;
+}
+
+.regen > :not(button) {
+  flex-basis: 100%;
 }
 
 .photo-links p {
@@ -974,7 +1039,7 @@ a.tag-chip {
   font-size: 0.9rem;
 }
 
-button.danger {
+button.danger:not(.link) {
   background: var(--danger, #c0392b);
   border-color: var(--danger, #c0392b);
   color: #fff;
