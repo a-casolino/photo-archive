@@ -23,8 +23,10 @@ Prima di lavorare leggi:
 - **Google Cloud Storage solo per i file**: CR2 originali in classe Archive,
   anteprime JPEG in Standard servite con signed URL brevi. Backup notturno del
   DB su un bucket. Non ancora implementato.
-- **Email** via SMTP generico (nodemailer). Il provider **non è ancora scelto**
-  (probabilmente non Brevo): senza `SMTP_HOST` le email finiscono nel log.
+- **Email** via SMTP generico (nodemailer). Provider (deciso il 2026-11-09):
+  **xCloud Mail Delivery** (Elastic Email, piano 1000 email/mese), mittente
+  `noreply@foto.acasolino.com` con dominio verificato (SPF/DKIM/DMARC su Cloudflare).
+  Senza `SMTP_HOST` le email finiscono nel log.
 
 ## Infrastruttura
 
@@ -90,7 +92,6 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 
 ## Punti aperti
 
-- Provider SMTP (lo indicherà Antonio).
 - Fusi orari EXIF (DateTimeOriginal è ora locale della fotocamera).
 - Bucket GCS da creare (chiedere ad Antonio prima: costa). Senza bucket l'archivio
   è una cartella locale (`STORAGE_DRIVER=local`), solo per prove.
