@@ -84,6 +84,12 @@ regione europe-west3 (Francoforte).
 - **Proprietario**: `/album` (elenco con ricerca e filtro per origine),
   `/album/<id>` (griglia), `/foto/<id>?album=<id>` (foto con frecce ← →, Esc
   torna all'album; su telefono swipe a destra/sinistra), `/admin/condivisioni` (tutte le condivisioni).
+- **Lightbox** (`src/app/ui/gallery/lightbox.tsx`): un click sulla foto la apre a
+  schermo intero su nero trasparente, in tutte le pagine foto (proprietario,
+  condivisioni, link liberi). Swipe e frecce per le foto vicine, Esc / X / tocco
+  fuori dalla foto per chiudere, nome del file in basso. Lo stato aperto è nell'URL
+  (`?schermo=1`, aperto e chiuso con la History API senza richieste al server);
+  sul telefono la foto arriva ai bordi dello schermo.
 - **Griglia masonry senza ritaglio** (`src/app/ui/gallery/masonry.tsx`):
   ogni foto con le sue proporzioni (da `width`/`height`, lati scambiati se
   Orientation 5–8); ogni foto va nella colonna più bassa, così l'ordine per

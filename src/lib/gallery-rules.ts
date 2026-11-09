@@ -141,6 +141,20 @@ export function swipeDirection(dx: number, dy: number, ms: number, width: number
   return dx > 0 ? "prev" : "next";
 }
 
+/** Parametro dell'URL che tiene aperto il lightbox (foto a schermo intero). */
+export const LIGHTBOX_PARAM = "schermo";
+
+/**
+ * Lo stesso link con un parametro aggiunto (value) o tolto (null),
+ * lasciando com'è il resto della query. Accetta link relativi ("/foto/x?album=y").
+ */
+export function withQueryParam(href: string, key: string, value: string | null): string {
+  const u = new URL(href, "http://x");
+  if (value === null) u.searchParams.delete(key);
+  else u.searchParams.set(key, value);
+  return `${u.pathname}${u.search}${u.hash}`;
+}
+
 // ---------------------------------------------------------------------
 // Unione di album
 // ---------------------------------------------------------------------

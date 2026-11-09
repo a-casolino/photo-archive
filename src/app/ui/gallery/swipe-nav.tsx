@@ -1,21 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from "react";
 import { swipeDirection } from "@/lib/gallery-rules";
 
 /**
  * Swipe a destra/sinistra sulla foto per la precedente/successiva (telefono).
  * La foto segue il dito; se il gesto è troppo corto torna al suo posto.
  * Non interferisce con lo scroll verticale né con lo zoom a due dita.
+ * `replace`: la nuova foto prende il posto di quella attuale nella cronologia
+ * (nel lightbox, così "Indietro" non ripercorre tutte le foto viste).
  */
 export function SwipeNav({
   prev,
   next,
+  replace,
+  className,
+  onClick,
   children,
 }: {
   prev?: string | null;
   next?: string | null;
+  replace?: boolean;
+  className?: string;
+  onClick?: (e: MouseEvent<HTMLDivElement>) => void;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -76,7 +84,8 @@ export function SwipeNav({
     const target = dir === "prev" ? prev : dir === "next" ? next : null;
     if (dir && target) {
       setLeaving(dir);
-      router.push(target);
+      if (replace) router.replace(target, { scroll: false });
+      else router.push(target);
     } else {
       setDx(0);
     }
@@ -85,7 +94,8 @@ export function SwipeNav({
   const offset = leaving ? (leaving === "prev" ? "100vw" : "-100vw") : `${dx}px`;
   return (
     <div
-      className="swipe-area"
+      className={className ? `swipe-area ${className}` : "swipe-area"}
+      onClick={onClick}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
