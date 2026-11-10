@@ -67,27 +67,33 @@ export async function getPerson(publicId: string): Promise<Person | null> {
   return queryOne<Person>("SELECT id, public_id, name, cover_face_id FROM people WHERE public_id = ?", [publicId]);
 }
 
-export async function facesSummary(): Promise<{ scanned: number; pending: number; unknown: number; groups: number; suggested: number }> {
-  const row = await queryOne<{ scanned: number; pending: number; unknown: number; groups: number; suggested: number }>(
+export type FacesSummary = { scanned: number; pending: number; unknown: number; groups: number; suggested: number; ignored: number };
+
+export async function facesSummary(): Promise<FacesSummary> {
+  const row = await queryOne<FacesSummary>(
     `SELECT
        (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND faces_scanned_at IS NOT NULL) AS scanned,
        (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND gcs_preview_key IS NOT NULL AND faces_scanned_at IS NULL) AS pending,
        (SELECT COUNT(*) FROM faces WHERE status = 'unknown' AND cluster_id IS NOT NULL) AS unknown,
        (SELECT COUNT(DISTINCT cluster_id) FROM faces WHERE status = 'unknown' AND cluster_id IS NOT NULL) AS \`groups\`,
-       (SELECT COUNT(*) FROM faces WHERE status = 'suggested') AS suggested`,
+       (SELECT COUNT(*) FROM faces WHERE status = 'suggested') AS suggested,
+       (SELECT COUNT(*) FROM faces WHERE status = 'ignored') AS ignored`,
   );
   return row!;
 }
 
 export type Cluster = { cluster_id: number; size: number; faces: FaceTile[] };
 
-/** Gruppi di volti senza nome, dal più grande, con i primi volti di ognuno. */
-export async function listClusters(offset: number, limit: number, perCluster = 18): Promise<Cluster[]> {
+/**
+ * Gruppi di volti senza nome, dal più grande, con i primi volti di ognuno.
+ * Con `first` quel gruppo viene mostrato per primo (es. volti appena ripristinati).
+ */
+export async function listClusters(offset: number, limit: number, perCluster = 18, first = 0): Promise<Cluster[]> {
   const groups = await query<{ cluster_id: number; size: number }>(
     `SELECT cluster_id, COUNT(*) AS size FROM faces
       WHERE status = 'unknown' AND cluster_id IS NOT NULL
-      GROUP BY cluster_id ORDER BY size DESC, cluster_id LIMIT ? OFFSET ?`,
-    [limit, offset],
+      GROUP BY cluster_id ORDER BY cluster_id = ? DESC, size DESC, cluster_id LIMIT ? OFFSET ?`,
+    [first, limit, offset],
   );
   if (!groups.length) return [];
   const faces = await query<FaceTile & { cluster_id: number; rn: number }>(
@@ -100,6 +106,17 @@ export async function listClusters(offset: number, limit: number, perCluster = 1
     [groups.map((g) => g.cluster_id), perCluster],
   );
   return groups.map((g) => ({ ...g, faces: faces.filter((f) => f.cluster_id === g.cluster_id) }));
+}
+
+/** Volti messi da parte con "Non mi interessa", gli ultimi prima. */
+export async function listIgnoredFaces(offset: number, limit: number): Promise<FaceTile[]> {
+  return query<FaceTile>(
+    `SELECT ${FACE_TILE}
+       FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+      WHERE f.status = 'ignored'
+      ORDER BY f.id DESC LIMIT ? OFFSET ?`,
+    [limit, offset],
+  );
 }
 
 export async function countClusters(): Promise<number> {
@@ -252,6 +269,22 @@ export async function ignoreCluster(clusterId: number): Promise<void> {
   await execute("UPDATE faces SET status = 'ignored', cluster_id = NULL WHERE cluster_id = ? AND status = 'unknown'", [
     clusterId,
   ]);
+}
+
+/**
+ * Annulla "Non mi interessa": i volti tornano senza nome, tutti in un gruppo
+ * nuovo così si vedono subito in "Da riconoscere". Il prossimo
+ * raggruppamento (npm run volti) li rimette con i volti simili.
+ */
+export async function restoreIgnoredFaces(faceIds: number[]): Promise<{ restored: number; clusterId: number }> {
+  if (!faceIds.length) return { restored: 0, clusterId: 0 };
+  const row = await queryOne<{ next: number }>("SELECT COALESCE(MAX(cluster_id), 0) + 1 AS next FROM faces");
+  const clusterId = row!.next;
+  const res = await execute("UPDATE faces SET status = 'unknown', cluster_id = ? WHERE status = 'ignored' AND id IN (?)", [
+    clusterId,
+    faceIds,
+  ]);
+  return { restored: res.affectedRows, clusterId };
 }
 
 export async function confirmSuggestions(personId: number, faceIds: number[]): Promise<void> {

@@ -12,9 +12,12 @@ const CLUSTERS_PER_PAGE = 20;
 
 export default async function UnknownFacesPage({ searchParams }: PageProps<"/persone/da-riconoscere">) {
   await requireOwner();
-  const page = parsePage((await searchParams).pagina);
+  const sp = await searchParams;
+  const page = parsePage(sp.pagina);
+  // Gruppo da mostrare per primo (volti appena ripristinati dagli ignorati).
+  const first = page === 1 ? Number(sp.gruppo) || 0 : 0;
   const [clusters, summary, people] = await Promise.all([
-    listClusters((page - 1) * CLUSTERS_PER_PAGE, CLUSTERS_PER_PAGE),
+    listClusters((page - 1) * CLUSTERS_PER_PAGE, CLUSTERS_PER_PAGE, 18, first),
     facesSummary(),
     listPeople(),
   ]);
@@ -43,6 +46,7 @@ export default async function UnknownFacesPage({ searchParams }: PageProps<"/per
         clusters.map((c) => (
           <section key={c.cluster_id} className="card cluster">
             <h2>
+              {c.cluster_id === first && <span className="muted">Ripristinati: </span>}
               {formatCount(c.size)} {c.size === 1 ? "volto" : "volti"}
               {c.size > c.faces.length && <span className="muted"> (ne vedi {c.faces.length})</span>}
             </h2>
@@ -72,6 +76,15 @@ export default async function UnknownFacesPage({ searchParams }: PageProps<"/per
           </span>
           {page < pages ? <Link href={`/persone/da-riconoscere?pagina=${page + 1}`}>Successivi →</Link> : <span />}
         </nav>
+      )}
+
+      {summary.ignored > 0 && (
+        <p className="muted">
+          <Link href="/persone/ignorati" prefetch={false}>
+            Volti ignorati ({formatCount(summary.ignored)})
+          </Link>
+          : quelli messi da parte con &quot;Non mi interessa&quot;, da rimettere qui se li hai ignorati per errore.
+        </p>
       )}
     </>
   );
