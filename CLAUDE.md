@@ -103,5 +103,6 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
   Google, variabili `GOOGLE_*` e cron sulla VPS (da attivare con Antonio).
 - Da fare: backup DB. Il cron giornaliero di `npm run cestino` è attivo su xCloud (3:30, dal 2026-11-08).
 - Volti: fatti calcolo, raggruppamento, pagine Persone / Da riconoscere /
-  Suggerimenti / persona. Misurato sulla VPS (8/11): ~1 s per foto, ~1 GB di memoria.
+  Suggerimenti / Ignorati (ripristino) / persona. Cron notturno `npm run volti -- --max 5000`
+  attivo su xCloud (2:00, dal 2026-11-08). Misurato sulla VPS (8/11): ~1 s per foto, ~1 GB di memoria.
   Da fare: riquadri dei volti nel visore ("Mostra volti"), soglie da tarare su foto vere.

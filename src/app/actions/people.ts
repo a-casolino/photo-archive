@@ -15,6 +15,7 @@ import {
   refreshPerson,
   rejectFaces,
   renamePerson,
+  restoreIgnoredFaces,
 } from "@/lib/people";
 import { requireOwner } from "@/lib/session";
 import type { FormState } from "@/lib/validation";
@@ -68,6 +69,14 @@ export async function ignoreClusterAction(formData: FormData): Promise<void> {
   await requireOwner();
   await ignoreCluster(id.parse(formData.get("clusterId")));
   refresh();
+}
+
+/** Rimette tra i "Da riconoscere" i volti ignorati per errore. */
+export async function restoreIgnoredAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  const { restored, clusterId } = await restoreIgnoredFaces(faceIds(formData, "face"));
+  refresh();
+  if (restored > 0) redirect(`/persone/da-riconoscere?gruppo=${clusterId}`);
 }
 
 async function suggestionTarget(formData: FormData) {

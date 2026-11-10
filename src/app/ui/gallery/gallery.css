@@ -26,6 +26,12 @@ a.button.secondary {
   color: var(--accent);
 }
 
+button.secondary {
+  background: none;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
 button.small {
   padding: 3px 8px;
   font-size: 0.85rem;
@@ -1103,8 +1109,49 @@ a.tag-chip {
   margin-top: 0;
 }
 
-.cluster-ignore {
-  margin-top: 8px;
+.cluster-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cluster-head h2 {
+  margin: 0;
+}
+
+/* Suggerimenti di nomi sotto il campo "Chi è?" (al posto di <datalist>). */
+.name-input {
+  display: block;
+}
+
+.name-suggestions {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.name-suggestions button {
+  display: block;
+  width: 100%;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-weight: normal;
+  text-align: left;
+  cursor: pointer;
+}
+
+.name-suggestions button:hover,
+.name-suggestions button:focus-visible {
+  background: var(--subtle);
 }
 
 .face-grid-remove .face-pick input:not(:checked) + img {
