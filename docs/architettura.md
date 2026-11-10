@@ -238,6 +238,18 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   sostituisce). Scadenza `SHARE_LINK_TTL_DAYS` (30), "Rinnova" la sposta di
   nuovo a 30 giorni da oggi. Link scaduti, revocati e sbagliati danno la
   stessa pagina "Link non disponibile".
+- **Link con nome**: `/l/<nome>` (tabella `named_links`, pagina `/admin/link`
+  e riquadro nella finestra Condividi). Nome di 2-30 caratteri `[a-z0-9-]`:
+  i token sono di 32, quindi `getLinkShare()` capisce dalla forma se è un
+  token o un nome (`linkKeyKind()` in `src/lib/named-link-rules.ts`) e per i
+  nomi restituisce una condivisione "virtuale" (mode `link`, senza
+  scadenza): pagine e download sono quelli dei link liberi. Si contano solo
+  le visite (in `named_links`, non in `share_events`). Destinazione nel
+  cestino, link disattivato o senza destinazione ("Nessuna destinazione"
+  nei form): pagina vuota "contatta l'amministratore" (`LinkEmpty`); un nome
+  che non esiste dà "Link non disponibile".
+  Unendo album il link segue l'album tenuto; eliminando per sempre la
+  destinazione il nome resta, senza destinazione.
 - **Download**: `/api/download?p=<foto>&v=preview|original` (+ `s=` o `t=`)
   controlla il permesso con `effectiveDownload()` e reindirizza a un URL
   firmato di 5 minuti che scarica con il nome del file. "preview" = JPEG da
@@ -427,9 +439,9 @@ src/components/ui/     componenti shadcn/ui (Button, Dialog, DropdownMenu), modi
 src/app/
   (auth)/              login, password-dimenticata, reset/[token], invito/[token]
   (app)/               area riservata: dashboard, account, album, foto, tag,
-                       condivisi/<id>, admin/utenti, admin/condivisioni,
+                       condivisi/<id>, admin/utenti, admin/condivisioni, admin/link,
                        admin/import (elenco, dettaglio, collegamenti)
-  (public)/l/[token]   link liberi (senza login)
+  (public)/l/[token]   link liberi e link con nome (senza login)
   api/download/        download con controllo dei permessi
   api/suggerimenti/    suggerimenti della ricerca (album, tag, persone; solo proprietario)
   api/import/v1/       API usata dal programma di import (chiave del computer)

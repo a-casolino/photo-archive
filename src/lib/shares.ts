@@ -10,6 +10,8 @@ import { randomBase62, sha256 } from "./crypto";
 import { env } from "./env";
 import { isPhotoInBranch } from "./gallery";
 import { appUrl, sendMail } from "./mail";
+import { getNamedLinkShare, recordNamedLinkView } from "./named-links";
+import { linkKeyKind } from "./named-link-rules";
 import type { DownloadLevel } from "./roles";
 import type { SessionUser } from "./session";
 import type { ResultSetHeader } from "mysql2/promise";
@@ -21,6 +23,8 @@ import type { ResultSetHeader } from "mysql2/promise";
  *   'link'  -> libera: chiunque abbia l'URL /l/<token>. Il link si apre
  *              cercando lo SHA-256 del token (`token`); in `token_enc` c'è
  *              anche una copia cifrata, solo per rimostrarlo al proprietario.
+ * Anche i link con nome (/l/<nome>, src/lib/named-links.ts) si aprono come
+ * link liberi: getLinkShare() riconosce i due casi dalla forma.
  * Il permesso di download effettivo si calcola sempre con effectiveDownload().
  */
 
@@ -38,6 +42,8 @@ export type ShareRow = {
   created_at: Date;
   view_count: number;
   last_viewed_at: Date | null;
+  /** Presente solo per i link con nome (/l/<nome>, tabella named_links). */
+  named_link_id?: number;
 };
 
 const SHARE_COLUMNS = `s.id, s.public_id, s.target_type, s.photo_id, s.album_id, s.mode, s.message,
@@ -73,9 +79,11 @@ export async function getUserShare(
   );
 }
 
-/** Link libero valido, dal token dell'URL. */
+/** Link libero valido, dal token dell'URL o dal nome di un link con nome. */
 export async function getLinkShare(token: string): Promise<ShareRow | null> {
-  if (!TOKEN_RE.test(token)) return null;
+  const kind = linkKeyKind(token);
+  if (kind === "slug") return getNamedLinkShare(token);
+  if (kind !== "token") return null;
   return queryOne<ShareRow>(
     `SELECT ${SHARE_COLUMNS} FROM shares s WHERE s.token = ? AND s.mode = 'link' AND ${ACTIVE}`,
     [sha256(token)],
@@ -102,6 +110,11 @@ export async function recordShareEvent(
   event: ShareEvent,
   who: { userId: number | null; photoId?: number | null; ip?: string | null },
 ) {
+  // Link con nome: solo il conteggio delle visite, nella sua tabella.
+  if (share.named_link_id !== undefined) {
+    if (event === "view") await recordNamedLinkView(share.named_link_id);
+    return;
+  }
   await execute(
     "INSERT INTO share_events (share_id, user_id, photo_id, event, ip) VALUES (?, ?, ?, ?, ?)",
     [

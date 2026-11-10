@@ -470,3 +470,18 @@ CREATE TABLE share_events (
 -- upload_sessions: sessioni riprendibili di Cloud Storage aperte per gli
 -- originali (object_key, sha256, size, session_url, expires_at a 7 giorni),
 -- per riprendere un file a metà anche dopo aver chiuso la pagina.
+
+-- =====================================================================
+-- Migrazione 015_link_con_nome.sql (2026-11-10)
+-- =====================================================================
+
+-- named_links: link perpetui con un nome scelto dal proprietario
+-- (/l/<slug>, es. /l/vizzarri). La destinazione (album_id o photo_id, al
+-- massimo uno dei due, controllato dall'app) si cambia quando si vuole;
+-- nessuna scadenza. Stesse regole dei link liberi: nessun login, mai gli
+-- originali (allow_download solo 'none' o 'preview'). Le FK verso
+-- photos/albums sono ON DELETE SET NULL: eliminando per sempre la
+-- destinazione il nome resta, senza destinazione. slug: 2-30 caratteri
+-- [a-z0-9-] (i token dei link liberi sono 32 caratteri, quindi /l/<x> si
+-- distingue dalla lunghezza). disabled_at: link disattivato (riattivabile).
+-- Unendo album, i link con nome seguono l'album di destinazione.

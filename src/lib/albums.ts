@@ -128,6 +128,9 @@ export async function mergeAlbums(m: {
       [into.id, sourceIds],
     );
 
+    // I link con nome seguono sempre l'album in cui si uniscono: sono indirizzi perpetui.
+    await conn.query("UPDATE named_links SET album_id = ? WHERE album_id IN (?)", [into.id, sourceIds]);
+
     let sharesMoved = 0;
     let sharesRevoked = 0;
     if (m.shares === "move") {

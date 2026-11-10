@@ -30,6 +30,8 @@ import { Masonry } from "@/app/ui/gallery/masonry";
 import { SelectBar } from "@/app/ui/gallery/select-bar";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
+import { NamedLinkPanel } from "@/app/ui/gallery/named-link-list";
+import { appUrl } from "@/lib/mail";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { AddPhotosButton, AlbumUploader } from "@/app/ui/upload/album-uploader";
 import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
@@ -250,6 +252,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
                     <ShareList shares={shares} back={base} defaultDays={defaultLinkDays()} people={people} />
                   </section>
                 )}
+                <NamedLinkPanel targetType="album" targetId={album.public_id} back={base} baseUrl={appUrl("/l/")} />
               </div>
             </DialogContent>
           </Dialog>
