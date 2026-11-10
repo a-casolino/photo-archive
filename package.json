@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@google-cloud/storage": "^8.4.0",
+    "@uswriting/exiftool": "^1.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",

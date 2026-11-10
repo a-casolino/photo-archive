@@ -5,9 +5,13 @@ import { isStale, type ImportRow } from "@/lib/imports";
 
 const SOURCE_LABEL = { cr2_disk: "Disco", google_takeout: "Google Takeout" } as const;
 
-/** Fonte di un import; quelli fatti dalla VPS leggendo Google Drive si riconoscono dalla chiave usata. */
-export function sourceLabel(source: ImportRow["source"], deviceName: string | null | undefined): string {
+/**
+ * Fonte di un import; quelli fatti dalla VPS leggendo Google Drive si
+ * riconoscono dalla chiave usata, quelli dal browser (senza chiave) dall'etichetta.
+ */
+export function sourceLabel(source: ImportRow["source"], deviceName: string | null | undefined, label?: string): string {
   if (deviceName === DRIVE_DEVICE_NAME) return source === "google_takeout" ? "Takeout da Drive" : "Google Drive";
+  if (!deviceName && label?.startsWith("Browser ·")) return "Browser";
   return SOURCE_LABEL[source];
 }
 

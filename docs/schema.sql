@@ -458,3 +458,15 @@ CREATE TABLE share_events (
 -- albums.trashed_with_album_id (-> albums ON DELETE SET NULL): sotto-album
 -- andato nel cestino insieme all'album indicato ("Elimina album" agisce sul
 -- ramo intero; ripristino ed eliminazione definitiva anche).
+
+-- =====================================================================
+-- Migrazione 014_caricamento_browser.sql (2026-11-10)
+-- =====================================================================
+
+-- photos.original_pending: 1 finché l'originale non è arrivato
+-- nell'archivio. Il caricamento dal browser registra la foto appena ci
+-- sono le anteprime e carica l'originale dopo; intanto il download
+-- dell'originale è spento.
+-- upload_sessions: sessioni riprendibili di Cloud Storage aperte per gli
+-- originali (object_key, sha256, size, session_url, expires_at a 7 giorni),
+-- per riprendere un file a metà anche dopo aver chiuso la pagina.

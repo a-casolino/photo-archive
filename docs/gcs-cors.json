@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://foto.acasolino.com"],
+    "method": ["PUT", "POST", "GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Range", "Range", "x-goog-resumable", "x-goog-storage-class"],
+    "maxAgeSeconds": 3600
+  }
+]

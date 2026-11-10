@@ -68,6 +68,8 @@ export type PhotoDetail = PhotoCard & {
   file_size: number;
   mime_type: string;
   original_key: string;
+  /** 1 finché l'originale non è arrivato (caricamento dal browser, prima le anteprime). */
+  original_pending: 0 | 1;
   lens: string | null;
   focal_length_mm: string | null;
   aperture: string | null;
@@ -460,7 +462,7 @@ export async function getPhotoById(id: number): Promise<PhotoDetail | null> {
 async function photoBy(column: "p.public_id" | "p.id", value: string | number): Promise<PhotoDetail | null> {
   return queryOne<PhotoDetail>(
     `SELECT ${CARD_COLUMNS},
-            p.file_size, p.mime_type, p.gcs_original_key AS original_key, p.lens, p.focal_length_mm,
+            p.file_size, p.mime_type, p.gcs_original_key AS original_key, p.original_pending, p.lens, p.focal_length_mm,
             p.aperture, p.exposure_time, p.iso, p.gps_lat, p.gps_lon, p.description, p.match_status,
             c.make AS camera_make, c.model AS camera_model, c.display_name AS camera_name,
             d.public_id AS derived_from_public_id,

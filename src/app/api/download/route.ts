@@ -59,6 +59,9 @@ export async function GET(request: NextRequest) {
   if (share && !(await shareCoversPhoto(share, photo.id))) return deny(404, "Foto non trovata.");
   if (!canDownload(level, version)) return deny(403, "Il download non è consentito.");
 
+  if (version === "original" && photo.original_pending) {
+    return deny(409, "L'originale non è ancora arrivato nell'archivio: riprova più tardi.");
+  }
   const key = version === "original" ? photo.original_key : photo.preview_key;
   if (!key) return deny(404, "File non disponibile.");
 

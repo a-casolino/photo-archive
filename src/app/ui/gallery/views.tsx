@@ -248,11 +248,16 @@ export function PhotoView({
                 Scarica JPEG
               </a>
             )}
-            {canDownload(level, "original") && (
-              <a className="button secondary" href={downloadHref(photo.public_id, "original", access)}>
-                Scarica originale{isRaw ? " (CR2)" : ""} · {formatBytes(photo.file_size)}
-              </a>
-            )}
+            {canDownload(level, "original") &&
+              (photo.original_pending ? (
+                <span className="muted" title="Caricato dal browser: prima le anteprime, poi gli originali">
+                  Originale{isRaw ? " (CR2)" : ""} in arrivo
+                </span>
+              ) : (
+                <a className="button secondary" href={downloadHref(photo.public_id, "original", access)}>
+                  Scarica originale{isRaw ? " (CR2)" : ""} · {formatBytes(photo.file_size)}
+                </a>
+              ))}
           </section>
         ) : null}
 
