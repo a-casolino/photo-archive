@@ -81,13 +81,14 @@ export function moveTargets(albumId: number, nodes: TreeNode[]): number[] {
  * gli album sopra. Oltre il terzo livello le cartelle restano nel terzo,
  * con il resto del percorso nel titolo ("Roma › Giorno 1").
  * Restituisce gli indici di fine dei genitori (i percorsi sono segments.slice(0, n))
- * e il titolo.
+ * e il titolo. `maxDepth` minore di 3 quando le cartelle finiscono dentro un
+ * album che ha già dei livelli sopra.
  */
-export function folderPlacement(segments: string[]): { parents: number[]; title: string } {
-  if (segments.length <= MAX_ALBUM_DEPTH) {
+export function folderPlacement(segments: string[], maxDepth = MAX_ALBUM_DEPTH): { parents: number[]; title: string } {
+  if (segments.length <= maxDepth) {
     return { parents: segments.slice(0, -1).map((_, i) => i + 1), title: segments[segments.length - 1] ?? "" };
   }
-  const keep = MAX_ALBUM_DEPTH - 1;
+  const keep = Math.max(0, maxDepth - 1);
   return {
     parents: Array.from({ length: keep }, (_, i) => i + 1),
     title: segments.slice(keep).join(PATH_SEP),

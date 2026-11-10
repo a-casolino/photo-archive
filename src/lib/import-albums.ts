@@ -23,3 +23,20 @@ export function diskAlbum(rootName: string, relDir: string): AlbumRef {
   if (parents.length) album.parents = parents.map((n) => ({ ref: refOf(n), title: segments[n - 1].slice(0, 255) }));
   return album;
 }
+
+/**
+ * Album di una cartella caricata dentro un album esistente (pagina
+ * dell'album aperta): la cartella e le sottocartelle diventano suoi
+ * sotto-album, nei livelli che restano (`levels`, 0..2). Senza livelli
+ * liberi, o per i file sciolti, null: la foto va nell'album stesso.
+ * I riferimenti hanno davanti l'album, così non si confondono con quelli
+ * delle stesse cartelle caricate altrove.
+ */
+export function folderAlbumInside(intoPublicId: string, levels: number, segments: string[]): AlbumRef | null {
+  if (levels <= 0 || segments.length === 0) return null;
+  const refOf = (n: number) => `album/${intoPublicId}/${segments.slice(0, n).join("/")}`;
+  const { parents, title } = folderPlacement(segments, levels);
+  const album: AlbumRef = { origin: "disk_folder", ref: refOf(segments.length), title: title.slice(0, 255) };
+  if (parents.length) album.parents = parents.map((n) => ({ ref: refOf(n), title: segments[n - 1].slice(0, 255) }));
+  return album;
+}

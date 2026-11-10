@@ -58,3 +58,111 @@ export async function filesFromEntries(
   onProgress?.(out.length);
   return out;
 }
+
+// ---------------------------------------------------------------------
+// File System Access (Chrome ed Edge sul computer)
+// ---------------------------------------------------------------------
+/*
+ * Con queste API il browser dà dei "riferimenti" a file e cartelle che si
+ * possono conservare (IndexedDB, src/lib/upload/saved.ts): riaprendo la
+ * pagina si riprende il caricamento chiedendo solo il permesso di lettura,
+ * senza riscegliere la cartella. Safari, Firefox e i telefoni non le hanno:
+ * lì restano i pulsanti normali.
+ */
+
+type PermissionHandle = FileSystemHandle & {
+  queryPermission?(o: { mode: "read" }): Promise<PermissionState>;
+  requestPermission?(o: { mode: "read" }): Promise<PermissionState>;
+};
+type DirectoryWithValues = FileSystemDirectoryHandle & { values(): AsyncIterable<FileSystemHandle> };
+type PickerWindow = Window & {
+  showDirectoryPicker?(o?: { mode?: "read"; id?: string }): Promise<FileSystemDirectoryHandle>;
+  showOpenFilePicker?(o?: {
+    multiple?: boolean;
+    id?: string;
+    types?: { description: string; accept: Record<string, string[]> }[];
+  }): Promise<FileSystemFileHandle[]>;
+};
+type ItemWithHandle = DataTransferItem & { getAsFileSystemHandle?(): Promise<FileSystemHandle | null> };
+
+/** Il browser sa dare riferimenti a cartelle da conservare (Chrome, Edge sul computer). */
+export function canKeepHandles(): boolean {
+  return typeof window !== "undefined" && typeof (window as PickerWindow).showDirectoryPicker === "function";
+}
+
+function cancelled(e: unknown): boolean {
+  return (e as DOMException)?.name === "AbortError";
+}
+
+/** "Scegli cartella" con il selettore di Chrome/Edge. null = annullato. */
+export async function pickFolder(): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    return (await (window as PickerWindow).showDirectoryPicker!({ mode: "read", id: "carica-cartella" })) ?? null;
+  } catch (e) {
+    if (cancelled(e)) return null;
+    throw e;
+  }
+}
+
+/** "Scegli foto" con il selettore di Chrome/Edge. null = annullato o selettore assente. */
+export async function pickFiles(): Promise<FileSystemFileHandle[] | null> {
+  const w = window as PickerWindow;
+  if (typeof w.showOpenFilePicker !== "function") return null;
+  try {
+    return await w.showOpenFilePicker({
+      multiple: true,
+      id: "carica-foto",
+      types: [
+        {
+          description: "Foto",
+          accept: { "image/*": [".cr2", ".dng", ".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif", ".tif", ".tiff"] },
+        },
+      ],
+    });
+  } catch (e) {
+    if (cancelled(e)) return null;
+    throw e;
+  }
+}
+
+/**
+ * Riferimenti degli oggetti trascinati, da chiedere subito dentro l'evento
+ * drop come le voci. Vuoto se il browser non li dà.
+ */
+export function handlesFromDrop(dt: DataTransfer): Promise<FileSystemHandle | null>[] {
+  const out: Promise<FileSystemHandle | null>[] = [];
+  for (const item of Array.from(dt.items ?? []) as ItemWithHandle[]) {
+    if (item.kind !== "file" || typeof item.getAsFileSystemHandle !== "function") continue;
+    out.push(item.getAsFileSystemHandle().then((h) => h ?? null, () => null));
+  }
+  return out;
+}
+
+/**
+ * Permesso di lettura dei riferimenti conservati: va chiesto dopo un clic
+ * ("Riprendi"). false se negato.
+ */
+export async function allowRead(handles: FileSystemHandle[]): Promise<boolean> {
+  for (const h of handles as PermissionHandle[]) {
+    if (!h.queryPermission || !h.requestPermission) continue;
+    if ((await h.queryPermission({ mode: "read" })) === "granted") continue;
+    if ((await h.requestPermission({ mode: "read" })) !== "granted") return false;
+  }
+  return true;
+}
+
+/** Tutti i file dentro i riferimenti (cartelle comprese), con il percorso dalla cartella scelta. */
+export async function filesFromHandles(handles: FileSystemHandle[], onProgress?: (n: number) => void): Promise<PickedFile[]> {
+  const out: PickedFile[] = [];
+  async function walk(h: FileSystemHandle, path: string) {
+    if (h.kind === "file") {
+      out.push({ file: await (h as FileSystemFileHandle).getFile(), path });
+      if (out.length % 200 === 0) onProgress?.(out.length);
+    } else {
+      for await (const child of (h as DirectoryWithValues).values()) await walk(child, `${path}/${child.name}`);
+    }
+  }
+  for (const h of handles) await walk(h, h.name);
+  onProgress?.(out.length);
+  return out;
+}

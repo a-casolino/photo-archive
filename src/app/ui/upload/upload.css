@@ -1,0 +1,177 @@
+/*
+ * Caricamento dal browser (pagina "Carica dal browser" e pagina dell'album).
+ * Le regole comuni alle pagine Import sono ripetute sotto .uploader, perché
+ * sulla pagina dell'album import.css non c'è.
+ */
+
+.uploader .import-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.uploader .import-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.uploader .import-stats .card {
+  margin: 0;
+}
+
+.uploader .stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.uploader .stat-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.uploader .progress {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.uploader .progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s;
+}
+
+.uploader .current-file {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.uploader .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.upload-drop {
+  border: 2px dashed var(--border);
+  text-align: center;
+  padding: 32px 16px;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.upload-drop.dragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.upload-drop .actions {
+  justify-content: center;
+}
+
+/* Sul telefono non si scelgono cartelle: solo foto dalla galleria. */
+@media (pointer: coarse) {
+  .upload-folder-button {
+    display: none;
+  }
+}
+
+.upload-albums {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 16px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.upload-albums li {
+  padding: 2px 0;
+}
+
+.upload-loose {
+  display: grid;
+  gap: 4px;
+  margin: 16px 0;
+  max-width: 480px;
+}
+
+.upload-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.upload-tabs button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.upload-tabs button[aria-selected="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.upload-files {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.upload-files li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.upload-files .current-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-error {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+}
+
+.upload-resume {
+  border-left: 4px solid var(--accent);
+}
+
+/* Pagina dell'album: file trascinati sulla pagina. */
+.album-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  border: 3px dashed var(--accent);
+  pointer-events: none;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.album-upload {
+  margin: 0 0 24px;
+}

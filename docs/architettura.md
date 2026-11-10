@@ -115,8 +115,10 @@ velocità è la stessa (la linea di casa), ma non dipende da una scheda aperta.
   `embeddedJpegRange()`), lo si ruota a mano con l'orientamento EXIF
   (`orientationTransform()`, verificata contro sharp nei test); JPG e PNG si
   aprono direttamente (il browser applica l'orientamento). 2048 e 400 px in
-  JPEG, qualità 82 e 75, come il programma. Gli HEIC si aprono solo dove il
-  browser li sa leggere (Safari); altrove errore chiaro.
+  JPEG, qualità 82 e 75, come il programma. Gli HEIC li apre Safari; Chrome,
+  Edge e Firefox no, e allora li decodifica libheif in WebAssembly
+  (`libheif-js`, LGPL, `src/lib/upload/heic.ts`, ~2 MB scaricati solo al
+  primo HEIC). libheif applica già la rotazione salvata nel file.
 - **Prima le anteprime, poi gli originali**: ogni foto si registra appena
   caricate le anteprime, con `photos.original_pending = 1` (migrazione 014),
   così gli album sono completi dopo pochi minuti. Intanto (1 alla volta, poi
@@ -133,6 +135,25 @@ velocità è la stessa (la linea di casa), ma non dipende da una scheda aperta.
   saltano, gli originali mancanti (`pendingOriginals` di check e lookup)
   ripartono dal byte a cui erano arrivati. Anche il programma di import,
   trovando una foto con l'originale mancante, lo carica.
+- **Riprendi senza riscegliere** (Chrome ed Edge sul computer): lì i pulsanti
+  e il trascinamento usano le API File System Access, che danno dei
+  riferimenti a cartelle e file (`src/lib/upload/files.ts`). Alla partenza
+  il browser li salva in IndexedDB con l'import da continuare
+  (`src/lib/upload/saved.ts`, uno per pagina: "Carica dal browser" o
+  l'album). Riaprendo la pagina compare «Riprendi»: il browser chiede di
+  nuovo il permesso di leggere la cartella, rilegge i file e continua lo
+  stesso import. Si dimentica quando il caricamento finisce senza errori, con
+  "Svuota" o "Lascia perdere". Safari, Firefox e i telefoni non hanno queste
+  API: lì si riscelgono le stesse foto.
+- **Dentro un album aperto** (pagina dell'album, solo proprietario): file e
+  cartelle trascinati in qualunque punto della pagina, o "Aggiungi foto",
+  aprono lo stesso caricamento in un pannello (`src/app/ui/upload/`). Le
+  foto sciolte vanno nell'album, le cartelle diventano suoi sotto-album nei
+  livelli che restano (`folderAlbumInside()` in `import-albums.ts`; un album
+  al terzo livello riceve tutto direttamente). Il browser manda `intoAlbum`
+  (public_id) a check e commit; i riferimenti dei sotto-album iniziano con
+  `album/<public_id>/`, così non si confondono con le stesse cartelle
+  caricate altrove.
 - **Pausa** ferma gli upload in corso (gli originali riprendono dal punto
   raggiunto); **Riprova gli errori** riapre lo stesso import. Mentre carica lo
   schermo resta acceso (Wake Lock) e chiudere la pagina chiede conferma.

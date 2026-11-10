@@ -1,5 +1,5 @@
 import type { AlbumRef } from "../import-shared";
-import { diskAlbum } from "../import-albums";
+import { diskAlbum, folderAlbumInside } from "../import-albums";
 import { mimeFor, VIDEO_EXT } from "../photo-metadata";
 
 /*
@@ -25,7 +25,10 @@ export type PlanItem = {
   name: string;
   size: number;
   mime: string;
-  /** Album della cartella; null per i file sciolti (album scelto nel riepilogo). */
+  /**
+   * Album della cartella; null per i file sciolti (album scelto nel
+   * riepilogo) e, dentro un album aperto, per quelli che vanno lì.
+   */
   album: AlbumRef | null;
   loose: boolean;
 };
@@ -57,7 +60,13 @@ export function splitPath(path: string): string[] {
   return path.split(/[\\/]+/).filter((s) => s !== "" && s !== ".");
 }
 
-export function planUpload(picked: PickedFile[]): Plan {
+/**
+ * Caricamento dentro un album aperto: i file sciolti vanno nell'album, le
+ * cartelle diventano suoi sotto-album nei livelli che restano (0..2).
+ */
+export type IntoAlbum = { publicId: string; title: string; levels: number };
+
+export function planUpload(picked: PickedFile[], into: IntoAlbum | null = null): Plan {
   const plan: Plan = { items: [], skipped: { video: 0, other: 0, system: 0 }, roots: [] };
   const roots = new Set<string>();
   const seen = new Set<string>();
@@ -86,7 +95,9 @@ export function planUpload(picked: PickedFile[]): Plan {
     if (!loose) {
       const [root, ...rest] = segments;
       roots.add(root);
-      album = diskAlbum(root, rest.slice(0, -1).join("/"));
+      album = into
+        ? folderAlbumInside(into.publicId, into.levels, segments.slice(0, -1))
+        : diskAlbum(root, rest.slice(0, -1).join("/"));
     }
     plan.items.push({ file, path: segments.join("/"), name, size: file.size, mime, album, loose });
   }
@@ -129,9 +140,10 @@ export function albumSummary(items: { album: AlbumRef | null; size: number }[]):
 }
 
 /** Etichetta dell'import nella pagina Import. */
-export function uploadLabel(roots: string[], looseCount: number): string {
+export function uploadLabel(roots: string[], looseCount: number, intoTitle?: string): string {
   const parts = roots.slice(0, 3);
   if (roots.length > 3) parts.push(`altre ${roots.length - 3}`);
   if (looseCount) parts.push(`${looseCount} ${looseCount === 1 ? "foto sciolta" : "foto sciolte"}`);
-  return `Browser · ${parts.join(", ") || "foto"}`.slice(0, 255);
+  const what = parts.join(", ") || "foto";
+  return `Browser · ${intoTitle ? `${what} in «${intoTitle}»` : what}`.slice(0, 255);
 }

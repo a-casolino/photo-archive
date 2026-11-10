@@ -127,6 +127,13 @@ export const albumRef = z.object({
 });
 export type AlbumRef = z.infer<typeof albumRef>;
 
+/**
+ * Album già esistente in cui finiscono le foto (caricamento dal browser
+ * dentro un album aperto): i file sciolti vanno lì, gli album delle
+ * cartelle diventano suoi sotto-album. public_id dell'album.
+ */
+export const intoAlbumSchema = z.string().regex(/^[A-Za-z0-9]{22}$/);
+
 export const createImportBody = z.object({
   source: importSource,
   label: z.string().trim().min(1).max(255),
@@ -223,7 +230,7 @@ export type ExistingFiles = { existing: string[]; pendingOriginals: string[] };
 
 export const checkBody = z.object({
   items: z
-    .array(z.object({ sha256: sha256Schema, album: albumRef.nullable().optional() }))
+    .array(z.object({ sha256: sha256Schema, album: albumRef.nullable().optional(), intoAlbum: intoAlbumSchema.optional() }))
     .min(1)
     .max(500),
 });
@@ -272,6 +279,7 @@ export const commitBody = z.object({
    */
   originalPending: z.boolean().optional(),
   album: albumRef.nullable().optional(),
+  intoAlbum: intoAlbumSchema.optional(),
 });
 export type CommitBody = z.infer<typeof commitBody>;
 

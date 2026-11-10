@@ -5,6 +5,7 @@
  * Un lavoro alla volta per worker (ExifTool usa un solo interprete).
  */
 import { PREVIEW_LONG_SIDE, THUMB_LONG_SIDE } from "../import-shared";
+import { decodeHeic } from "./heic";
 import { embeddedJpegRange, fitInside, orientationTransform } from "./image-rules";
 import { EXIFTOOL_ARGS, type Analysis, type WorkerRequest, type WorkerResponse } from "./worker-protocol";
 
@@ -94,10 +95,9 @@ async function makePreviews(file: Blob, mime: string, tags: Record<string, unkno
     // Per JPG/PNG/HEIC il browser applica da solo l'orientamento EXIF.
     bitmap = await createImageBitmap(blob);
   } catch {
-    if (/heic|heif/.test(mime)) {
-      throw new Error("Questo browser non sa aprire i file HEIC: caricali da Safari (Mac o iPhone) o convertili in JPG.");
-    }
-    throw new Error("Immagine non leggibile dal browser.");
+    if (!/heic|heif/.test(mime)) throw new Error("Immagine non leggibile dal browser.");
+    // Chrome, Edge e Firefox non aprono i HEIC: ci pensa libheif.
+    bitmap = await decodeHeic(blob);
   }
   const fit = fitInside(bitmap.width, bitmap.height, PREVIEW_LONG_SIDE);
   const t = orientationTransform(raw ? num(tags.Orientation) : null, fit.w, fit.h);
