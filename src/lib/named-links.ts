@@ -66,6 +66,16 @@ export async function getNamedLinkShare(slug: string): Promise<ShareRow | null> 
   };
 }
 
+/**
+ * Il nome esiste ma il link ora non mostra niente (nessuna destinazione,
+ * destinazione nel cestino o link disattivato): pagina "vuota".
+ */
+export async function namedLinkExists(slug: string): Promise<boolean> {
+  const s = slug.toLowerCase();
+  if (s.length > SLUG_MAX) return false;
+  return (await queryOne("SELECT 1 AS x FROM named_links WHERE slug = ?", [s])) !== null;
+}
+
 export async function recordNamedLinkView(id: number) {
   await execute(
     "UPDATE named_links SET view_count = view_count + 1, last_viewed_at = UTC_TIMESTAMP() WHERE id = ?",

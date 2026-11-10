@@ -18,7 +18,7 @@ const STATE_LABEL: Record<LinkState, string> = {
   active: "Attivo",
   disabled: "Disattivato",
   trashed: "Destinazione nel cestino",
-  empty: "Senza destinazione",
+  empty: "Pagina vuota",
 };
 
 function linkState(l: NamedLinkItem): LinkState {
@@ -34,7 +34,7 @@ function targetHref(l: NamedLinkItem): string | null {
 }
 
 function TargetLabel({ l }: { l: NamedLinkItem }) {
-  if (!l.target_type) return <span className="muted">non punta a nulla</span>;
+  if (!l.target_type) return <span className="muted">nessuna destinazione: chi apre il link vede la pagina vuota</span>;
   const href = targetHref(l);
   const kind = l.target_type === "album" ? "album" : "foto";
   return (
@@ -83,7 +83,7 @@ export function NamedLinkList({ links, options }: { links: NamedLinkItem[]; opti
             ? `Destinazione: la foto «${l.target_title}»`
             : l.target_type
               ? null
-              : "Scegli una destinazione…";
+              : "Destinazione: nessuna";
         return (
           <li key={l.id} className={state === "active" ? "share-item" : "share-item inactive"}>
             <div className="share-head">

@@ -18,15 +18,19 @@ import { firstError } from "@/lib/validation";
 export type NamedLinkState = { error?: string; ok?: string; link?: string } | undefined;
 
 const publicId = z.string().regex(/^[0-9A-Za-z]{22}$/, { error: "Elemento non valido." });
-/** Destinazione nei form: "album:<public_id>" o "photo:<public_id>". */
+/**
+ * Destinazione nei form: "album:<public_id>", "photo:<public_id>" o "none"
+ * (nessuna: chi apre il link vede la pagina vuota).
+ */
 const targetField = z
   .string()
-  .regex(/^(album|photo):[0-9A-Za-z]{22}$/, { error: "Scegli a cosa deve puntare il link." });
+  .regex(/^((album|photo):[0-9A-Za-z]{22}|none)$/, { error: "Scegli a cosa deve puntare il link." });
 const downloadField = z.enum(["none", "preview"], { error: "Scegli cosa si può scaricare." });
 
 async function resolveTarget(
   value: string,
-): Promise<{ albumId: number | null; photoId: number | null; path: string } | null> {
+): Promise<{ albumId: number | null; photoId: number | null; path: string | null } | null> {
+  if (value === "none") return { albumId: null, photoId: null, path: null };
   const [type, pid] = value.split(":");
   if (type === "album") {
     const album = await getAlbum(pid);
@@ -109,7 +113,9 @@ export async function updateNamedLink(_: NamedLinkState, formData: FormData): Pr
     await execute("UPDATE named_links SET allow_download = ? WHERE id = ?", [v.allowDownload, link.id]);
   }
   refresh(path, backPath(formData));
-  return { ok: v.target ? `«${link.slug}» ora punta qui.` : "Link aggiornato." };
+  return {
+    ok: v.target === "none" ? `«${link.slug}» ora non punta a nulla.` : v.target ? `«${link.slug}» ora punta qui.` : "Link aggiornato.",
+  };
 }
 
 const linkIdForm = z.object({ linkId: publicId });

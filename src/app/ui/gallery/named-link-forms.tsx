@@ -78,6 +78,7 @@ export function NamedLinkCreateForm({
             <option value="" disabled>
               Scegli un album…
             </option>
+            <option value="none">Nessuna destinazione (pagina vuota)</option>
             {options.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -159,6 +160,7 @@ export function NamedLinkEditForm({
       <input type="hidden" name="linkId" value={linkId} />
       <select name="target" defaultValue="" aria-label="Nuova destinazione">
         <option value="">{current ?? "Destinazione: invariata"}</option>
+        <option value="none">Nessuna destinazione (pagina vuota)</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

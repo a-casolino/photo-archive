@@ -224,7 +224,9 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   nomi restituisce una condivisione "virtuale" (mode `link`, senza
   scadenza): pagine e download sono quelli dei link liberi. Si contano solo
   le visite (in `named_links`, non in `share_events`). Destinazione nel
-  cestino, link disattivato o senza destinazione: "Link non disponibile".
+  cestino, link disattivato o senza destinazione ("Nessuna destinazione"
+  nei form): pagina vuota "contatta l'amministratore" (`LinkEmpty`); un nome
+  che non esiste dà "Link non disponibile".
   Unendo album il link segue l'album tenuto; eliminando per sempre la
   destinazione il nome resta, senza destinazione.
 - **Download**: `/api/download?p=<foto>&v=preview|original` (+ `s=` o `t=`)
