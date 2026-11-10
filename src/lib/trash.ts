@@ -1,7 +1,7 @@
 import "server-only";
 import type { RowDataPacket } from "mysql2/promise";
 import { execute, pool, query, queryOne } from "./db";
-import { CARD_COLUMNS, LINKED_EXPORT, treeCte, type PhotoCard } from "./gallery";
+import { CARD_COLUMNS, linkedExport, treeCte, type PhotoCard } from "./gallery";
 import { storage } from "./storage";
 import { runLimited, storageKeysOf, type PurgeRow } from "./trash-rules";
 
@@ -65,7 +65,7 @@ export type TrashItem = PhotoCard & { deleted_at: Date; total_size: number; days
  */
 export async function listTrash(retentionDays: number, limit = 500): Promise<TrashItem[]> {
   // LINKED_EXPORT cerca solo export non cancellati: qui servono quelli nel cestino.
-  const trashedExport = LINKED_EXPORT.replace("e.deleted_at IS NULL", "e.deleted_at IS NOT NULL");
+  const trashedExport = linkedExport("trashed");
   return query<TrashItem>(
     `SELECT ${CARD_COLUMNS}, p.deleted_at, p.file_size + COALESCE(x.file_size, 0) AS total_size,
             GREATEST(0, CEIL(TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), p.deleted_at + INTERVAL ? DAY) / 86400)) AS days_left

@@ -378,6 +378,22 @@ Standard).
   persone solo per il proprietario; chi riceve una condivisione non vede i nomi.
   Le query delle pagine non leggono mai `faces.embedding`.
 
+## Prestazioni
+
+- **Export collegato** (`linkedExport()` in `src/lib/gallery.ts`): quasi tutte
+  le foto hanno `derived_from_id` NULL, e per le statistiche di MySQL ogni
+  valore dell'indice `ix_photos_derived` sembra valere migliaia di righe.
+  Senza `FORCE INDEX` l'ottimizzatore leggeva tutta `photos` per ogni foto
+  mostrata: con 40.000 foto un album impiegava ~5 s, l'elenco album ~3 s e
+  la pagina Foto ~11 s, tutti di CPU di `mysqld` (il carico visto il
+  2026-11-10). Con l'indice: 2–250 ms. Una nuova query che cerca gli export
+  di una foto deve usare `linkedExport()` o lo stesso `FORCE INDEX`.
+- **URL firmati stabili** (`src/lib/signing-rules.ts`): le letture senza nome
+  di download si firmano con l'ora arrotondata all'ora intera, quindi la
+  stessa miniatura ha lo stesso URL per un'ora e il browser la prende dalla
+  cache invece di riscaricarla a ogni pagina. Il server tiene in memoria gli
+  URL già firmati nella finestra corrente.
+
 ## Infrastruttura
 
 - VPS Hetzner (Falkenstein) gestita con xCloud: Ubuntu 22.04, OpenLiteSpeed,

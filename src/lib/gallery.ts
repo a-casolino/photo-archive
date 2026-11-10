@@ -13,12 +13,27 @@ import { storage } from "./storage";
  * incorporata nel CR2 (requisito del 2026-11-07). Il CR2 resta l'originale.
  */
 
-/** Export collegato più recente della foto `p` (alias `x`, NULL se non c'è). */
-export const LINKED_EXPORT = `
-  LEFT JOIN photos x ON x.id = (
-    SELECT e.id FROM photos e
-     WHERE e.derived_from_id = p.id AND e.match_status IN ('auto', 'confirmed') AND e.deleted_at IS NULL
-     ORDER BY e.id DESC LIMIT 1)`;
+/**
+ * Export collegato più recente della foto `base` (di solito `p`; alias `x`,
+ * NULL se non c'è). Con "trashed" cerca quelli nel cestino (pagina Cestino).
+ *
+ * FORCE INDEX: quasi tutte le foto hanno `derived_from_id` NULL, quindi per
+ * le statistiche di MySQL ogni valore dell'indice "vale" migliaia di righe e
+ * l'ottimizzatore sceglieva di leggere tutta la tabella photos per ogni foto
+ * mostrata (secondi di CPU a pagina, misurato con 40.000 foto). Con l'indice
+ * la ricerca è una lettura puntuale. NOT EXISTS tiene solo l'export più
+ * recente, come faceva la sottoquery `ORDER BY e.id DESC LIMIT 1`.
+ */
+export function linkedExport(deleted: "active" | "trashed" = "active", base = "p"): string {
+  const d = deleted === "active" ? "IS NULL" : "IS NOT NULL";
+  return `
+  LEFT JOIN photos x FORCE INDEX (ix_photos_derived) ON x.derived_from_id = ${base}.id AND x.match_status IN ('auto', 'confirmed') AND x.deleted_at ${d}
+   AND NOT EXISTS (SELECT 1 FROM photos x2 FORCE INDEX (ix_photos_derived)
+                    WHERE x2.derived_from_id = ${base}.id AND x2.match_status IN ('auto', 'confirmed')
+                      AND x2.deleted_at ${d} AND x2.id > x.id)`;
+}
+
+export const LINKED_EXPORT = linkedExport();
 
 export const CARD_COLUMNS = `
   p.id, p.public_id, p.kind, p.original_filename, p.title, p.taken_at, p.taken_at_subsec,
