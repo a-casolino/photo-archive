@@ -95,8 +95,7 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Fusi orari EXIF (DateTimeOriginal è ora locale della fotocamera).
 - "Carica dal browser" (`/admin/import/carica`): serve la regola CORS sul bucket
   (`docs/gcs-cors.json`, comando in `docs/architettura.md`) prima del primo uso vero.
-  Da fare (seconda PR): HEIC su Chrome/Edge, trascinare dentro un album aperto,
-  "Riprendi" su Chrome senza riscegliere la cartella.
+  Da provare con il bucket vero e con CR2 veri della 7D.
 - Bucket GCS da creare (chiedere ad Antonio prima: costa). Senza bucket l'archivio
   è una cartella locale (`STORAGE_DRIVER=local`), solo per prove.
 - Import da Google Drive (`/admin/import/drive`, `npm run drive`): servono client OAuth

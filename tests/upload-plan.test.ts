@@ -67,5 +67,35 @@ describe("looseAlbum e uploadLabel", () => {
     expect(uploadLabel(["Viaggi"], 0)).toBe("Browser · Viaggi");
     expect(uploadLabel(["A", "B", "C", "D", "E"], 1)).toBe("Browser · A, B, C, altre 2, 1 foto sciolta");
     expect(uploadLabel([], 12)).toBe("Browser · 12 foto sciolte");
+    expect(uploadLabel(["Roma"], 2, "Viaggi")).toBe("Browser · Roma, 2 foto sciolte in «Viaggi»");
+  });
+});
+
+describe("planUpload dentro un album aperto", () => {
+  const into = (levels: number) => ({ publicId: "A".repeat(22), title: "Viaggi", levels });
+  const base = "album/" + "A".repeat(22);
+
+  it("le foto sciolte vanno nell'album, le cartelle diventano suoi sotto-album", () => {
+    const plan = planUpload([pick("sciolta.jpg"), pick("Roma/IMG_1.CR2"), pick("Roma/giorno 2/IMG_2.CR2")], into(2));
+    const byName = Object.fromEntries(plan.items.map((i) => [i.name, i]));
+    expect(byName["sciolta.jpg"]).toMatchObject({ loose: true, album: null });
+    expect(byName["IMG_1.CR2"].album).toEqual({ origin: "disk_folder", ref: `${base}/Roma`, title: "Roma" });
+    expect(byName["IMG_2.CR2"].album).toEqual({
+      origin: "disk_folder",
+      ref: `${base}/Roma/giorno 2`,
+      title: "giorno 2",
+      parents: [{ ref: `${base}/Roma`, title: "Roma" }],
+    });
+    expect(albumSummary(plan.items).map((a) => [a.title, a.depth, a.files])).toEqual([
+      ["Roma", 1, 1],
+      ["giorno 2", 2, 1],
+    ]);
+  });
+
+  it("con un solo livello libero il percorso va nel titolo; con nessuno tutto nell'album", () => {
+    const one = planUpload([pick("Roma/giorno 2/IMG_2.CR2")], into(1));
+    expect(one.items[0].album).toEqual({ origin: "disk_folder", ref: `${base}/Roma/giorno 2`, title: "Roma › giorno 2" });
+    const none = planUpload([pick("Roma/giorno 2/IMG_2.CR2")], into(0));
+    expect(none.items[0]).toMatchObject({ loose: false, album: null });
   });
 });

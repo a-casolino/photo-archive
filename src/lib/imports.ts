@@ -196,7 +196,7 @@ export async function finishImport(
  */
 export async function checkExisting(
   importId: number,
-  items: { sha256: string; album?: AlbumRef | null }[],
+  items: { sha256: string; album?: AlbumRef | null; intoAlbum?: string }[],
 ): Promise<ExistingFiles> {
   const rows = await query<{ id: number; sha256: string; import_id: number | null; original_pending: number }>(
     "SELECT id, sha256, import_id, original_pending FROM photos WHERE sha256 IN (?)",
@@ -205,7 +205,7 @@ export async function checkExisting(
   const bySha = new Map(rows.map((r) => [r.sha256, r.id]));
   for (const item of items) {
     const photoId = bySha.get(item.sha256);
-    if (photoId && item.album) await addToAlbum(await ensureAlbum(item.album), photoId);
+    if (photoId) await placeInAlbums(photoId, item);
   }
   // In un import ripreso, i file già caricati da questo stesso import non
   // sono "già presenti": sono stati contati come importati la prima volta.
@@ -328,7 +328,7 @@ export async function commitPhoto(
     );
     const [rows] = await conn.query<RowDataPacket[]>("SELECT id, public_id FROM photos WHERE sha256 = ?", [c.sha256]);
     const photo = rows[0] as { id: number; public_id: string };
-    if (c.album) await addToAlbum(await ensureAlbum(c.album, conn), photo.id, conn);
+    await placeInAlbums(photo.id, c, conn);
     await conn.query(
       duplicate
         ? "UPDATE imports SET files_skipped = files_skipped + 1, last_seen_at = UTC_TIMESTAMP() WHERE id = ?"
@@ -427,12 +427,36 @@ async function upsertCamera(conn: PoolConnection, cam: { make: string; model: st
 type Runner = Pick<PoolConnection, "query">;
 
 /**
- * Album della cartella (o dell'album di Takeout), creato se manca, con gli
- * album delle cartelle che la contengono. Restituisce l'id in cui mettere
- * la foto (se l'album è stato unito a un altro, quello tenuto).
+ * Mette la foto nell'album della sua cartella e/o nell'album esistente
+ * indicato (caricamento dentro un album aperto). Con entrambi, l'album
+ * della cartella (e quelli sopra) diventa sotto-album di quello esistente.
  */
-async function ensureAlbum(album: AlbumRef, conn: Runner = pool()): Promise<number> {
-  let parentId: number | null = null;
+async function placeInAlbums(
+  photoId: number,
+  where: { album?: AlbumRef | null; intoAlbum?: string },
+  conn: Runner = pool(),
+): Promise<void> {
+  let baseId: number | null = null;
+  if (where.intoAlbum) {
+    const [rows] = await conn.query<RowDataPacket[]>(
+      "SELECT COALESCE(merged_into_id, id) AS id FROM albums WHERE public_id = ? AND deleted_at IS NULL",
+      [where.intoAlbum],
+    );
+    if (!rows[0]) throw new ImportProblem("L'album in cui caricare non esiste più (eliminato o spostato nel cestino).");
+    baseId = Number(rows[0].id);
+  }
+  if (where.album) await addToAlbum(await ensureAlbum(where.album, conn, baseId), photoId, conn);
+  else if (baseId !== null) await addToAlbum(baseId, photoId, conn);
+}
+
+/**
+ * Album della cartella (o dell'album di Takeout), creato se manca, con gli
+ * album delle cartelle che la contengono, il primo dei quali dentro
+ * `baseId` se c'è. Restituisce l'id in cui mettere la foto (se l'album è
+ * stato unito a un altro, quello tenuto).
+ */
+async function ensureAlbum(album: AlbumRef, conn: Runner = pool(), baseId: number | null = null): Promise<number> {
+  let parentId: number | null = baseId;
   for (const p of album.parents ?? []) {
     const id = await upsertAlbum({ origin: album.origin, ref: p.ref, title: p.title }, conn);
     if (parentId !== null) await attachToParent(id, parentId, conn);

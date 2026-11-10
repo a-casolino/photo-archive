@@ -31,6 +31,7 @@ import { SelectBar } from "@/app/ui/gallery/select-bar";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
+import { AddPhotosButton, AlbumUploader } from "@/app/ui/upload/album-uploader";
 import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +61,7 @@ import { requireOwner } from "@/lib/session";
 import { albumTrashPreview } from "@/lib/trash";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
+import { uploaderProps } from "@/lib/upload/page-props";
 
 export default async function AlbumPage({ params, searchParams }: PageProps<"/album/[id]">) {
   await requireOwner();
@@ -91,7 +93,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
     albumTreeIndex(),
     activeSharesByAlbum(),
   ]);
-  const trashPreview = await albumTrashPreview(album.id);
+  const [trashPreview, upload] = await Promise.all([albumTrashPreview(album.id), uploaderProps()]);
   const urls = await signKeys([
     ...photos.map((p) => p.thumb_key),
     ...children.map((c) => c.cover_thumb),
@@ -107,7 +109,8 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
     ancestors.unshift(n);
     cur = n.parent_id;
   }
-  const canHaveChildren = depthOf(album.id, byId) < MAX_ALBUM_DEPTH;
+  const depth = depthOf(album.id, byId);
+  const canHaveChildren = depth < MAX_ALBUM_DEPTH;
   /** L'album o uno di quelli che lo contengono ha condivisioni attive. */
   const branchShared = (id: number): boolean => {
     for (let cur: number | null = id, n = 0; cur !== null && n <= MAX_ALBUM_DEPTH; n++) {
@@ -319,6 +322,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               </div>
             </DialogContent>
           </Dialog>
+          <AddPhotosButton />
           {canHaveChildren && <NewAlbumDialog parent={{ publicId: album.public_id, title: album.title }} />}
           <MoveAlbumDialog
             album={{ publicId: album.public_id, title: album.title }}
@@ -335,6 +339,11 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
           )}
         </div>
       </div>
+
+      <AlbumUploader
+        album={{ publicId: album.public_id, title: album.title, levels: Math.max(0, MAX_ALBUM_DEPTH - depth) }}
+        {...upload}
+      />
 
       {childEntries.length > 0 && (
         <section className="subalbums" aria-label="Sotto-album">

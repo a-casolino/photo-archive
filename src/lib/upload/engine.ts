@@ -11,7 +11,7 @@ import {
   type UploadTarget,
 } from "../import-shared";
 import { exifJson, photoFields } from "../photo-metadata";
-import { looseAlbum, planUpload, uploadLabel, type PickedFile, type PlanItem, type SkipReason } from "./plan";
+import { looseAlbum, planUpload, uploadLabel, type IntoAlbum, type PickedFile, type PlanItem, type SkipReason } from "./plan";
 import { Aborted, NetworkError, SessionExpired, uploadResumable, type Send, type SendResult } from "./resumable";
 import type { Analysis, WorkerJob, WorkerRequest, WorkerResponse } from "./worker-protocol";
 
@@ -242,7 +242,13 @@ export class UploadEngine {
   private corsHint = false;
 
   constructor(
-    private readonly opts: { wasmUrl: string; defaultLooseTitle: string; onChange: (s: Snapshot) => void },
+    private readonly opts: {
+      wasmUrl: string;
+      defaultLooseTitle: string;
+      onChange: (s: Snapshot) => void;
+      /** Caricamento dentro un album aperto. */
+      into?: IntoAlbum | null;
+    },
   ) {
     this.looseTitle = opts.defaultLooseTitle;
   }
@@ -314,7 +320,10 @@ export class UploadEngine {
   add(picked: PickedFile[]) {
     if (this.phase === "running" || this.phase === "paused") return;
     const known = new Set(this.items.map((i) => i.path));
-    const plan = planUpload(picked.filter((p) => !known.has(p.path)));
+    const plan = planUpload(
+      picked.filter((p) => !known.has(p.path)),
+      this.opts.into ?? null,
+    );
     let id = this.items.length;
     for (const it of plan.items) this.items.push({ ...it, id: id++, state: "waiting", known: null, received: 0 });
     for (const k of Object.keys(plan.skipped) as SkipReason[]) this.skipped[k] += plan.skipped[k];
@@ -323,6 +332,17 @@ export class UploadEngine {
     this.lookedUp = false;
     this.changed(true);
     void this.prescan();
+  }
+
+  /**
+   * Riprende un caricamento lasciato a metà (stessi file ritrovati nelle
+   * cartelle ricordate dal browser): lo stesso import, lo stesso album.
+   */
+  restore(saved: { importId: string | null; looseTitle: string }) {
+    if (this.phase === "running" || this.phase === "paused") return;
+    this.importId = saved.importId;
+    this.looseTitle = saved.looseTitle;
+    this.changed(true);
   }
 
   setLooseTitle(title: string) {
@@ -402,7 +422,7 @@ export class UploadEngine {
     try {
       const started = await api<{ publicId: string }>("POST", "/imports", {
         source: "cr2_disk",
-        label: uploadLabel(this.roots, this.items.filter((i) => i.loose).length),
+        label: uploadLabel(this.roots, this.items.filter((i) => i.loose).length, this.opts.into?.title),
         // Un import lasciato a metà (pausa, errori) riprende lo stesso.
         resume: this.importId ?? undefined,
       });
@@ -415,8 +435,11 @@ export class UploadEngine {
     this.phase = "running";
     this.changed(true);
     this.ticker ??= setInterval(() => void this.report(), 3000);
-    const loose = looseAlbum(this.looseTitle);
-    for (const item of this.items) if (item.loose) item.album = loose;
+    // Dentro un album aperto le foto sciolte vanno lì, senza album a parte.
+    if (!this.opts.into) {
+      const loose = looseAlbum(this.looseTitle);
+      for (const item of this.items) if (item.loose) item.album = loose;
+    }
 
     const queue = this.items.filter((i) => i.state === "waiting");
     // Gli originali già in coda (pausa) restano in coda.
@@ -555,7 +578,7 @@ export class UploadEngine {
       const sha = await this.hashOf(item);
       this.set(item, "check");
       const check = await api<ExistingFiles>("POST", `/imports/${id}/check`, {
-        items: [{ sha256: sha, album: item.album }],
+        items: [{ sha256: sha, album: item.album, intoAlbum: this.opts.into?.publicId }],
       });
       if (check.pendingOriginals.includes(sha)) {
         this.set(item, "original_queued");
@@ -596,6 +619,7 @@ export class UploadEngine {
         withPreview: true,
         originalPending: true,
         album: item.album as AlbumRef | null,
+        intoAlbum: this.opts.into?.publicId,
       };
       const res = await api<{ duplicate: boolean }>("POST", `/imports/${id}/commit`, body);
       if (res.duplicate) {

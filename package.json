@@ -22,6 +22,7 @@
     "@uswriting/exiftool": "^1.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "libheif-js": "^1.23.5",
     "lucide-react": "^1.70.0",
     "mysql2": "^3.24.6",
     "next": "16.4.5",

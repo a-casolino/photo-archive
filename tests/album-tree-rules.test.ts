@@ -85,4 +85,10 @@ describe("cartelle e livelli", () => {
       title: "Roma › Giorno 1 › Mattina",
     });
   });
+
+  it("dentro un album che ha già livelli sopra, se ne usano meno", () => {
+    expect(folderPlacement(["Roma", "Giorno 1", "Mattina"], 2)).toEqual({ parents: [1], title: "Giorno 1 › Mattina" });
+    expect(folderPlacement(["Roma", "Giorno 1"], 1)).toEqual({ parents: [], title: "Roma › Giorno 1" });
+    expect(folderPlacement(["Roma"], 1)).toEqual({ parents: [], title: "Roma" });
+  });
 });
