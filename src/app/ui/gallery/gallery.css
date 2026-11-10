@@ -1515,3 +1515,68 @@ button.danger:not(.link) {
   padding: 0;
   accent-color: var(--accent);
 }
+
+/* --- Link con nome (/l/<nome>) --- */
+
+.named-link-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.named-link-panel h3 {
+  margin: 0;
+}
+
+.named-link-slug,
+.named-link-preview {
+  font-family: ui-monospace, monospace;
+}
+
+.named-link-preview {
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.named-link-preview strong {
+  color: var(--fg);
+}
+
+.named-link-row {
+  display: flex;
+  gap: 8px;
+}
+
+.named-link-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.form .named-link-row button {
+  width: auto;
+}
+
+.named-link-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.named-link-edit select {
+  max-width: 100%;
+}
+
+.named-link-edit > :is(p, .copy-field) {
+  flex-basis: 100%;
+}
+
+.named-link-new {
+  margin: 16px 0 24px;
+  max-width: 560px;
+}
+
+.named-link-new h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}

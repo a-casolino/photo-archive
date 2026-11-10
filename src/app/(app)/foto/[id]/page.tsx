@@ -4,6 +4,8 @@ import { setAlbumCover } from "@/app/actions/shares";
 import { trashPhotosAction } from "@/app/actions/trash";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
+import { NamedLinkPanel } from "@/app/ui/gallery/named-link-list";
+import { appUrl } from "@/lib/mail";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { PhotoView } from "@/app/ui/gallery/views";
 import { albumNeighbors, albumsAbovePhoto, albumsOfPhoto, getAlbum, getPhoto, signKeys } from "@/lib/gallery";
@@ -153,6 +155,7 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
               <ShareList shares={shares} back={self} defaultDays={defaultLinkDays()} people={people} />
             </section>
           )}
+          <NamedLinkPanel targetType="photo" targetId={photo.public_id} back={self} baseUrl={appUrl("/l/")} />
         </div>
       </details>
 
