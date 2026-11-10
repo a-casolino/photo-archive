@@ -20,6 +20,19 @@ export interface FileStorage {
   /** Dove e come caricare un file (valido qualche ora). */
   uploadTarget(key: string, contentType: string, storageClass: StorageClass): Promise<UploadTarget>;
   /**
+   * Apre una sessione di caricamento riprendibile (a pezzi, con ripresa) e ne
+   * restituisce l'indirizzo, valido 7 giorni per quel solo file. `origin` è
+   * l'origine della pagina che caricherà (serve al CORS del bucket). null se
+   * l'archivio non le supporta (cartella di prova): si usa uploadTarget.
+   */
+  resumableSession(
+    key: string,
+    contentType: string,
+    storageClass: StorageClass,
+    size: number,
+    origin: string | null,
+  ): Promise<string | null>;
+  /**
    * URL di lettura temporaneo. Con `downloadName` il browser scarica il
    * file con quel nome invece di aprirlo.
    */
@@ -97,6 +110,9 @@ const localStorage: FileStorage = {
       headers: { "Content-Type": contentType, "x-goog-storage-class": storageClass },
     };
   },
+  async resumableSession() {
+    return null;
+  },
   async readUrl(key, ttl = READ_TTL_SECONDS, downloadName) {
     return localUrl("GET", key, ttl, downloadName);
   },
@@ -154,6 +170,13 @@ const gcsStorage: FileStorage = {
       extensionHeaders: headers,
     });
     return { url, method: "PUT", headers: { "Content-Type": contentType, ...headers } };
+  },
+  async resumableSession(key, contentType, storageClass, size, origin) {
+    const [url] = await (await bucket()).file(key).createResumableUpload({
+      metadata: { contentType, contentLength: size, storageClass },
+      ...(origin ? { origin } : {}),
+    });
+    return url;
   },
   async readUrl(key, ttl = READ_TTL_SECONDS, downloadName) {
     const [url] = await (await bucket()).file(key).getSignedUrl({

@@ -25,9 +25,11 @@ import { ExifTool } from "exiftool-vendored";
 import {
   RateMeter,
   type CommitBody,
+  type ExistingFiles,
   type ImportActivity,
   type ImportSource,
   type ImportStep,
+  type OriginalTarget,
   type UploadTarget,
 } from "../../src/lib/import-shared";
 import { Api, FatalError } from "./api";
@@ -239,9 +241,33 @@ async function runImport(
       await cache.set(f.abs, f.size, f.mtimeMs, sha);
     }
     step("check");
-    const check = await api.call<{ existing: string[] }>("POST", `/imports/${id}/check`, {
+    const check = await api.call<ExistingFiles>("POST", `/imports/${id}/check`, {
       items: [{ sha256: sha, album: f.album }],
     });
+    if (check.pendingOriginals?.includes(sha)) {
+      // Foto caricata dal browser con le sole anteprime: manca l'originale.
+      step("upload_original");
+      state.sent = 0;
+      const where = await api.call<OriginalTarget>("POST", `/imports/${id}/original`, { sha256: sha });
+      // Una sessione riprendibile accetta anche il file intero in un solo PUT.
+      const target: UploadTarget = where.kind === "put" ? where.target : { url: where.url, method: "PUT", headers: {} };
+      await api.upload(
+        target,
+        { file: f.abs, size: f.size },
+        {
+          onBytes: (n) => {
+            uploadMeter.add(n);
+            state.sent = (state.sent ?? 0) + n;
+          },
+          onRetry: () => (state.sent = 0),
+        },
+      );
+      step("commit");
+      await api.call("POST", `/imports/${id}/original/done`, { sha256: sha });
+      stats.uploaded += f.size;
+      stats.skipped++;
+      return;
+    }
     if (check.existing.includes(sha)) {
       stats.skipped++;
       return;

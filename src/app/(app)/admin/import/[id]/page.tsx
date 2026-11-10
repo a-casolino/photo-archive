@@ -42,7 +42,7 @@ export default async function ImportDetailPage({ params }: PageProps<"/admin/imp
 
       <section className="card">
         <div className="counters">
-          <span>Fonte: {sourceLabel(imp.source, imp.device_name)}</span>
+          <span>Fonte: {sourceLabel(imp.source, imp.device_name, imp.label)}</span>
           <span>Computer: {imp.device_name ?? "—"}</span>
           <span>Iniziato: {dateTimeFmt.format(imp.started_at)}</span>
           {imp.finished_at && <span>Finito: {dateTimeFmt.format(imp.finished_at)}</span>}

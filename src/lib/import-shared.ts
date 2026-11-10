@@ -213,6 +213,14 @@ export const progressBody = z.object({
   activity: activitySchema.nullable().optional(),
 });
 
+/** Impronte da cercare nell'archivio prima di iniziare (riepilogo del browser). */
+export const lookupBody = z.object({
+  sha256: z.array(sha256Schema).min(1).max(1000),
+});
+
+/** Risposta di check e lookup: già presenti, e tra questi quelli con l'originale ancora da caricare. */
+export type ExistingFiles = { existing: string[]; pendingOriginals: string[] };
+
 export const checkBody = z.object({
   items: z
     .array(z.object({ sha256: sha256Schema, album: albumRef.nullable().optional() }))
@@ -258,9 +266,29 @@ export const commitBody = z.object({
   description: z.string().max(5000).nullable().optional(),
   googlePhotosUrl: z.string().max(512).nullable().optional(),
   withPreview: z.boolean(),
+  /**
+   * L'originale arriva dopo (caricamento dal browser: prima le anteprime di
+   * tutto il lotto, poi i CR2). Richiede l'anteprima.
+   */
+  originalPending: z.boolean().optional(),
   album: albumRef.nullable().optional(),
 });
 export type CommitBody = z.infer<typeof commitBody>;
+
+/** Originale di una foto già registrata in attesa del file (original_pending). */
+export const originalBody = z.object({
+  sha256: sha256Schema,
+  /** true = la sessione riprendibile salvata non vale più: aprine una nuova. */
+  fresh: z.boolean().optional(),
+});
+
+/**
+ * Dove caricare un originale: una sessione riprendibile di Cloud Storage
+ * (a pezzi, con ripresa) oppure, con l'archivio di prova, un PUT semplice.
+ */
+export type OriginalTarget =
+  | { kind: "resumable"; url: string; size: number }
+  | { kind: "put"; target: UploadTarget; size: number };
 
 export const errorBody = z.object({
   sourcePath: relPath,

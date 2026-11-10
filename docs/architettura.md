@@ -10,6 +10,7 @@ Browser ──HTTPS──> OpenLiteSpeed (xCloud) ──> Next.js (Node 24) ─�
                                                           └─ previews/   (JPEG, classe Standard, signed URL)
 
 PC di Antonio: npm run import ──exiftool + sharp──> anteprime + EXIF
+(oppure il browser: /admin/import/carica, ExifTool in WebAssembly + canvas)
       │  1. chiede all'app se il file c'è già (SHA-256)      ─> API /api/import/v1
       │  2. riceve URL firmati e carica i file direttamente   ─> GCS
       └  3. registra la foto (l'app controlla che il file ci sia) ─> MySQL
@@ -79,6 +80,70 @@ chiave (`GCS_KEY_FILE`, oppure il contenuto del JSON in `GCS_KEY_JSON`) con ruol
 "Storage Object Admin" sul solo bucket: firma gli URL e scrive i file.
 Bucket deciso con Antonio il 2026-11-07: Google Cloud (non Hetzner né Amazon),
 regione europe-west3 (Francoforte).
+
+## Carica dal browser
+
+Pagina `/admin/import/carica` (solo proprietario), decisa con Antonio il
+2026-11-10: per i lotti di tutti i giorni (un servizio, un viaggio, foto dal
+telefono). Per il grosso dell'archivio resta il programma di import: la
+velocità è la stessa (la linea di casa), ma non dipende da una scheda aperta.
+
+- **Il browser fa il lavoro del programma** (`src/lib/upload/`), con la
+  stessa API `/api/import/v1` autenticata dalla sessione del proprietario
+  (solo richieste con `Origin` di questa app, vedi `_lib/handler.ts`). Le
+  import hanno `device_id` NULL e l'etichetta "Browser · …".
+- **Scelta dei file**: trascinamento di file e cartelle (con le sottocartelle,
+  `webkitGetAsEntry`) o i pulsanti "Scegli foto" / "Scegli cartella"; sul
+  telefono solo foto dalla galleria (iOS converte gli HEIC in JPG). Le
+  cartelle diventano album come nel programma (`diskAlbum()` in
+  `src/lib/import-albums.ts`, stessi riferimenti: ricaricare una cartella
+  ritrova i suoi album); i file sciolti vanno nell'album scritto nel
+  riepilogo (`origin_ref` = `browser/<titolo>`) o in nessuno.
+- **Riepilogo** prima di partire: impronte SHA-256 di tutti i file in un Web
+  Worker e `POST /lookup` per dire quanti ci sono già; albero degli album,
+  tipi, file ignorati, stima del tempo dalla velocità degli ultimi import.
+- **Tag EXIF con ExifTool in WebAssembly** (`@uswriting/exiftool`, ExifTool
+  13.42 su zeroperl) con gli stessi argomenti di exiftool-vendored
+  (`EXIFTOOL_ARGS`), così `photoFields()` (`src/lib/photo-metadata.ts`) dà gli
+  stessi campi del programma: lo verifica `tests/upload-exiftool.test.ts`. Il
+  file `.wasm` (~25 MB, ~7,5 MB con gzip) lo serve
+  `/api/import/exiftool` (compresso, il worker lo decomprime con
+  `DecompressionStream`), in cache nel browser per un anno: l'URL contiene la
+  versione e va cambiato aggiornando il pacchetto.
+- **Anteprime nel browser** (Web Worker, `OffscreenCanvas`): dal CR2 si
+  legge solo il JPEG incorporato (posizione e lunghezza da ExifTool,
+  `embeddedJpegRange()`), lo si ruota a mano con l'orientamento EXIF
+  (`orientationTransform()`, verificata contro sharp nei test); JPG e PNG si
+  aprono direttamente (il browser applica l'orientamento). 2048 e 400 px in
+  JPEG, qualità 82 e 75, come il programma. Gli HEIC si aprono solo dove il
+  browser li sa leggere (Safari); altrove errore chiaro.
+- **Prima le anteprime, poi gli originali**: ogni foto si registra appena
+  caricate le anteprime, con `photos.original_pending = 1` (migrazione 014),
+  così gli album sono completi dopo pochi minuti. Intanto (1 alla volta, poi
+  2) partono gli originali; finché manca, "Scarica originale" è spento e
+  `/api/download?v=original` risponde 409. `POST /imports/<id>/original/done`
+  controlla la dimensione e azzera il flag.
+- **Upload riprendibile**: per ogni originale il server apre una sessione
+  riprendibile di Cloud Storage (`resumableSession()` in `storage.ts`, classe
+  ARCHIVE, legata all'`Origin` della pagina) e la salva in `upload_sessions`
+  (6 giorni; Google le tiene 7). Il browser manda pezzi da 8 MiB con
+  `Content-Range` e, dopo un errore, chiede a Google quanti byte ha
+  (`src/lib/upload/resumable.ts`, test con un finto server). Chiudendo la
+  pagina e scegliendo di nuovo le stesse foto: i file già registrati si
+  saltano, gli originali mancanti (`pendingOriginals` di check e lookup)
+  ripartono dal byte a cui erano arrivati. Anche il programma di import,
+  trovando una foto con l'originale mancante, lo carica.
+- **Pausa** ferma gli upload in corso (gli originali riprendono dal punto
+  raggiunto); **Riprova gli errori** riapre lo stesso import. Mentre carica lo
+  schermo resta acceso (Wake Lock) e chiudere la pagina chiede conferma.
+  L'avanzamento va nella pagina Import come per il programma.
+- **CORS del bucket**: il browser scrive direttamente su Cloud Storage, quindi
+  il bucket deve accettare `PUT` dalla nostra origine. Regola in
+  `docs/gcs-cors.json`, da applicare una volta (Cloud Shell, con un account
+  che può modificare il bucket; l'account di servizio dell'app non può):
+  `gcloud storage buckets update gs://acasolino-foto --cors-file=gcs-cors.json`.
+  Senza, il primo upload fallisce con un messaggio che lo dice. Con
+  `STORAGE_DRIVER=local` (prove) non serve: gli upload passano dall'app.
 
 ## Import da Google Drive
 

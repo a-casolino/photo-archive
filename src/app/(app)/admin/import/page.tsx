@@ -27,7 +27,7 @@ const KIND_LABEL = { raw: "CR2", phone: "Foto del telefono", edit: "Export modif
 export default async function ImportPage() {
   await requireOwner();
 
-  const [imports, devices, kinds, review, duplicates] = await Promise.all([
+  const [imports, devices, kinds, review, duplicates, pendingOriginals] = await Promise.all([
     query<ImportRow & { device_name: string | null }>(
       `SELECT i.*, d.name AS device_name FROM imports i LEFT JOIN import_devices d ON d.id = i.device_id
         ORDER BY i.started_at DESC, i.id DESC LIMIT 100`,
@@ -47,6 +47,9 @@ export default async function ImportPage() {
                   GROUP BY e.id HAVING COUNT(*) > 1) x) AS ambiguous`,
     ),
     countDuplicatePairs(),
+    queryOne<{ n: number; bytes: number }>(
+      "SELECT COUNT(*) AS n, COALESCE(SUM(file_size), 0) AS bytes FROM photos WHERE original_pending = 1 AND deleted_at IS NULL",
+    ),
   ]);
 
   const running = imports.filter((i) => i.status === "running");
@@ -64,6 +67,29 @@ export default async function ImportPage() {
           Archivio: {storage().driver === "gcs" ? "Google Cloud Storage" : "cartella locale (modalità di prova)"}
         </span>
       </div>
+      <section className="card import-head" style={{ alignItems: "center" }}>
+        <div>
+          <h2>Carica dal browser</h2>
+          <p className="muted">
+            Trascina foto o cartelle intere (anche dal telefono): prima arrivano le anteprime, poi gli originali.
+            {Number(pendingOriginals?.n ?? 0) > 0 && (
+              <>
+                {" "}
+                <strong>
+                  Originali ancora da caricare: {formatCount(Number(pendingOriginals?.n))} (
+                  {formatBytes(Number(pendingOriginals?.bytes))})
+                </strong>
+                : riapri la pagina e scegli di nuovo le stesse foto per completarli.
+              </>
+            )}
+          </p>
+        </div>
+        <Button asChild>
+          <Link prefetch={false} href="/admin/import/carica">
+            Carica dal browser
+          </Link>
+        </Button>
+      </section>
       <section className="card import-head" style={{ alignItems: "center" }}>
         <div>
           <h2>Google Drive</h2>
@@ -155,7 +181,7 @@ export default async function ImportPage() {
                       {imp.label}
                     </Link>
                   </td>
-                  <td>{sourceLabel(imp.source, imp.device_name)}</td>
+                  <td>{sourceLabel(imp.source, imp.device_name, imp.label)}</td>
                   <td>
                     <StatusBadge imp={imp} />
                   </td>
