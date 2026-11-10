@@ -4,6 +4,7 @@ import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "./env";
 import { isValidStorageKey, type StorageClass, type UploadTarget } from "./import-shared";
+import { stableSignWindow } from "./signing-rules";
 
 /*
  * Archivio dei file: CR2 originali e anteprime JPEG.
@@ -54,7 +55,14 @@ const READ_TTL_SECONDS = 15 * 60;
 // Driver locale
 // ---------------------------------------------------------------------
 
-const g = globalThis as unknown as { __storageSecret?: string; __gcsBucket?: unknown };
+const g = globalThis as unknown as {
+  __storageSecret?: string;
+  __gcsBucket?: unknown;
+  /** URL di lettura già firmati nella finestra corrente (vedi readUrl di GCS). */
+  __signedUrls?: Map<string, string>;
+  __signedWindow?: number;
+};
+const MAX_CACHED_URLS = 20000;
 
 function signingSecret(): string {
   const configured = env().STORAGE_SIGNING_SECRET;
@@ -87,7 +95,11 @@ export function localPath(key: string): string {
 }
 
 function localUrl(method: "GET" | "PUT", key: string, ttl: number, downloadName?: string): string {
-  const exp = Math.floor(Date.now() / 1000) + ttl;
+  // Letture senza nome di download: scadenza arrotondata, URL stabile (vedi signing-rules).
+  const exp =
+    method === "GET" && !downloadName
+      ? Math.floor(stableSignWindow(Date.now(), ttl).expires / 1000)
+      : Math.floor(Date.now() / 1000) + ttl;
   const sig = signLocal(method, key, exp);
   // Relativo: il programma di import lo risolve rispetto all'indirizzo del server.
   const dl = downloadName ? `&dl=${encodeURIComponent(downloadName)}` : "";
@@ -179,12 +191,36 @@ const gcsStorage: FileStorage = {
     return url;
   },
   async readUrl(key, ttl = READ_TTL_SECONDS, downloadName) {
+    if (downloadName) {
+      const [url] = await (await bucket()).file(key).getSignedUrl({
+        version: "v4",
+        action: "read",
+        expires: Date.now() + ttl * 1000,
+        responseDisposition: attachmentDisposition(downloadName),
+      });
+      return url;
+    }
+    // Anteprime e miniature: firmate con l'ora arrotondata, così lo stesso file
+    // ha lo stesso URL per un'ora e il browser lo riusa dalla cache. Gli URL
+    // già firmati in questa finestra si riusano anche qui (niente firma RSA
+    // ripetuta per le 200 miniature di ogni pagina).
+    const win = stableSignWindow(Date.now(), ttl);
+    const cacheKey = `${ttl}:${key}`;
+    if (g.__signedWindow !== win.accessibleAt) {
+      g.__signedWindow = win.accessibleAt;
+      g.__signedUrls = new Map();
+    }
+    const cache = (g.__signedUrls ??= new Map());
+    const hit = cache.get(cacheKey);
+    if (hit) return hit;
     const [url] = await (await bucket()).file(key).getSignedUrl({
       version: "v4",
       action: "read",
-      expires: Date.now() + ttl * 1000,
-      ...(downloadName ? { responseDisposition: attachmentDisposition(downloadName) } : {}),
+      accessibleAt: win.accessibleAt,
+      expires: win.expires,
     });
+    if (cache.size >= MAX_CACHED_URLS) cache.clear();
+    cache.set(cacheKey, url);
     return url;
   },
   async size(key) {

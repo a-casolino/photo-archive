@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
 import { ratioOf } from "@/app/ui/gallery/views";
 import { query } from "@/lib/db";
-import { albumCoverId, branchCoverId, branchPhotoCount, signKeys } from "@/lib/gallery";
+import { albumCoverId, branchCoverId, branchPhotoCount, linkedExport, signKeys } from "@/lib/gallery";
 import { effectiveDownload, type DownloadLevel } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 
@@ -50,10 +50,7 @@ export default async function DashboardPage() {
        LEFT JOIN photos p ON p.id = s.photo_id AND p.deleted_at IS NULL
        LEFT JOIN LATERAL (SELECT COALESCE(${albumCoverId("a")}, ${branchCoverId("a")}) AS id) ac ON TRUE
        LEFT JOIN photos c ON c.id = COALESCE(p.id, ac.id) AND c.deleted_at IS NULL
-       LEFT JOIN photos x ON x.id = (
-         SELECT e.id FROM photos e
-          WHERE e.derived_from_id = c.id AND e.match_status IN ('auto', 'confirmed') AND e.deleted_at IS NULL
-          ORDER BY e.id DESC LIMIT 1)
+       ${linkedExport("active", "c")}
       WHERE sr.user_id = ?
         AND s.revoked_at IS NULL
         AND (s.expires_at IS NULL OR s.expires_at > UTC_TIMESTAMP())
