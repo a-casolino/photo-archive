@@ -19,6 +19,9 @@ export type TakeoutExport = {
   tgz: boolean;
 };
 
+/** Export con orari entro questo intervallo sono lo stesso export. */
+const SAME_EXPORT_MS = 5 * 60 * 1000;
+
 const TAKEOUT_RE = /^(takeout-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z)(?:-\d+)*\.(zip|tgz|tar\.gz)$/i;
 
 /** Raggruppa i file di Takeout per export (più recente prima), con le parti in ordine. */
@@ -38,8 +41,23 @@ export function groupTakeoutExports(files: readonly DriveFileLite[]): TakeoutExp
     g.bytes += f.size;
     if (m[8].toLowerCase() !== "zip") g.tgz = true;
   }
-  for (const g of groups.values()) g.parts.sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }));
-  return [...groups.values()].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  // Google a volte divide lo stesso export in file con orari diversi di qualche
+  // secondo ("takeout-…T205102Z-001.zip" e "takeout-…T205103Z-1-001.zip"): si
+  // uniscono gli export nati a pochi minuti l'uno dall'altro, perché i JSON di
+  // una foto possono stare in uno zip dell'altro gruppo.
+  const merged: TakeoutExport[] = [];
+  for (const g of [...groups.values()].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
+    const prev = merged.at(-1);
+    if (prev && g.createdAt.getTime() - prev.createdAt.getTime() <= SAME_EXPORT_MS) {
+      prev.parts.push(...g.parts);
+      prev.bytes += g.bytes;
+      prev.tgz ||= g.tgz;
+    } else {
+      merged.push(g);
+    }
+  }
+  for (const g of merged) g.parts.sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }));
+  return merged.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 /**

@@ -29,6 +29,7 @@ import { pipeline } from "node:stream/promises";
 import type yauzl from "yauzl";
 import { newToken, sha256 } from "../../src/lib/crypto";
 import { execute, pool, queryOne } from "../../src/lib/db";
+import { isNonAlbumFolder } from "../import/takeout";
 import { DRIVE_DEVICE_NAME, makeBatches, safeSegment, uniqueName, zipEntrySegments } from "../../src/lib/drive-rules";
 import { env } from "../../src/lib/env";
 import { DriveClient, driveQuote, FOLDER_MIME } from "../../src/lib/google-drive";
@@ -278,6 +279,7 @@ async function runTakeout(client: DriveClient, job: Job, dir: string, key: strin
     const items: Item[] = [];
     let jsons = 0;
     let skipped = 0;
+    let yearOnly = 0;
     for (const [i, id] of job.drive_ids.entries()) {
       const meta = await client.file(id);
       await setMessage(job, `Leggo l'indice dello zip ${i + 1} di ${job.drive_ids.length} (${meta.name})…`);
@@ -288,6 +290,13 @@ async function runTakeout(client: DriveClient, job: Job, dir: string, key: strin
       for (const entry of await zipEntries(zip)) {
         const parts = zipEntrySegments(entry.fileName);
         if (!parts) continue;
+        // Antonio vuole solo le foto degli album: quelle delle cartelle degli
+        // anni («Photos from 2019») e del cestino si saltano. Una foto che sta
+        // anche in un album arriva comunque dalla cartella dell'album.
+        if (parts.slice(0, -1).some(isNonAlbumFolder)) {
+          yearOnly++;
+          continue;
+        }
         const dest = path.join(root, ...parts);
         const name = parts[parts.length - 1];
         const base = { size: entry.uncompressedSize, dest, mtime: entry.getLastModDate(), from: "zip" as const, zip, entry };
@@ -302,7 +311,7 @@ async function runTakeout(client: DriveClient, job: Job, dir: string, key: strin
       jsons += jsonItems.length;
       if (hb.cancelled) throw new Cancelled();
     }
-    log(`JSON estratti: ${jsons}; video e altri file saltati: ${skipped}`);
+    log(`JSON estratti: ${jsons}; video e altri file saltati: ${skipped}; file fuori dagli album saltati: ${yearOnly}`);
     await runBatches(client, job, items, root, true, key, hb);
   } finally {
     for (const z of zips) z.close();

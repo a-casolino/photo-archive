@@ -23,6 +23,20 @@ describe("groupTakeoutExports", () => {
     const groups = groupTakeoutExports([{ id: "a", name: "takeout-20261109T083015Z-3-001.zip", size: 1 }]);
     expect(groups[0].key).toBe("takeout-20261109t083015z");
   });
+
+  it("unisce le parti dello stesso export con orari diversi di qualche secondo", () => {
+    const groups = groupTakeoutExports([
+      { id: "b", name: "takeout-20261109T205103Z-1-001.zip", size: 4 },
+      { id: "c", name: "takeout-20261109T205103Z-1-002.zip", size: 4 },
+      { id: "a", name: "takeout-20261109T205102Z-001.zip", size: 1 },
+      { id: "x", name: "takeout-20261109T213000Z-001.zip", size: 2 },
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups[1].key).toBe("takeout-20261109t205102z");
+    expect(groups[1].parts.map((p) => p.id)).toEqual(["a", "b", "c"]);
+    expect(groups[1].bytes).toBe(9);
+    expect(groups[0].parts.map((p) => p.id)).toEqual(["x"]);
+  });
 });
 
 describe("nomi sicuri", () => {

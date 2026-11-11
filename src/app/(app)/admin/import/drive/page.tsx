@@ -162,8 +162,8 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
           <p className="muted">
             Su <a href="https://takeout.google.com" target="_blank" rel="noreferrer">takeout.google.com</a> scegli
             Google Foto, poi «Aggiungi a Drive», tipo di file <strong>.zip</strong> e dimensione 10 GB. Quando Google
-            ha finito, gli zip compaiono qui. Album, date, descrizioni e posizioni vengono dai file JSON di Takeout. Le
-            cartelle «Photos from …» non diventano album.
+            ha finito, gli zip compaiono qui. Album, date, descrizioni e posizioni vengono dai file JSON di Takeout. Si
+            importano solo le foto degli album: le cartelle degli anni («Photos from …») e il cestino si saltano.
           </p>
           {exports.length === 0 ? (
             <p className="muted">Nessun export di Takeout trovato su Drive.</p>
