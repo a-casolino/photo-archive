@@ -107,6 +107,28 @@ export function parsePage(raw: string | string[] | undefined): number {
   return Number.isInteger(n) && n > 0 ? n : 1;
 }
 
+function osmUrl(lat: string | number, lon: string | number): string {
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=15/${lat}/${lon}`;
+}
+
+/**
+ * Piccola mappa di OpenStreetMap con il punto della foto (solo per il
+ * proprietario). Si carica solo quando arriva sullo schermo.
+ */
+function PhotoMap({ lat, lon, label }: { lat: number; lon: number; label: string }) {
+  const d = 0.02; // circa 2 km attorno al punto
+  const bbox = [lon - d, lat - d / 1.5, lon + d, lat + d / 1.5].map((n) => n.toFixed(5)).join(",");
+  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(6)},${lon.toFixed(6)}`;
+  return (
+    <div className="photo-map">
+      <iframe src={src} title={`Mappa: ${label}`} loading="lazy" referrerPolicy="no-referrer" />
+      <a href={osmUrl(lat, lon)} target="_blank" rel="noreferrer" className="muted">
+        Apri la mappa grande
+      </a>
+    </div>
+  );
+}
+
 /**
  * Pagina di una foto: anteprima grande, frecce, informazioni e download.
  * `showPrivate`: dati riservati al proprietario (posizione GPS, file).
@@ -226,19 +248,18 @@ export function PhotoView({
             )}
             {showPrivate && photo.gps_lat !== null && photo.gps_lon !== null && (
               <>
-                <dt>Posizione</dt>
+                <dt>Luogo</dt>
                 <dd>
-                  <a
-                    href={`https://www.openstreetmap.org/?mlat=${photo.gps_lat}&mlon=${photo.gps_lon}#map=15/${photo.gps_lat}/${photo.gps_lon}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {Number(photo.gps_lat).toFixed(5)}, {Number(photo.gps_lon).toFixed(5)}
+                  <a href={osmUrl(photo.gps_lat, photo.gps_lon)} target="_blank" rel="noreferrer">
+                    {photo.place_name || `${Number(photo.gps_lat).toFixed(5)}, ${Number(photo.gps_lon).toFixed(5)}`}
                   </a>
                 </dd>
               </>
             )}
           </dl>
+          {showPrivate && photo.gps_lat !== null && photo.gps_lon !== null && (
+            <PhotoMap lat={Number(photo.gps_lat)} lon={Number(photo.gps_lon)} label={photo.place_name || "Posizione della foto"} />
+          )}
         </section>
 
         {(canDownload(level, "preview") && photo.preview_key) || canDownload(level, "original") ? (

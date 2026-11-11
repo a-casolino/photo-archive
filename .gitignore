@@ -51,3 +51,6 @@ next-env.d.ts
 
 # lavoro dell'import da Google Drive (sulla VPS)
 /lavoro-drive/
+
+# elenco delle località di GeoNames (npm run luoghi)
+/dati-luoghi/

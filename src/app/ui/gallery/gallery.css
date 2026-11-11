@@ -590,6 +590,24 @@ a.stage-nav:hover {
   word-break: break-word;
 }
 
+.photo-map {
+  margin-top: 12px;
+  display: grid;
+  gap: 4px;
+  max-width: 480px;
+}
+
+.photo-map iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.photo-map a {
+  font-size: 0.85rem;
+}
+
 .downloads {
   display: flex;
   flex-wrap: wrap;

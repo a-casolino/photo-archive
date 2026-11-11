@@ -68,6 +68,7 @@ npm run volti -- --raggruppa           # solo raggruppamento e suggerimenti, sen
 npm run volti -- --scarica-modelli [--zip buffalo_l.zip]  # modelli InsightFace in FACES_MODEL_DIR (da GitHub o da uno zip già scaricato)
 npm run volti -- --file foto.jpg        # prova su file locali, senza database
 npm run drive                           # lavora la coda Import → Google Drive: Takeout e cartelle di Drive (cron sulla VPS ogni 15 min)
+npm run luoghi [-- --tutte|--scarica|--prova LAT LON]  # nome del luogo dal GPS (GeoNames in locale; gira anche alla fine di npm run drive)
 npm run cestino [-- --giorni N]         # elimina per sempre (anche dal bucket) album e foto nel cestino da più di 30 giorni (cron sulla VPS)
 ```
 

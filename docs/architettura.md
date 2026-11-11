@@ -387,6 +387,32 @@ Standard).
   persone solo per il proprietario; chi riceve una condivisione non vede i nomi.
   Le query delle pagine non leggono mai `faces.embedding`.
 
+## Luoghi
+
+Sotto la foto il proprietario vede il **luogo** ("Positano, Campania, Italia",
+link a OpenStreetMap) e una piccola **mappa** con il punto, quando la foto ha il
+GPS (EXIF dei telefoni o JSON di Takeout; i CR2 della 7D di solito non ce
+l'hanno). Chi riceve una condivisione o un link non li vede.
+
+- **Nome del luogo** (`photos.place_name`, migrazione 016): la località più
+  vicina entro 50 km nell'elenco di **GeoNames** (cities500, CC BY 4.0), con i nomi
+  italiani per località e regioni d'Italia e il paese in italiano. Il calcolo è
+  tutto sulla VPS: le coordinate non vanno a servizi esterni.
+- **Quando**: alla fine di ogni giro di `npm run drive` (cron ogni 15 minuti),
+  per le foto con GPS e `place_name` NULL, da qualunque import arrivino. A mano:
+  `npm run luoghi`; `--tutte` ricalcola tutto, `--scarica` riscarica l'elenco,
+  `--prova <lat> <lon>` stampa il luogo senza database. `''` = nessuna località
+  vicina (in mare aperto); finché non c'è il nome la pagina mostra le coordinate.
+- **Elenco**: in `PLACES_DATA_DIR` (`./dati-luoghi`), scaricato da solo la prima
+  volta da download.geonames.org (`cities500.zip`, `admin1CodesASCII.txt`,
+  `alternatenames/IT.zip`, ~30 MB in tutto) e ridotto a `luoghi.tsv`. Se la VPS
+  non lo raggiunge si copiano i tre file a mano nella cartella.
+- **Mappa**: iframe di openstreetmap.org (`export/embed.html`), caricata solo
+  quando arriva sullo schermo; i riquadri della mappa li chiede il browser del
+  proprietario a OpenStreetMap.
+- **Codice**: `src/lib/place-rules.ts` (lettura dei file, indice a celle di 1°,
+  località più vicina; testato), `scripts/luoghi/` (scaricamento e calcolo).
+
 ## Statistiche
 
 `/admin/statistiche`, solo proprietario (voce «Statistiche» nel menu).
@@ -465,6 +491,7 @@ migrations/            migrazioni SQL numerate (applicate da scripts/migrate.ts)
 scripts/               migrate.ts, create-owner.ts
 scripts/import/        programma di import (gira sul computer di Antonio)
 scripts/volti/         analisi dei volti (gira sulla VPS)
+scripts/luoghi/        nome del luogo dalle coordinate GPS (GeoNames, sulla VPS)
 src/lib/
   env.ts               configurazione da variabili d'ambiente (validata con zod)
   db.ts                pool mysql2 e helper query/queryOne/execute
@@ -484,6 +511,7 @@ src/lib/
   tags.ts              tag su foto e album
   faces/               volti: geometria (SCRFD, ArcFace), motore ONNX, impronte, raggruppamento
   people.ts            persone e volti per le pagine (letture e modifiche)
+  place-rules.ts       luoghi: elenco GeoNames e località più vicina al GPS (testate)
   suggest.ts           suggerimenti della ricerca; regole pure in search-rules.ts
   utils.ts             cn() per unire le classi Tailwind
 src/components/ui/     componenti shadcn/ui (Button, Dialog, DropdownMenu), modificabili
