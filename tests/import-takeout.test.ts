@@ -61,6 +61,8 @@ describe("isNonAlbumFolder", () => {
     expect(isNonAlbumFolder("Photos from 2019")).toBe(true);
     expect(isNonAlbumFolder("Foto dal 2019")).toBe(true);
     expect(isNonAlbumFolder("Foto da 2025")).toBe(true);
+    expect(isNonAlbumFolder("WhatsApp Images")).toBe(true);
+    expect(isNonAlbumFolder("Whatsapp")).toBe(true);
     expect(isNonAlbumFolder("Stoccolma Capodanno 2015")).toBe(false);
     expect(isNonAlbumFolder("Cestino")).toBe(true);
     expect(isNonAlbumFolder("Matrimonio Luca")).toBe(false);

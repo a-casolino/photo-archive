@@ -85,11 +85,13 @@ export function parseSidecar(json: TakeoutSidecar): SidecarInfo {
   };
 }
 
-/** Cartelle di Takeout che non sono album (anni, cestino). */
+/** Cartelle di Takeout che non sono album (anni, cestino, backup di WhatsApp). */
 export function isNonAlbumFolder(name: string): boolean {
   return (
     /^(photos from|foto da|foto dal|foto del|fotos von|fotos de|photos de) \d{4}$/i.test(name) ||
-    /^(trash|cestino|bin|papierkorb|papelera|corbeille)$/i.test(name)
+    /^(trash|cestino|bin|papierkorb|papelera|corbeille)$/i.test(name) ||
+    // Cartelle create dal backup di WhatsApp (richiesta di Antonio, 11/11).
+    /whats\s*app/i.test(name)
   );
 }
 
