@@ -207,6 +207,14 @@ export async function checkExisting(
     const photoId = bySha.get(item.sha256);
     if (photoId) await placeInAlbums(photoId, item);
   }
+  // Un file reimportato che sta nel cestino torna attivo: importarlo di nuovo
+  // vuol dire volerlo nell'archivio (es. dopo aver svuotato un import sbagliato).
+  if (rows.length) {
+    await execute(
+      "UPDATE photos SET deleted_at = NULL, trashed_with_album_id = NULL WHERE id IN (?) AND deleted_at IS NOT NULL",
+      [rows.map((r) => r.id)],
+    );
+  }
   // In un import ripreso, i file già caricati da questo stesso import non
   // sono "già presenti": sono stati contati come importati la prima volta.
   const skipped = rows.filter((r) => r.import_id !== importId).length;

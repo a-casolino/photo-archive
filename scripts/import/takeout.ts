@@ -85,7 +85,23 @@ export function parseSidecar(json: TakeoutSidecar): SidecarInfo {
   };
 }
 
-/** Cartelle di Takeout che non sono album (anni, cestino). */
+/** Cartelle di Takeout che non sono album (anni, cestino, backup di WhatsApp). */
 export function isNonAlbumFolder(name: string): boolean {
-  return /^(photos from|foto dal|foto del|fotos von|photos de) \d{4}$/i.test(name) || /^(trash|cestino|bin)$/i.test(name);
+  return (
+    /^(photos from|foto da|foto dal|foto del|fotos von|fotos de|photos de) \d{4}$/i.test(name) ||
+    /^(trash|cestino|bin|papierkorb|papelera|corbeille)$/i.test(name) ||
+    // Cartelle create dal backup di WhatsApp (richiesta di Antonio, 11/11).
+    /whats\s*app/i.test(name)
+  );
+}
+
+/**
+ * Il file con titolo e descrizione dell'album: "metadata.json", ma nei Takeout
+ * in altre lingue il nome cambia ("metadati.json" in italiano).
+ */
+export function albumMetadataFile(names: readonly string[]): string | null {
+  return (
+    names.find((n) => /^(metadata|metadati|metadatos|metadados|metadaten|m[ée]tadonn[ée]es)(\(\d+\))?\.json$/i.test(n)) ??
+    null
+  );
 }
