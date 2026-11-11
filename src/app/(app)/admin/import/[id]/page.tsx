@@ -13,6 +13,7 @@ import { ImportProgress, sourceLabel, StatusBadge } from "../import-status";
 type ErrorRow = { id: number; source_path: string; message: string; created_at: Date };
 
 const MAX_ERRORS = 500;
+const MAX_FOLDERS = 300;
 
 export default async function ImportDetailPage({ params, searchParams }: PageProps<"/admin/import/[id]">) {
   await requireOwner();
@@ -31,6 +32,16 @@ export default async function ImportDetailPage({ params, searchParams }: PagePro
     [imp.id, MAX_ERRORS],
   );
   const photoCount = await importPhotoCount(imp.id);
+  // Cartelle da cui arrivano le foto (anche quelle poi messe nel cestino).
+  const folders = await query<{ folder: string; n: number; trashed: number }>(
+    `SELECT f.folder, COUNT(*) AS n, SUM(f.deleted_at IS NOT NULL) AS trashed
+       FROM (SELECT deleted_at,
+                    IF(LOCATE('/', source_path) = 0, '',
+                       LEFT(source_path, CHAR_LENGTH(source_path) - CHAR_LENGTH(SUBSTRING_INDEX(source_path, '/', -1)) - 1)) AS folder
+               FROM photos WHERE import_id = ?) AS f
+      GROUP BY f.folder ORDER BY n DESC, f.folder LIMIT ?`,
+    [imp.id, MAX_FOLDERS],
+  );
 
   return (
     <>
@@ -76,6 +87,34 @@ export default async function ImportDetailPage({ params, searchParams }: PagePro
               Sposta nel cestino {formatCount(photoCount)} foto
             </Button>
           </form>
+        </section>
+      )}
+
+      {folders.length > 0 && (
+        <section className="card table-wrap">
+          <h2>Cartelle</h2>
+          <p className="muted">
+            Da dove arrivano le foto entrate con questo import, comprese quelle poi spostate nel cestino.
+            {folders.length === MAX_FOLDERS && ` Sono mostrate le ${MAX_FOLDERS} con più foto.`}
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Cartella</th>
+                <th>Foto</th>
+                <th>Nel cestino</th>
+              </tr>
+            </thead>
+            <tbody>
+              {folders.map((f) => (
+                <tr key={f.folder}>
+                  <td className="current-file">{f.folder || "—"}</td>
+                  <td>{formatCount(Number(f.n))}</td>
+                  <td>{formatCount(Number(f.trashed))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
       )}
 
