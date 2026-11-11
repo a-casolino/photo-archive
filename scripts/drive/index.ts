@@ -45,6 +45,7 @@ type Job = {
   label: string;
   drive_ids: string[];
   batches_done: number;
+  files_total: number | null;
   created_by: number;
 };
 
@@ -233,6 +234,14 @@ async function runBatches(
   const maxBytes = env().DRIVE_BATCH_GB * 1e9;
   const batches = makeBatches(items, maxBytes);
   const bytes = items.reduce((s, i) => s + i.size, 0);
+  // Se l'elenco dei file è cambiato (regole di import diverse da un giro
+  // precedente) i lotti non corrispondono più: si riparte dal primo. I file già
+  // caricati risultano "già presenti" e non si ricaricano.
+  if (job.batches_done > 0 && job.files_total !== null && job.files_total !== items.length) {
+    log(`Elenco cambiato (${job.files_total} → ${items.length} file): riparto dal primo lotto.`);
+    job.batches_done = 0;
+    await execute("UPDATE drive_imports SET batches_done = 0 WHERE id = ?", [job.id]);
+  }
   await execute(
     "UPDATE drive_imports SET batches_total = ?, files_total = ?, bytes_total = ? WHERE id = ?",
     [batches.length, items.length, bytes, job.id],
@@ -410,7 +419,7 @@ async function main() {
     await execute("UPDATE drive_imports SET status = 'queued' WHERE status = 'running'");
     for (;;) {
       const job = await queryOne<Job>(
-        `SELECT id, public_id, kind, label, drive_ids, batches_done, created_by
+        `SELECT id, public_id, kind, label, drive_ids, batches_done, files_total, created_by
            FROM drive_imports WHERE status = 'queued' ORDER BY created_at, id LIMIT 1`,
       );
       if (!job) break;
