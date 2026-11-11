@@ -4,7 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireOwner } from "@/lib/session";
-import { purgeAlbums, purgePhotos, restoreAlbum, restorePhotos, trashAlbum, trashPhotos } from "@/lib/trash";
+import { queryOne } from "@/lib/db";
+import {
+  purgeAlbums,
+  purgePhotos,
+  restoreAlbum,
+  restorePhotos,
+  trashAlbum,
+  trashImportPhotos,
+  trashPhotos,
+} from "@/lib/trash";
 
 /* Cestino delle foto: solo il proprietario (requireOwner in ogni azione). */
 
@@ -91,4 +100,18 @@ export async function purgeAlbumAction(formData: FormData): Promise<void> {
   const res = await purgeAlbums({ publicIds: [id] });
   refreshGalleries();
   redirect(`/admin/cestino?eliminate=${res.photos}&errori=${res.failed}&album=${res.albums}`);
+}
+
+/** Sposta nel cestino le foto entrate con un import finito (pagina dell'import). */
+export async function trashImportPhotosAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  const publicId = z.string().regex(/^[0-9A-Za-z]{22}$/).parse(formData.get("importId"));
+  const imp = await queryOne<{ id: number; status: string }>("SELECT id, status FROM imports WHERE public_id = ?", [
+    publicId,
+  ]);
+  if (!imp || imp.status === "running") redirect(`/admin/import/${publicId}`);
+  const n = await trashImportPhotos(imp.id);
+  refreshGalleries();
+  revalidatePath("/admin/import");
+  redirect(`/admin/import/${publicId}?cestino=${n}`);
 }
