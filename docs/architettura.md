@@ -79,7 +79,7 @@ Per GCS servono `STORAGE_DRIVER=gcs`, `GCS_BUCKET` e un account di servizio con
 chiave (`GCS_KEY_FILE`, oppure il contenuto del JSON in `GCS_KEY_JSON`) con ruolo
 "Storage Object Admin" sul solo bucket: firma gli URL e scrive i file.
 Bucket deciso con Antonio il 2026-11-07: Google Cloud (non Hetzner né Amazon),
-regione europe-west3 (Francoforte).
+regione europe-west8 (Milano).
 
 ## Carica dal browser
 
@@ -382,6 +382,32 @@ Standard).
 - **Privacy**: tutto resta su VPS, MySQL e bucket privato. Pagine di volti e
   persone solo per il proprietario; chi riceve una condivisione non vede i nomi.
   Le query delle pagine non leggono mai `faces.embedding`.
+
+## Statistiche
+
+`/admin/statistiche`, solo proprietario (voce «Statistiche» nel menu).
+
+- **Archivio** dal database (`src/lib/stats.ts`): foto per tipo e peso degli
+  originali, album, persone, condivisioni, cestino, foto per anno di scatto e
+  caricate per mese, uso delle condivisioni negli ultimi 30 giorni.
+- **Bucket** da Cloud Monitoring (`src/lib/gcs-metrics.ts`, API REST v3 con
+  `google-auth-library`): spazio e file per classe (`storage/v2/total_bytes`,
+  `storage/v2/total_count`, aggiornati da Google una volta al giorno, file
+  eliminati temporaneamente compresi), traffico in uscita e in entrata giorno per
+  giorno (`network/sent_bytes_count`, `network/received_bytes_count`) e richieste
+  per metodo (`api/request_count`) degli ultimi 30 giorni. Tenute in memoria 10
+  minuti; `?aggiorna=1` le rilegge. Serve il ruolo **Monitoring Viewer**
+  (`roles/monitoring.viewer`) per l'account di servizio dell'app sul progetto
+  (concesso da Antonio il 2026-11-11). Senza, lo spazio si stima dal database
+  (originali esatti, anteprime con peso medio) e il traffico non è misurato.
+- **Costi** (`src/lib/cost-rules.ts`, regole pure testate): listino
+  europe-west8 in dollari, cambio fisso in euro, data dell'ultimo controllo in
+  `PRICES_CHECKED`. Spazio per classe, traffico verso internet (anche la VPS che
+  legge le anteprime per i volti è "internet"), operazioni (le scritture in
+  Archive a parte, dal database), recupero dei CR2 scaricati dalle condivisioni.
+  Proiezione con ~1 TB di CR2 con peso medio e proporzione delle anteprime di oggi.
+  È una stima: il costo fatturato vero richiederebbe l'export della
+  fatturazione su BigQuery (non fatto).
 
 ## Prestazioni
 

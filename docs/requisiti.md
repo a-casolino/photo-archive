@@ -93,5 +93,6 @@ con altre persone.
 - [ ] Volti: riquadri nel visore della foto
 - [x] Cestino ed eliminazione definitiva anche dal bucket (cron giornaliero `npm run cestino` su xCloud dal 2026-11-08)
 - [x] Eliminare un intero album (con le foto che stanno solo lì)
+- [x] Pagina Statistiche (solo proprietario): foto e spazio, bucket e traffico da Cloud Monitoring, stima dei costi mensili e proiezione a ~1 TB
 | Caricamento dal browser | Pagina "Carica dal browser" per i lotti di tutti i giorni, anche dal telefono (solo foto della galleria); il programma di import resta per il grosso dell'archivio. Prima le anteprime di tutto il lotto (album subito completi), poi gli originali con upload riprendibile; i probabili doppioni si caricano e finiscono nella pagina "Probabili doppioni" | 2026-11-10 |
 | Caricamento dentro un album | Foto e cartelle trascinate sulla pagina di un album (o "Aggiungi foto") vanno in quell'album; le cartelle diventano suoi sotto-album nei livelli che restano. Su Chrome ed Edge un caricamento lasciato a metà si riprende senza riscegliere la cartella; gli HEIC si caricano anche da Chrome, Edge e Firefox | 2026-11-10 |

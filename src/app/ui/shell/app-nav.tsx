@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3Icon,
   ImageIcon,
   ImagesIcon,
   InboxIcon,
@@ -42,6 +43,7 @@ const OWNER_ITEMS: NavItem[] = [
   { href: "/admin/link", label: "Link", icon: LinkIcon },
   { href: "/admin/import", label: "Import", icon: UploadIcon },
   { href: "/admin/cestino", label: "Cestino", icon: Trash2Icon },
+  { href: "/admin/statistiche", label: "Statistiche", icon: BarChart3Icon },
   { href: "/admin/utenti", label: "Utenti", icon: UserCogIcon },
 ];
 
