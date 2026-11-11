@@ -1,4 +1,5 @@
 import "server-only";
+import { readFile } from "node:fs/promises";
 import { normalizeClass, operationClass, type StorageClass } from "./cost-rules";
 import { env } from "./env";
 
@@ -55,9 +56,17 @@ async function auth(): Promise<AuthLike> {
     const { GoogleAuth } = await import("google-auth-library");
     const { GCS_KEY_FILE: keyFile, GCS_KEY_JSON: keyJson } = env();
     const scopes = ["https://www.googleapis.com/auth/monitoring.read"];
+    // Con `credentials` la libreria non ricava il progetto dalla chiave
+    // ("Unable to detect a Project Id"): lo si passa preso dal JSON.
+    const key = keyJson
+      ? (JSON.parse(keyJson) as { project_id?: string })
+      : keyFile
+        ? (JSON.parse(await readFile(keyFile, "utf8")) as { project_id?: string })
+        : null;
+    const projectId = key?.project_id;
     g.__monitoringAuth = keyJson
-      ? new GoogleAuth({ credentials: JSON.parse(keyJson), scopes })
-      : new GoogleAuth({ keyFilename: keyFile, scopes });
+      ? new GoogleAuth({ credentials: key ?? undefined, projectId, scopes })
+      : new GoogleAuth({ keyFilename: keyFile, projectId, scopes });
   }
   return g.__monitoringAuth as AuthLike;
 }
