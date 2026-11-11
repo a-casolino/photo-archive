@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   // collegato e l'app ha pochi utenti, quindi il rendering dinamico classico
   // è più semplice e sufficiente. Si può riattivare pagina per pagina più avanti.
   cacheComponents: false,
+  // Librerie di Google lette da Node così come sono, senza passare dal bundler
+  // (google-auth-library serve alla pagina Statistiche).
+  serverExternalPackages: ["google-auth-library"],
   // Header di base: niente indicizzazione, niente iframe di terzi.
   async headers() {
     return [

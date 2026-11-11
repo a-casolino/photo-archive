@@ -236,6 +236,11 @@ export default async function StatsPage({ searchParams }: PageProps<"/admin/stat
           )}
         </p>
       )}
+      {metrics && metrics.warnings.length > 0 && (
+        <p className="msg msg-error" role="status">
+          Alcune metriche non sono arrivate: {metrics.warnings.join(" · ")}
+        </p>
+      )}
       <section className="stats-grid">
         <div className="card">
           <h3>Spazio nel bucket {env().GCS_BUCKET ? <code>{env().GCS_BUCKET}</code> : null}</h3>

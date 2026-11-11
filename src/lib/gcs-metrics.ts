@@ -24,6 +24,8 @@ export type BucketMetrics = {
   opsB: number;
   /** Quando Google ha misurato lo spazio l'ultima volta. */
   measuredAt: Date | null;
+  /** Metriche che Google non ha restituito, con il suo messaggio. */
+  warnings: string[];
 };
 
 export type MetricsResult =
@@ -126,66 +128,97 @@ async function load(): Promise<MetricsResult> {
     return { ok: false, reason: "local", message: "L'archivio è una cartella locale: niente Google Cloud." };
   if (!e.GCS_BUCKET) return { ok: false, reason: "no-bucket", message: "GCS_BUCKET non impostato." };
 
+  let client: AuthLike;
+  let project: string;
   try {
-    const client = await auth();
-    const project = await client.getProjectId();
-    const gauge = { days: 3, period: DAY_S, aligner: "ALIGN_MEAN", groupBy: ["metric.label.storage_class"] };
-    const delta = { days: 30, period: DAY_S, aligner: "ALIGN_SUM", groupBy: [] };
-    const [bytes, objects, sent, received, requests] = await Promise.all([
-      timeSeries(client, project, "storage/v2/total_bytes", gauge),
-      timeSeries(client, project, "storage/v2/total_count", gauge),
-      timeSeries(client, project, "network/sent_bytes_count", delta),
-      timeSeries(client, project, "network/received_bytes_count", delta),
-      timeSeries(client, project, "api/request_count", {
-        days: 30,
-        period: 30 * DAY_S,
-        aligner: "ALIGN_SUM",
-        groupBy: ["metric.label.method"],
-      }),
-    ]);
-
-    // Le metriche v2 esistono dal 2024; se il bucket non le ha ancora si usano le v1.
-    const [bytesSeries, objectSeries] = bytes.length
-      ? [bytes, objects]
-      : await Promise.all([
-          timeSeries(client, project, "storage/total_bytes", gauge),
-          timeSeries(client, project, "storage/object_count", gauge),
-        ]);
-    const b = latestByClass(bytesSeries);
-    const o = latestByClass(objectSeries);
-    const classes = new Set<StorageClass>([...b.values.keys(), ...o.values.keys()]);
-    let opsA = 0;
-    let opsB = 0;
-    for (const s of requests) {
-      const n = (s.points ?? []).reduce((sum, p) => sum + pointValue(p), 0);
-      const kind = operationClass(s.metric?.labels?.method ?? "");
-      if (kind === "A") opsA += n;
-      else if (kind === "B") opsB += n;
-    }
-    return {
-      ok: true,
-      metrics: {
-        storage: [...classes].map((cls) => ({ cls, bytes: b.values.get(cls) ?? 0, objects: o.values.get(cls) ?? 0 })),
-        egressDaily: daily(sent),
-        ingressDaily: daily(received),
-        opsA,
-        opsB,
-        measuredAt: b.at,
-      },
-    };
+    client = await auth();
+    project = await client.getProjectId();
   } catch (err) {
-    const e = err as { status?: number; response?: { status?: number } };
-    const status = e.response?.status ?? e.status;
-    if (status === 403)
-      return {
-        ok: false,
-        reason: "permission",
-        message:
-          "L'account di servizio non può leggere le metriche: serve il ruolo Monitoring Viewer (e la Cloud Monitoring API attiva nel progetto).",
-      };
-    console.error("[statistiche] metriche di Cloud Monitoring non lette:", err);
-    return { ok: false, reason: "error", message: "Metriche di Google Cloud non disponibili in questo momento." };
+    return failure(err);
   }
+
+  // Ogni metrica si legge per conto suo: se una non va (nome cambiato, nessun
+  // dato) le altre si mostrano lo stesso, con l'errore di Google accanto.
+  const warnings: string[] = [];
+  const read = async (metric: string, opts: Parameters<typeof timeSeries>[3]) => {
+    try {
+      return { series: await timeSeries(client, project, metric, opts), err: null };
+    } catch (err) {
+      warnings.push(`${metric}: ${errorDetail(err)}`);
+      return { series: [] as TimeSeries[], err };
+    }
+  };
+  const gauge = { days: 3, period: DAY_S, aligner: "ALIGN_MEAN", groupBy: ["metric.label.storage_class"] };
+  const delta = { days: 30, period: DAY_S, aligner: "ALIGN_SUM", groupBy: [] };
+  const [bytes, objects, sent, received, requests] = await Promise.all([
+    read("storage/v2/total_bytes", gauge),
+    read("storage/v2/total_count", gauge),
+    read("network/sent_bytes_count", delta),
+    read("network/received_bytes_count", delta),
+    read("api/request_count", { days: 30, period: 30 * DAY_S, aligner: "ALIGN_SUM", groupBy: ["metric.label.method"] }),
+  ]);
+
+  // Le metriche v2 esistono dal 2024; se mancano si usano le v1.
+  let bytesSeries = bytes.series;
+  let objectSeries = objects.series;
+  if (!bytesSeries.length) {
+    const [b1, o1] = await Promise.all([read("storage/total_bytes", gauge), read("storage/object_count", gauge)]);
+    bytesSeries = b1.series;
+    objectSeries = objectSeries.length ? objectSeries : o1.series;
+  }
+  const all = [bytes, objects, sent, received, requests];
+  if (all.every((r) => r.err)) return failure(all[0].err);
+
+  const b = latestByClass(bytesSeries);
+  const o = latestByClass(objectSeries);
+  const classes = new Set<StorageClass>([...b.values.keys(), ...o.values.keys()]);
+  let opsA = 0;
+  let opsB = 0;
+  for (const s of requests.series) {
+    const n = (s.points ?? []).reduce((sum, p) => sum + pointValue(p), 0);
+    const kind = operationClass(s.metric?.labels?.method ?? "");
+    if (kind === "A") opsA += n;
+    else if (kind === "B") opsB += n;
+  }
+  if (warnings.length) console.error("[statistiche] metriche non lette:", warnings);
+  return {
+    ok: true,
+    metrics: {
+      storage: [...classes].map((cls) => ({ cls, bytes: b.values.get(cls) ?? 0, objects: o.values.get(cls) ?? 0 })),
+      egressDaily: daily(sent.series),
+      ingressDaily: daily(received.series),
+      opsA,
+      opsB,
+      measuredAt: b.at,
+      warnings,
+    },
+  };
+}
+
+/** Messaggio leggibile da un errore di Google (o della libreria). */
+function errorDetail(err: unknown): string {
+  const e = err as {
+    status?: number;
+    message?: string;
+    response?: { status?: number; data?: { error?: { message?: string; status?: string } } };
+  };
+  const status = e.response?.status ?? e.status;
+  const msg = e.response?.data?.error?.message ?? e.message ?? String(err);
+  return `${status ? `HTTP ${status} ` : ""}${msg}`.slice(0, 300);
+}
+
+function failure(err: unknown): MetricsResult {
+  const e = err as { status?: number; response?: { status?: number } };
+  const status = e.response?.status ?? e.status;
+  const detail = errorDetail(err);
+  console.error("[statistiche] metriche di Cloud Monitoring non lette:", err);
+  if (status === 403)
+    return {
+      ok: false,
+      reason: "permission",
+      message: `L'account di servizio non può leggere le metriche (${detail}).`,
+    };
+  return { ok: false, reason: "error", message: `Metriche di Google Cloud non disponibili: ${detail}` };
 }
 
 /** Metriche del bucket, tenute in memoria 10 minuti (`fresh` le rilegge). */
