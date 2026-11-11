@@ -307,7 +307,12 @@ export default async function StatsPage({ searchParams }: PageProps<"/admin/stat
               </p>
             </>
           ) : (
-            <p className="muted">Serve l&apos;accesso alle metriche di Google Cloud.</p>
+            <p className="muted">
+              Serve l&apos;accesso alle metriche di Google Cloud.{" "}
+              <Link prefetch={false} href="/admin/statistiche?aggiorna=1">
+                Riprova ora
+              </Link>
+            </p>
           )}
           <p className="muted stats-note">
             Dalle condivisioni: {formatCount(stats.last30.views)} visite, {formatCount(stats.last30.previewDownloads)}{" "}
