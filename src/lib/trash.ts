@@ -398,3 +398,35 @@ export async function purgeAlbums(
   }
   return { albums: done, photos, failed };
 }
+
+// ---------------------------------------------------------------------
+// Foto entrate con un import (richiesta di Antonio del 2026-11-11)
+// ---------------------------------------------------------------------
+
+/**
+ * Foto entrate con l'import e ancora attive. Quelle che l'import ha trovato
+ * "già presenti" appartengono all'import che le ha caricate e non contano.
+ */
+export async function importPhotoCount(importId: number): Promise<number> {
+  const row = await queryOne<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM photos WHERE import_id = ? AND deleted_at IS NULL",
+    [importId],
+  );
+  return Number(row?.n ?? 0);
+}
+
+/**
+ * Sposta nel cestino le foto entrate con l'import, più gli export collegati ai
+ * CR2 che ne fanno parte. Un export di questo import collegato a un CR2 di un
+ * altro import va nel cestino da solo: il CR2 resta.
+ */
+export async function trashImportPhotos(importId: number): Promise<number> {
+  const res = await execute(
+    `UPDATE photos SET deleted_at = UTC_TIMESTAMP()
+      WHERE deleted_at IS NULL
+        AND (import_id = ?
+             OR (${LINKED} AND derived_from_id IN (SELECT id FROM (SELECT id FROM photos WHERE import_id = ?) AS t)))`,
+    [importId, importId],
+  );
+  return res.affectedRows;
+}

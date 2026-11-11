@@ -4,6 +4,9 @@ import { query, queryOne } from "@/lib/db";
 import { dateTimeFmt, formatCount } from "@/lib/format";
 import { isStale, type ImportRow } from "@/lib/imports";
 import { requireOwner } from "@/lib/session";
+import { importPhotoCount } from "@/lib/trash";
+import { trashImportPhotosAction } from "@/app/actions/trash";
+import { Button } from "@/components/ui/button";
 import { AutoRefresh } from "../auto-refresh";
 import { ImportProgress, sourceLabel, StatusBadge } from "../import-status";
 
@@ -11,9 +14,10 @@ type ErrorRow = { id: number; source_path: string; message: string; created_at: 
 
 const MAX_ERRORS = 500;
 
-export default async function ImportDetailPage({ params }: PageProps<"/admin/import/[id]">) {
+export default async function ImportDetailPage({ params, searchParams }: PageProps<"/admin/import/[id]">) {
   await requireOwner();
   const { id } = await params;
+  const trashed = (await searchParams).cestino;
   const imp = await queryOne<ImportRow & { device_name: string | null }>(
     `SELECT i.*, d.name AS device_name FROM imports i
        LEFT JOIN import_devices d ON d.id = i.device_id
@@ -26,6 +30,7 @@ export default async function ImportDetailPage({ params }: PageProps<"/admin/imp
     "SELECT id, source_path, message, created_at FROM import_errors WHERE import_id = ? ORDER BY id DESC LIMIT ?",
     [imp.id, MAX_ERRORS],
   );
+  const photoCount = await importPhotoCount(imp.id);
 
   return (
     <>
@@ -50,6 +55,29 @@ export default async function ImportDetailPage({ params }: PageProps<"/admin/imp
         {imp.root_path && <p className="current-file">Cartella: {imp.root_path}</p>}
         <ImportProgress imp={imp} />
       </section>
+
+      {typeof trashed === "string" && (
+        <p className="msg msg-ok" role="status">
+          {formatCount(Number(trashed) || 0)} foto spostate nel cestino. Le puoi ripristinare dal cestino per 30 giorni.
+        </p>
+      )}
+
+      {imp.status !== "running" && photoCount > 0 && (
+        <section className="card">
+          <h2>Foto di questo import</h2>
+          <p className="muted">
+            Sono entrate con questo import {formatCount(photoCount)} foto ancora nell&apos;archivio. Puoi spostarle tutte
+            nel cestino: quelle che l&apos;import aveva trovato già presenti restano, e un CR2 collegato a un export di
+            questo import resta al suo posto.
+          </p>
+          <form action={trashImportPhotosAction}>
+            <input type="hidden" name="importId" value={imp.public_id} />
+            <Button type="submit" variant="destructive">
+              Sposta nel cestino {formatCount(photoCount)} foto
+            </Button>
+          </form>
+        </section>
+      )}
 
       <section className="card table-wrap">
         <h2>Errori ({formatCount(imp.files_failed)})</h2>
