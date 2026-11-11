@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { AlbumRef, ImportSource } from "../../src/lib/import-shared";
 import { mimeFor, VIDEO_EXT } from "./metadata";
-import { findSidecar, isNonAlbumFolder } from "./takeout";
+import { albumMetadataFile, findSidecar, isNonAlbumFolder } from "./takeout";
 import { diskAlbum } from "../../src/lib/import-albums";
 
 /*
@@ -54,8 +54,13 @@ export async function scan(
       const ref = relDir || path.basename(path.resolve(root));
       if (ref) album = diskAlbum(path.basename(path.resolve(root)), relDir);
     } else if (opts.albums && relDir) {
-      if (names.includes("metadata.json") && !isNonAlbumFolder(path.basename(dir))) {
-        const meta = JSON.parse(await readFile(path.join(dir, "metadata.json"), "utf8").catch(() => "{}"));
+      // Ogni cartella di Takeout con foto è un album, tranne anni e cestino. Il
+      // titolo viene dal file dei metadati dell'album, se c'è.
+      if (!isNonAlbumFolder(path.basename(dir)) && names.some((n) => mimeFor(n) !== null)) {
+        const metaFile = albumMetadataFile(names);
+        const meta = metaFile
+          ? JSON.parse(await readFile(path.join(dir, metaFile), "utf8").catch(() => "{}"))
+          : {};
         const title = String(meta.title || albumTitle || path.basename(dir)).slice(0, 255);
         // Il nome della cartella, non il percorso: così non dipende da dove è stato estratto il Takeout.
         album = { origin: "google_photos", ref: path.basename(dir), title };

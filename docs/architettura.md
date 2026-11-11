@@ -200,7 +200,10 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
 - I video sono saltati come nell'import dal computer. L'app non modifica Drive.
 - Dagli zip di Takeout si prendono **solo le foto degli album** (decisione di
   Antonio, 2026-11-11): file e JSON delle cartelle degli anni («Photos from
-  AAAA») e del cestino si saltano. Gli zip con orari nel nome a pochi minuti
+  AAAA», «Foto da AAAA» nei Takeout in italiano) e del cestino si saltano.
+- **Album di Takeout**: ogni cartella con foto che non è un anno o il cestino è
+  un album; il titolo viene dal file dei metadati dell'album (`metadata.json`,
+  `metadati.json` in italiano), altrimenti dal nome della cartella. Gli zip con orari nel nome a pochi minuti
   l'uno dall'altro (Google divide a volte lo stesso export in `…T205102Z-001.zip`
   e `…T205103Z-1-001.zip`) sono un export solo.
 

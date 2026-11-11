@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findSidecar, isNonAlbumFolder, parseSidecar } from "../scripts/import/takeout";
+import { albumMetadataFile, findSidecar, isNonAlbumFolder, parseSidecar } from "../scripts/import/takeout";
 
 describe("findSidecar", () => {
   it("nome esatto", () => {
@@ -60,7 +60,17 @@ describe("isNonAlbumFolder", () => {
   it("riconosce cartelle degli anni e cestino", () => {
     expect(isNonAlbumFolder("Photos from 2019")).toBe(true);
     expect(isNonAlbumFolder("Foto dal 2019")).toBe(true);
+    expect(isNonAlbumFolder("Foto da 2025")).toBe(true);
+    expect(isNonAlbumFolder("Stoccolma Capodanno 2015")).toBe(false);
     expect(isNonAlbumFolder("Cestino")).toBe(true);
     expect(isNonAlbumFolder("Matrimonio Luca")).toBe(false);
+  });
+});
+
+describe("albumMetadataFile", () => {
+  it("riconosce il file dell'album anche in italiano", () => {
+    expect(albumMetadataFile(["IMG_1.jpg", "metadata.json"])).toBe("metadata.json");
+    expect(albumMetadataFile(["IMG_1.jpg", "IMG_1.jpg.json", "metadati.json"])).toBe("metadati.json");
+    expect(albumMetadataFile(["IMG_1.jpg", "IMG_1.jpg.json"])).toBeNull();
   });
 });

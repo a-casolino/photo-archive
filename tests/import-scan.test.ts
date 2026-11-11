@@ -72,3 +72,22 @@ describe("album delle cartelle del disco (sotto-album)", () => {
     });
   });
 });
+
+describe("scan di Takeout", () => {
+  it("riconosce gli album di un Takeout in italiano", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "pa-takeout-"));
+    const foto = path.join(root, "Takeout", "Google Foto");
+    await mkdir(path.join(foto, "Stoccolma Capodanno 2015"), { recursive: true });
+    await mkdir(path.join(foto, "Termoli(1)"), { recursive: true });
+    await mkdir(path.join(foto, "Foto da 2015"), { recursive: true });
+    await writeFile(path.join(foto, "Stoccolma Capodanno 2015", "IMG_1.jpg"), "x");
+    await writeFile(path.join(foto, "Stoccolma Capodanno 2015", "metadati.json"), JSON.stringify({ title: "Stoccolma!" }));
+    await writeFile(path.join(foto, "Termoli(1)", "IMG_2.jpg"), "x");
+    await writeFile(path.join(foto, "Foto da 2015", "IMG_3.jpg"), "x");
+    const { files } = await scan(root, "google_takeout", { albums: true });
+    const byName = Object.fromEntries(files.map((f) => [f.name, f.album]));
+    expect(byName["IMG_1.jpg"]).toEqual({ origin: "google_photos", ref: "Stoccolma Capodanno 2015", title: "Stoccolma!" });
+    expect(byName["IMG_2.jpg"]).toEqual({ origin: "google_photos", ref: "Termoli(1)", title: "Termoli(1)" });
+    expect(byName["IMG_3.jpg"]).toBeNull();
+  });
+});
