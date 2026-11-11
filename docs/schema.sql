@@ -130,6 +130,7 @@ CREATE TABLE photos (
   iso             MEDIUMINT UNSIGNED NULL,
   gps_lat         DECIMAL(9,6) NULL,
   gps_lon         DECIMAL(9,6) NULL,
+  place_name      VARCHAR(255) NULL,               -- luogo dal GPS (GeoNames, `npm run luoghi`); '' = cercato, nessuna località vicina
   exif_json       JSON NULL,                       -- tutto l'output di exiftool, per non perdere nulla
 
   -- Collegamento export -> CR2 originale

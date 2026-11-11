@@ -59,6 +59,10 @@ const schema = z.object({
   // Lato minimo di un volto, in pixel dell'anteprima (2048 px): sotto si ignora.
   FACES_MIN_SIZE: z.coerce.number().int().min(16).default(40),
 
+  // Nomi dei luoghi dalle coordinate GPS (`npm run luoghi`, gira sulla VPS):
+  // cartella con l'elenco delle località di GeoNames, fuori dal repository.
+  PLACES_DATA_DIR: z.string().default("./dati-luoghi"),
+
   // Import da Google Drive (`npm run drive`, gira sulla VPS). Client OAuth
   // "Applicazione web" del progetto Google Cloud, con URI di reindirizzamento
   // <APP_URL>/api/google-drive/callback. Senza queste variabili la pagina

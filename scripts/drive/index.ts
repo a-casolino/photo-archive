@@ -34,6 +34,7 @@ import { DRIVE_DEVICE_NAME, makeBatches, safeSegment, uniqueName, zipEntrySegmen
 import { env } from "../../src/lib/env";
 import { DriveClient, driveQuote, FOLDER_MIME } from "../../src/lib/google-drive";
 import { mimeFor, VIDEO_EXT } from "../import/metadata";
+import { fillPlaceNames } from "../luoghi/places";
 import { openDriveZip, zipEntries } from "./zip-reader";
 
 const MARGIN_BYTES = 2e9;
@@ -437,6 +438,14 @@ async function main() {
         [job.id],
       );
       await runJob(client, job);
+    }
+    // Nome del luogo per le foto nuove con il GPS (arrivate da qui, dal
+    // programma di import o dal browser). Un errore qui non ferma l'import.
+    try {
+      const { named, empty } = await fillPlaceNames();
+      if (named || empty) log(`Luoghi: ${named} foto con il nome del luogo, ${empty} senza località vicine.`);
+    } catch (e) {
+      log(`Luoghi non calcolati: ${e instanceof Error ? e.message : e}`);
     }
   } finally {
     await release();
