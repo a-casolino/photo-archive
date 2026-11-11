@@ -1,0 +1,101 @@
+/* Pagina Statistiche. Riusa .import-stats / .stat-value / .stat-label definite qui sotto. */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.stats-grid .card {
+  margin: 0;
+  min-width: 0;
+}
+
+.stats-grid h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.import-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.import-stats .card {
+  margin: 0;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.stats-big {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 4px 0 8px;
+  color: var(--accent);
+}
+
+.stats-table td,
+.stats-table th {
+  padding: 6px 4px;
+}
+
+.stats-table .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-total td {
+  font-weight: 600;
+  border-bottom: 0;
+}
+
+.stats-note {
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+
+.stats-bar-cell {
+  width: 40%;
+}
+
+.stats-bar {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.stats-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.stats-daily {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 60px;
+  margin: 4px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stats-daily > span {
+  flex: 1;
+  min-width: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
