@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { FilterBar } from "@/app/ui/gallery/filter-bar";
 import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
-import { Masonry } from "@/app/ui/gallery/masonry";
+import { pathWith, SelectableMasonry, SelectToggle } from "@/app/ui/gallery/photo-select";
+import { PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
 import { dateFilterLabel, FILTER_PARAMS } from "@/lib/filter-rules";
 import { formatCount } from "@/lib/format";
@@ -30,6 +31,10 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
   // La foto si apre con gli stessi filtri: frecce e swipe scorrono questo elenco.
   const photoQuery = new URLSearchParams({ da: "foto", ...query }).toString();
   const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true });
+  const selecting = sp.seleziona === "1";
+  // Questa pagina con filtri e numero di pagina, senza selezione né messaggi.
+  const listQuery = { ...query, ...(page > 1 ? { pagina: String(page) } : {}) };
+  const here = pathWith("/foto", listQuery);
   const dateLabel = dateFilterLabel(filter.date ?? {});
   const tagSlug = tags.find((t) => t.id === filter.tagId)?.slug;
   // Filtri attivi in parole, per il riepilogo sul telefono (la ricerca si vede già nel campo).
@@ -94,7 +99,14 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
             Solo con regolazioni
           </label>
         </FilterBar>
+        {photos.length > 0 && (
+          <div className="page-head-actions">
+            <SelectToggle selecting={selecting} href={selecting ? here : pathWith("/foto", { ...listQuery, seleziona: "1" })} />
+          </div>
+        )}
       </div>
+
+      <PhotoTrashNotice sp={sp} back={here} />
 
       {photos.length === 0 ? (
         <p className="muted">
@@ -109,7 +121,7 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
           )}
         </p>
       ) : (
-        <Masonry items={items} />
+        <SelectableMasonry items={items} selecting={selecting} back={here} />
       )}
       <Pager base="/foto" page={page} total={total} query={new URLSearchParams(query).toString()} />
     </>

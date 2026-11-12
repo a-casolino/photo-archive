@@ -4,6 +4,8 @@ import { deleteTagAction, renameTagAction } from "@/app/actions/tags";
 import { ActionForm } from "@/app/ui/action-form";
 import { albumDates } from "@/app/ui/gallery/dates";
 import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
+import { pathWith, SelectableMasonry, SelectToggle } from "@/app/ui/gallery/photo-select";
+import { PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
 import { formatCount } from "@/lib/format";
 import { listAlbums, signKeys } from "@/lib/gallery";
@@ -22,7 +24,9 @@ export default async function TagPage({ params, searchParams }: PageProps<"/tag/
   }
   const tag = await getTag(decoded);
   if (!tag) notFound();
-  const page = parsePage((await searchParams).pagina);
+  const sp = await searchParams;
+  const page = parsePage(sp.pagina);
+  const selecting = sp.seleziona === "1";
 
   const [albums, photos, total] = await Promise.all([
     page === 1 ? listAlbums({ tagId: tag.id }) : Promise.resolve([]),
@@ -31,6 +35,8 @@ export default async function TagPage({ params, searchParams }: PageProps<"/tag/
   ]);
   const urls = await signKeys([...albums.map((a) => a.cover_thumb), ...photos.map((p) => p.thumb_key)]);
   const base = `/tag/${encodeURIComponent(tag.slug)}`;
+  const listQuery: Record<string, string> = page > 1 ? { pagina: String(page) } : {};
+  const here = pathWith(base, listQuery);
 
   const albumTiles: MasonryItem[] = albums.map((a) => {
     const size = displaySize(a.cover_width, a.cover_height, a.cover_orientation);
@@ -53,6 +59,7 @@ export default async function TagPage({ params, searchParams }: PageProps<"/tag/
         <Link href="/tag">← Tag</Link>
       </p>
       <h1>#{tag.name}</h1>
+      <PhotoTrashNotice sp={sp} back={here} />
 
       {albumTiles.length > 0 && (
         <section>
@@ -63,8 +70,17 @@ export default async function TagPage({ params, searchParams }: PageProps<"/tag/
 
       {total > 0 && (
         <section>
-          <h2>Foto ({formatCount(total)})</h2>
-          <Masonry items={photoItems(photos, urls, (pid) => `/foto/${pid}`, { badges: true })} />
+          <div className="page-head">
+            <h2>Foto ({formatCount(total)})</h2>
+            <div className="page-head-actions">
+              <SelectToggle selecting={selecting} href={selecting ? here : pathWith(base, { ...listQuery, seleziona: "1" })} />
+            </div>
+          </div>
+          <SelectableMasonry
+            items={photoItems(photos, urls, (pid) => `/foto/${pid}`, { badges: true })}
+            selecting={selecting}
+            back={here}
+          />
           <Pager base={base} page={page} total={total} />
         </section>
       )}

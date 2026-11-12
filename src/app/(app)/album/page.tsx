@@ -3,7 +3,11 @@ import { Button } from "@/components/ui/button";
 import { cookies } from "next/headers";
 import { albumTreeIndex, listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
-import { AlbumTrashedMsg, NewAlbumDialog, parentsLabel } from "@/app/ui/gallery/album-tree";
+import { NewAlbumDialog, parentsLabel } from "@/app/ui/gallery/album-tree";
+import { trashAlbumsAction } from "@/app/actions/trash";
+import { pathWith, SelectToggle } from "@/app/ui/gallery/photo-select";
+import { ConfirmButton, SelectBar } from "@/app/ui/gallery/select-bar";
+import { AlbumTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { albumDetail, AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
 import { SearchSuggest } from "@/app/ui/search-suggest";
@@ -37,6 +41,15 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
   const urls = await signKeys(albums.map((a) => a.cover_thumb));
 
   const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
+  const selecting = sp.seleziona === "1";
+  // Questa pagina con ricerca e filtri, senza selezione né messaggi.
+  const MESSAGE_PARAMS = ["seleziona", "album_cestino", "sotto_album", "album_n", "album_ripristinati"];
+  const listQuery = Object.fromEntries(
+    Object.entries(sp).filter(
+      (e): e is [string, string] => typeof e[1] === "string" && e[1] !== "" && !MESSAGE_PARAMS.includes(e[0]),
+    ),
+  );
+  const here = pathWith("/album", listQuery);
 
   const entries: AlbumEntry[] = albums.map((a) => ({
     key: a.public_id,
@@ -76,10 +89,13 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
               </Link>
             </Button>
           )}
+          {albums.length > 0 && (
+            <SelectToggle selecting={selecting} href={selecting ? here : pathWith("/album", { ...listQuery, seleziona: "1" })} />
+          )}
           {albums.length > 0 && <AlbumViewSwitch view={view} />}
         </div>
       </div>
-      <AlbumTrashedMsg sp={sp} />
+      <AlbumTrashNotice sp={sp} back={here} />
       {albums.length === 0 ? (
         <p className="muted">
           {searching ? (
@@ -93,6 +109,22 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
             </>
           )}
         </p>
+      ) : selecting ? (
+        <form>
+          <input type="hidden" name="back" value={here} />
+          <SelectBar name="album" masculine>
+            <ConfirmButton
+              formAction={trashAlbumsAction}
+              label="Sposta nel cestino"
+              confirmLabel="Con i sotto-album e le foto che stanno solo lì"
+            />
+          </SelectBar>
+          {view === "lista" ? (
+            <AlbumList albums={entries} selectName="album" />
+          ) : (
+            <AlbumGrid albums={entries} selectName="album" />
+          )}
+        </form>
       ) : view === "lista" ? (
         <AlbumList albums={entries} />
       ) : (

@@ -38,13 +38,28 @@ async function expand(publicIds: string[], trashed: boolean): Promise<number[]> 
   return rows.map((r) => r.id);
 }
 
-/** Sposta le foto nel cestino. Restituisce quante righe ha toccato. */
-export async function trashPhotos(publicIds: string[]): Promise<number> {
+/**
+ * Sposta le foto nel cestino. Restituisce gli id spostati (export compresi),
+ * per poter annullare subito.
+ */
+export async function trashPhotos(publicIds: string[]): Promise<number[]> {
   const ids = await expand(publicIds, false);
+  if (!ids.length) return [];
+  await execute("UPDATE photos SET deleted_at = UTC_TIMESTAMP() WHERE id IN (?) AND deleted_at IS NULL", [ids]);
+  return ids;
+}
+
+/**
+ * "Annulla": riporta le foto appena spostate nel cestino, se ci sono ancora.
+ * Quelle finite nel cestino con un album nel frattempo restano lì.
+ */
+export async function restorePhotoIds(ids: number[]): Promise<number> {
   if (!ids.length) return 0;
-  const res = await execute("UPDATE photos SET deleted_at = UTC_TIMESTAMP() WHERE id IN (?) AND deleted_at IS NULL", [
-    ids,
-  ]);
+  const res = await execute(
+    `UPDATE photos SET deleted_at = NULL
+      WHERE id IN (?) AND deleted_at IS NOT NULL AND trashed_with_album_id IS NULL`,
+    [ids],
+  );
   return res.affectedRows;
 }
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createAlbum, mergeAlbums, moveAlbum } from "@/lib/albums";
+import { createAlbum, mergeAlbums, moveAlbum, removePhotosFromAlbum } from "@/lib/albums";
 import { mergeSelection } from "@/lib/gallery-rules";
 import { requireOwner } from "@/lib/session";
 import { firstError, type FormState } from "@/lib/validation";
@@ -90,4 +90,19 @@ export async function moveAlbumAction(_: FormState, formData: FormData): Promise
   revalidatePath("/album", "layout");
   revalidatePath("/dashboard");
   redirect(`/album/${parsed.data.albumId}?spostato=1`);
+}
+
+/** "Togli dall'album": le foto selezionate escono dall'album ma restano nell'archivio. */
+export async function removeFromAlbumAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  const albumId = publicId.parse(formData.get("albumId"));
+  const photos = z.array(publicId).max(1000).parse(formData.getAll("photo").map(String));
+  const raw = formData.get("back");
+  // Solo la pagina dell'album stesso (con pagina e filtro), mai un indirizzo esterno.
+  const back = typeof raw === "string" && raw.startsWith(`/album/${albumId}`) ? raw : `/album/${albumId}`;
+  const n = await removePhotosFromAlbum(albumId, photos);
+  revalidatePath("/album", "layout");
+  revalidatePath("/foto", "layout");
+  revalidatePath("/dashboard");
+  redirect(n ? `${back}${back.includes("?") ? "&" : "?"}tolte=${n}` : back);
 }

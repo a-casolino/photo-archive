@@ -141,6 +141,8 @@ export function PhotoView({
   access,
   showPrivate,
   children,
+  notice,
+  lightbox,
 }: {
   photo: PhotoDetail;
   previewUrl: string | null;
@@ -149,6 +151,10 @@ export function PhotoView({
   access: DownloadAccess;
   showPrivate: boolean;
   children?: ReactNode;
+  /** Messaggi in cima alla pagina (es. dopo il cestino). */
+  notice?: ReactNode;
+  /** Pulsanti e avviso in più nel visore a schermo intero. */
+  lightbox?: { actions?: ReactNode; notice?: ReactNode };
 }) {
   const size = displaySize(photo.width, photo.height, photo.orientation);
   const camera = photo.camera_name || cameraLabel(photo.camera_make, photo.camera_model);
@@ -163,6 +169,7 @@ export function PhotoView({
         {nav.up ? <Link href={nav.up}>← {nav.upLabel ?? "Indietro"}</Link> : <span />}
         {nav.position && <span className="muted">{nav.position}</span>}
       </div>
+      {notice}
 
       <div className="photo-stage">
         {nav.prev ? (
@@ -183,6 +190,8 @@ export function PhotoView({
             prev={nav.prev}
             next={nav.next}
             position={nav.position}
+            actions={lightbox?.actions}
+            notice={lightbox?.notice}
           />
         ) : (
           <SwipeNav key={photo.public_id} prev={nav.prev} next={nav.next}>
