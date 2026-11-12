@@ -207,6 +207,13 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   `metadati.json` in italiano), altrimenti dal nome della cartella. Gli zip con orari nel nome a pochi minuti
   l'uno dall'altro (Google divide a volte lo stesso export in `…T205102Z-001.zip`
   e `…T205103Z-1-001.zip`) sono un export solo.
+- **Verifica di un Takeout** (tabella `drive_checks`, migrazione 017): dalla
+  riga dell'export già importato, «Verifica» mette in coda un controllo che
+  `npm run drive` fa prima degli import. Rilegge solo l'indice degli zip, con le
+  stesse regole dell'import (`scripts/drive/check-rules.ts`), e confronta album
+  per album con l'archivio (`compareAlbum` in `src/lib/takeout-check.ts`: nome +
+  dimensione, poi cestino, poi sola dimensione per le foto già presenti con un
+  altro nome). Resoconto in `/admin/import/drive/verifica/<id>`.
 
 ## Gallerie e condivisioni
 

@@ -486,3 +486,13 @@ CREATE TABLE share_events (
 -- [a-z0-9-] (i token dei link liberi sono 32 caratteri, quindi /l/<x> si
 -- distingue dalla lunghezza). disabled_at: link disattivato (riattivabile).
 -- Unendo album, i link con nome seguono l'album di destinazione.
+
+-- =====================================================================
+-- Migrazione 017_verifica_takeout.sql (2026-11-12)
+-- =====================================================================
+
+-- drive_checks: verifiche di un export di Takeout già importato, chieste
+-- dalla pagina Import → Google Drive e lavorate da `npm run drive`. Si legge
+-- solo l'indice degli zip; report (JSON, tipo TakeoutCheckReport in
+-- src/lib/takeout-check.ts) confronta album per album foto attese, presenti,
+-- nel cestino e mancanti.

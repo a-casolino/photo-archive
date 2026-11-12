@@ -3,6 +3,7 @@ import {
   cancelDriveImport,
   disconnectDriveAction,
   queueDriveFolder,
+  queueTakeoutCheck,
   queueTakeoutExport,
   retryDriveImport,
   startDriveConnection,
@@ -35,6 +36,16 @@ type QueueRow = {
   created_at: Date;
   finished_at: Date | null;
   heartbeat_at: Date | null;
+};
+
+type CheckRow = {
+  public_id: string;
+  drive_ids: string[];
+  status: "queued" | "running" | "finished" | "failed";
+  message: string | null;
+  finished_at: Date | null;
+  missing: number | null;
+  trashed: number | null;
 };
 
 const STATUS_LABEL: Record<QueueRow["status"], string> = {
@@ -107,7 +118,14 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
             created_at, finished_at, heartbeat_at
        FROM drive_imports ORDER BY created_at DESC LIMIT 30`,
   );
+  const checks = await query<CheckRow>(
+    `SELECT public_id, drive_ids, status, message, finished_at,
+            CAST(JSON_EXTRACT(report, '$.missing') AS UNSIGNED) AS missing,
+            CAST(JSON_EXTRACT(report, '$.trashed') AS UNSIGNED) AS trashed
+       FROM drive_checks ORDER BY created_at DESC LIMIT 30`,
+  );
   const active = queue.filter((q) => q.status === "queued" || q.status === "running");
+  const checking = checks.some((c) => c.status === "queued" || c.status === "running");
 
   let exports: TakeoutExport[] = [];
   let view: FolderView | null = null;
@@ -128,7 +146,7 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
 
   return (
     <>
-      {active.length > 0 && <AutoRefresh seconds={10} />}
+      {(active.length > 0 || checking) && <AutoRefresh seconds={10} />}
       {header}
 
       <section className="card">
@@ -200,6 +218,12 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
                               {done && <span className="muted">già importato il {dateTimeFmt.format(done)}</span>}
                             </form>
                           )}
+                          {done && !g.tgz && (
+                            <CheckCell
+                              exportKey={g.key}
+                              check={checks.find((c) => c.drive_ids.includes(g.parts[0].id)) ?? null}
+                            />
+                          )}
                         </td>
                       </tr>
                     );
@@ -225,10 +249,45 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
             avanzamento ed errori. Le foto già presenti non vengono caricate due volte.
           </li>
           <li>I video per ora vengono saltati. L&apos;app non cancella né modifica niente su Drive.</li>
-          <li>Finito l&apos;import, puoi cancellare gli zip di Takeout da Drive per liberare spazio.</li>
+          <li>
+            Finito l&apos;import, «Verifica» confronta album per album gli zip con l&apos;archivio. Se è tutto
+            presente, puoi cancellare gli zip di Takeout da Drive per liberare spazio.
+          </li>
         </ul>
       </section>
     </>
+  );
+}
+
+/** Verifica di un Takeout già importato: pulsante, stato e link al resoconto. */
+function CheckCell({ exportKey, check }: { exportKey: string; check: CheckRow | null }) {
+  const busy = check && (check.status === "queued" || check.status === "running");
+  return (
+    <div className="actions">
+      {busy ? (
+        <span className="muted">
+          Verifica {check.status === "queued" ? "in coda: parte al prossimo giro della VPS (entro 15 minuti)" : `in corso: ${check.message ?? "…"}`}
+        </span>
+      ) : (
+        <form action={queueTakeoutCheck}>
+          <input type="hidden" name="key" value={exportKey} />
+          <button type="submit" className="secondary">
+            {check ? "Verifica di nuovo" : "Verifica"}
+          </button>
+        </form>
+      )}
+      {check?.status === "failed" && <span className="msg-error">Verifica fallita: {check.message}</span>}
+      {check?.status === "finished" && (
+        <Link prefetch={false} href={`/admin/import/drive/verifica/${check.public_id}`}>
+          {(check.missing ?? 0) + (check.trashed ?? 0) === 0
+            ? "Verifica: tutto presente"
+            : `Verifica: ${formatCount(check.missing ?? 0)} mancanti, ${formatCount(check.trashed ?? 0)} nel cestino`}
+        </Link>
+      )}
+      {check?.finished_at && check.status === "finished" && (
+        <span className="muted">({dateTimeFmt.format(check.finished_at)})</span>
+      )}
+    </div>
   );
 }
 
