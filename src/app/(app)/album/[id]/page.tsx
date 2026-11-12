@@ -13,11 +13,11 @@ import {
   SquareCheckIcon,
   Trash2Icon,
 } from "lucide-react";
+import { removeFromAlbumAction } from "@/app/actions/albums";
 import { setAlbumCover, updateAlbum } from "@/app/actions/shares";
 import { trashAlbumAction, trashPhotosAction } from "@/app/actions/trash";
 import { ActionForm } from "@/app/ui/action-form";
 import {
-  AlbumTrashedMsg,
   MoveAlbumDialog,
   NewAlbumDialog,
   parentsLabel,
@@ -28,6 +28,7 @@ import { albumDetail, AlbumGrid, AlbumList, type AlbumEntry } from "@/app/ui/gal
 import { albumDates } from "@/app/ui/gallery/dates";
 import { Masonry } from "@/app/ui/gallery/masonry";
 import { SelectBar } from "@/app/ui/gallery/select-bar";
+import { AlbumTrashNotice, PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
 import { NamedLinkPanel } from "@/app/ui/gallery/named-link-list";
@@ -80,7 +81,6 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
 
   const onlyEdited = sp.solo === "regolazioni";
   const selecting = sp.seleziona === "1";
-  const trashed = typeof sp.cestino === "string" && /^\d+$/.test(sp.cestino) ? Number(sp.cestino) : 0;
   const page = parsePage(sp.pagina);
   const [counts, photos, shares, people, tags, allTags, cover, children, branch, nodes, sharedAlbums] = await Promise.all([
     albumCounts(album.id),
@@ -171,7 +171,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
         <ChevronRightIcon className="size-3.5 shrink-0" aria-hidden />
         <span className="truncate text-foreground">{album.title}</span>
       </nav>
-      <AlbumTrashedMsg sp={sp} />
+      <AlbumTrashNotice sp={sp} back={withQuery()} />
       {sp.spostato === "1" && (
         <p className="msg msg-ok card mt-4" role="status">
           Album spostato.
@@ -356,12 +356,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
 
       <EditedFilter base={base} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
 
-      {trashed > 0 && (
-        <p className="msg msg-ok" role="status">
-          {trashed} foto nel <Link href="/admin/cestino">cestino</Link>: puoi ripristinarle per{" "}
-          {env().TRASH_RETENTION_DAYS} giorni.
-        </p>
-      )}
+      <PhotoTrashNotice sp={sp} back={withQuery()} />
 
       {photos.length === 0 ? (
         <p className="muted">
@@ -383,6 +378,13 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               </button>
             }
           >
+            <button
+              type="submit"
+              formAction={removeFromAlbumAction}
+              title="Le foto escono da questo album ma restano nell'archivio e negli altri album"
+            >
+              Togli dall&apos;album
+            </button>
             <button type="submit" className="danger" formAction={trashPhotosAction}>
               Sposta nel cestino
             </button>

@@ -61,41 +61,71 @@ export function AlbumViewSwitch({ view }: { view: AlbumView }) {
   );
 }
 
-export function AlbumGrid({ albums }: { albums: AlbumEntry[] }) {
+export function AlbumGrid({ albums, selectName }: { albums: AlbumEntry[]; selectName?: string }) {
   return (
     <ul className="album-grid">
       {albums.map((a) => (
         <li key={a.key}>
-          <Link href={a.href} className="album-card" prefetch={false}>
+          <Pick entry={a} selectName={selectName} className="album-card">
             <Cover src={a.src} />
             <span className="album-card-text">
               {a.path && <span className="album-path">{a.path}</span>}
               <strong>{a.title}</strong>
               {a.detail && <span>{a.detail}</span>}
             </span>
-          </Link>
+          </Pick>
         </li>
       ))}
     </ul>
   );
 }
 
-export function AlbumList({ albums }: { albums: AlbumEntry[] }) {
+export function AlbumList({ albums, selectName }: { albums: AlbumEntry[]; selectName?: string }) {
   return (
     <ul className="album-list">
       {albums.map((a) => (
         <li key={a.key}>
-          <Link href={a.href} className="album-row" prefetch={false}>
+          <Pick entry={a} selectName={selectName} className="album-row">
             <Cover src={a.src} />
             <span className="album-row-text">
               {a.path && <span className="album-path">{a.path}</span>}
               <strong>{a.title}</strong>
               {a.detail && <span>{a.detail}</span>}
             </span>
-          </Link>
+          </Pick>
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Link all'album o, in selezione, casella `name={selectName}` con valore
+ * il public_id dell'album, da inviare con il form che contiene l'elenco.
+ */
+function Pick({
+  entry,
+  selectName,
+  className,
+  children,
+}: {
+  entry: AlbumEntry;
+  selectName?: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  if (!selectName) {
+    return (
+      <Link href={entry.href} className={className} prefetch={false}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <label className={`${className} album-pick`}>
+      <input type="checkbox" name={selectName} value={entry.key} aria-label={entry.title} />
+      {children}
+    </label>
   );
 }
 

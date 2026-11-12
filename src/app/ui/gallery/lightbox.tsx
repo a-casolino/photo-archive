@@ -3,7 +3,7 @@
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { useEffect, useRef, type MouseEvent } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { LIGHTBOX_PARAM, withQueryParam } from "@/lib/gallery-rules";
 import { SwipeNav } from "./swipe-nav";
 
@@ -26,6 +26,8 @@ export function PhotoLightbox({
   prev,
   next,
   position,
+  actions,
+  notice,
 }: {
   src: string;
   alt: string;
@@ -35,6 +37,10 @@ export function PhotoLightbox({
   prev?: string | null;
   next?: string | null;
   position?: string;
+  /** Pulsanti in più nella barra in alto, prima di "Chiudi" (es. cestino). */
+  actions?: ReactNode;
+  /** Avviso in basso, sopra il nome del file (es. "Foto spostata nel cestino · Annulla"). */
+  notice?: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -121,9 +127,12 @@ export function PhotoLightbox({
 
             <div className="lightbox-top">
               <span>{position}</span>
-              <button type="button" className="lightbox-btn" onClick={close} aria-label="Chiudi" title="Chiudi (Esc)">
-                <XIcon />
-              </button>
+              <div className="lightbox-actions">
+                {actions}
+                <button type="button" className="lightbox-btn" onClick={close} aria-label="Chiudi" title="Chiudi (Esc)">
+                  <XIcon />
+                </button>
+              </div>
             </div>
 
             {lbPrev && (
@@ -149,6 +158,7 @@ export function PhotoLightbox({
               </button>
             )}
 
+            {notice}
             <p className="lightbox-name">{filename}</p>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>

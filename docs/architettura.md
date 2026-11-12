@@ -306,8 +306,10 @@ Codice in `src/lib/trash.ts` (regole testabili in `src/lib/trash-rules.ts`),
 pagina `/admin/cestino`, azioni in `src/app/actions/trash.ts`.
 
 - **Sposta nel cestino**: dalla pagina della foto (poi si passa alla foto
-  successiva dell'album) o in blocco dall'album con "Seleziona"
-  (`?seleziona=1`, caselle sulla griglia). Imposta `photos.deleted_at`: la foto
+  successiva dell'album), dal visore a schermo intero (icona del cestino, con
+  conferma; il visore resta aperto sulla foto successiva) o in blocco con
+  "Seleziona" (`?seleziona=1`, caselle sulla griglia) in un album, in Foto,
+  nella pagina di un tag e in quella di una persona. Imposta `photos.deleted_at`: la foto
   sparisce da album, tag, persone e condivisioni ma resta nel database e nel
   bucket. Anche i doppioni scartati finiscono qui.
 - **Export collegati**: un CR2 e il suo export (`match_status` `auto` o
@@ -335,6 +337,20 @@ pagina `/admin/cestino`, azioni in `src/app/actions/trash.ts`.
   definitivamente" (e `npm run cestino` dopo 30 giorni) elimina le foto, file
   compresi, poi l'album con le sue condivisioni e gli album uniti in lui.
   "Svuota cestino" elimina prima gli album, poi le foto rimaste.
+- **Più album insieme**: "Seleziona" nell'elenco degli album, con la casella
+  di conferma. Un sotto-album scelto insieme al suo album se ne va con lui
+  (`topmostSelected`); gli altri album vanno nel cestino uno alla volta come
+  con "Elimina album".
+- **Annulla**: dopo ogni spostamento nel cestino (foto o album) il messaggio
+  offre "Annulla" per 10 minuti. Un cookie httpOnly (`annulla_cestino`) ricorda
+  gli id delle foto (numerici, solo nel cookie, mai negli URL) o i `public_id`
+  degli album; "Annulla" riporta solo ciò che è ancora nel cestino. Se la
+  selezione non ci sta nel cookie resta il Cestino. Dalla pagina della foto
+  `?prima=<public_id>` fa tornare alla foto ripristinata.
+- **Togli dall'album** (selezione dentro un album): la foto esce da
+  quell'album (`album_photos`, con il suo export collegato) ma resta
+  nell'archivio e negli altri album; se era la copertina scelta, l'album torna
+  alla copertina automatica. Una foto senza album si trova in Foto.
 - **Costo**: la classe Archive ha una durata minima di 365 giorni; un CR2
   cancellato prima di un anno dall'upload si paga comunque fino all'anno
   (pochi centesimi al GB).

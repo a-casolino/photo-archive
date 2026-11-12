@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deletePersonAction, mergePersonAction, removeFacesAction, renamePersonAction } from "@/app/actions/people";
 import { ActionForm } from "@/app/ui/action-form";
-import { Masonry } from "@/app/ui/gallery/masonry";
+import { pathWith, SelectableMasonry, SelectToggle } from "@/app/ui/gallery/photo-select";
+import { PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
 import { FaceGrid } from "@/app/ui/people/faces";
 import { formatCount } from "@/lib/format";
@@ -15,7 +16,12 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/p
   const { id } = await params;
   const person = await getPerson(id);
   if (!person) notFound();
-  const page = parsePage((await searchParams).pagina);
+  const sp = await searchParams;
+  const page = parsePage(sp.pagina);
+  const selecting = sp.seleziona === "1";
+  const base = `/persone/${person.public_id}`;
+  const listQuery: Record<string, string> = page > 1 ? { pagina: String(page) } : {};
+  const here = pathWith(base, listQuery);
 
   const [photos, total, faces, people] = await Promise.all([
     personPhotos(person.id, (page - 1) * PAGE_SIZE, PAGE_SIZE),
@@ -33,15 +39,27 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/p
           ← Persone
         </Link>
       </p>
-      <h1>{person.name}</h1>
-      <p className="muted">
-        {formatCount(total)} foto, in ordine di data.
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>{person.name}</h1>
+          <p className="muted">{formatCount(total)} foto, in ordine di data.</p>
+        </div>
+        {total > 0 && (
+          <div className="page-head-actions">
+            <SelectToggle selecting={selecting} href={selecting ? here : pathWith(base, { ...listQuery, seleziona: "1" })} />
+          </div>
+        )}
+      </div>
+      <PhotoTrashNotice sp={sp} back={here} />
 
       {total > 0 ? (
         <>
-          <Masonry items={photoItems(photos, urls, (pid) => `/foto/${pid}`, { badges: true })} />
-          <Pager base={`/persone/${person.public_id}`} page={page} total={total} />
+          <SelectableMasonry
+            items={photoItems(photos, urls, (pid) => `/foto/${pid}`, { badges: true })}
+            selecting={selecting}
+            back={here}
+          />
+          <Pager base={base} page={page} total={total} />
         </>
       ) : (
         <p className="muted">Nessuna foto confermata.</p>

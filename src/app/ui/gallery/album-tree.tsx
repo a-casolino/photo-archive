@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { FolderInputIcon, FolderPlusIcon } from "lucide-react";
 import { createAlbumAction, moveAlbumAction } from "@/app/actions/albums";
 import { ActionForm } from "@/app/ui/action-form";
@@ -115,19 +114,5 @@ export function MoveAlbumDialog({
         </ActionForm>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** Messaggio dopo "Elimina album" (?album_cestino=<foto>&sotto_album=<n>). */
-export function AlbumTrashedMsg({ sp }: { sp: Record<string, string | string[] | undefined> }) {
-  const photos = typeof sp.album_cestino === "string" && /^\d+$/.test(sp.album_cestino) ? Number(sp.album_cestino) : null;
-  if (photos === null) return null;
-  const subs = typeof sp.sotto_album === "string" && /^\d+$/.test(sp.sotto_album) ? Number(sp.sotto_album) : 0;
-  const parts = [subs > 0 ? `${subs} sotto-album` : "", photos > 0 ? `${photos} foto` : ""].filter(Boolean);
-  return (
-    <p className="msg msg-ok card" role="status">
-      Album spostato nel <Link href="/admin/cestino">cestino</Link>
-      {parts.length ? ` con ${parts.join(" e ")}` : ""}: puoi ripristinarlo da lì.
-    </p>
   );
 }

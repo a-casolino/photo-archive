@@ -1,19 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireOwner } from "@/lib/session";
 import { queryOne } from "@/lib/db";
+import { env } from "@/lib/env";
+import { albumTreeIndex } from "@/lib/gallery";
 import {
   purgeAlbums,
   purgePhotos,
   restoreAlbum,
+  restorePhotoIds,
   restorePhotos,
   trashAlbum,
   trashImportPhotos,
   trashPhotos,
 } from "@/lib/trash";
+import { decodeUndo, encodeUndo, topmostSelected, UNDO_COOKIE, UNDO_MINUTES, type UndoTrash } from "@/lib/trash-rules";
 
 /* Cestino delle foto: solo il proprietario (requireOwner in ogni azione). */
 
@@ -29,6 +34,28 @@ function safeBack(value: FormDataEntryValue | null, fallback: string): string {
   return v.startsWith("/") && !v.startsWith("//") ? v : fallback;
 }
 
+/** Aggiunge un parametro a un percorso interno. */
+function withParam(path: string, query: string): string {
+  return `${path}${path.includes("?") ? "&" : "?"}${query}`;
+}
+
+/** Ricorda cosa è appena andato nel cestino, per "Annulla" (o lo dimentica). */
+async function rememberUndo(u: UndoTrash | null): Promise<void> {
+  const jar = await cookies();
+  const value = u ? encodeUndo(u) : null;
+  if (!value) {
+    jar.delete(UNDO_COOKIE);
+    return;
+  }
+  jar.set(UNDO_COOKIE, value, {
+    httpOnly: true,
+    secure: env().NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: UNDO_MINUTES * 60,
+  });
+}
+
 function refreshGalleries() {
   revalidatePath("/album", "layout");
   revalidatePath("/foto", "layout");
@@ -42,10 +69,26 @@ export async function trashPhotosAction(formData: FormData): Promise<void> {
   await requireOwner();
   const ids = photosOf(formData);
   const back = safeBack(formData.get("back"), "/album");
-  const n = ids.length ? await trashPhotos(ids) : 0;
+  const moved = ids.length ? await trashPhotos(ids) : [];
+  await rememberUndo(moved.length ? { kind: "photos", ids: moved } : null);
   refreshGalleries();
-  const sep = back.includes("?") ? "&" : "?";
-  redirect(n ? `${back}${sep}cestino=${ids.length}` : back);
+  redirect(moved.length ? withParam(back, `cestino=${ids.length}`) : back);
+}
+
+/** "Annulla" subito dopo uno spostamento nel cestino (foto o album). */
+export async function undoTrashAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  const back = safeBack(formData.get("back"), "/album");
+  const jar = await cookies();
+  const undo = decodeUndo(jar.get(UNDO_COOKIE)?.value);
+  jar.delete(UNDO_COOKIE);
+  let n = 0;
+  if (undo?.kind === "photos") n = await restorePhotoIds(undo.ids);
+  if (undo?.kind === "albums") {
+    for (const id of undo.publicIds) if (await restoreAlbum(id)) n++;
+  }
+  refreshGalleries();
+  redirect(withParam(back, `${undo?.kind === "albums" ? "album_ripristinati" : "ripristinate"}=${n}`));
 }
 
 export async function restorePhotosAction(formData: FormData): Promise<void> {
@@ -79,9 +122,43 @@ export async function trashAlbumAction(formData: FormData): Promise<void> {
   const id = albumId.parse(formData.get("albumId"));
   const back = safeBack(formData.get("back"), "/album");
   const res = await trashAlbum(id);
+  await rememberUndo(res ? { kind: "albums", publicIds: [id] } : null);
   refreshGalleries();
-  const sep = back.includes("?") ? "&" : "?";
-  redirect(res ? `${back}${sep}album_cestino=${res.photos}&sotto_album=${res.subalbums}` : back);
+  redirect(res ? withParam(back, `album_cestino=${res.photos}&sotto_album=${res.subalbums}`) : back);
+}
+
+/**
+ * Più album insieme dall'elenco degli album. Un sotto-album scelto insieme
+ * al suo album se ne va con lui.
+ */
+export async function trashAlbumsAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  const ids = z.array(albumId).max(500).parse(formData.getAll("album").map(String));
+  const back = safeBack(formData.get("back"), "/album");
+  if (formData.get("conferma") !== "si" || !ids.length) redirect(back);
+  const nodes = await albumTreeIndex();
+  const byPublic = new Map(nodes.map((n) => [n.public_id, n]));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const chosen = topmostSelected(
+    ids.map((pid) => byPublic.get(pid)?.id).filter((x): x is number => x !== undefined),
+    (id) => byId.get(id)?.parent_id,
+  );
+  const done: string[] = [];
+  let photos = 0;
+  let subalbums = 0;
+  for (const id of chosen) {
+    const pid = byId.get(id)!.public_id;
+    const res = await trashAlbum(pid);
+    if (!res) continue;
+    done.push(pid);
+    photos += res.photos;
+    subalbums += res.subalbums;
+  }
+  await rememberUndo(done.length ? { kind: "albums", publicIds: done } : null);
+  refreshGalleries();
+  redirect(
+    done.length ? withParam(back, `album_cestino=${photos}&sotto_album=${subalbums}&album_n=${done.length}`) : back,
+  );
 }
 
 export async function restoreAlbumAction(formData: FormData): Promise<void> {

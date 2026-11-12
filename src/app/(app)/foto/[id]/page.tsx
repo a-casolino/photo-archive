@@ -7,6 +7,8 @@ import { ShareList } from "@/app/ui/gallery/share-list";
 import { NamedLinkPanel } from "@/app/ui/gallery/named-link-list";
 import { appUrl } from "@/lib/mail";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
+import { LightboxTrash } from "@/app/ui/gallery/lightbox-trash";
+import { LightboxTrashNotice, PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { PhotoView } from "@/app/ui/gallery/views";
 import { albumNeighbors, albumsAbovePhoto, albumsOfPhoto, getAlbum, getPhoto, signKeys } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
@@ -15,6 +17,10 @@ import { listTags, tagsOf } from "@/lib/tags";
 import { peopleInPhoto, peopleOptions } from "@/lib/people";
 import { photoNeighbors } from "@/lib/photos";
 import { photoFilterFromParams } from "@/lib/photo-filter-params";
+import { LIGHTBOX_PARAM, withQueryParam } from "@/lib/gallery-rules";
+
+/** Foto appena spostata nel cestino da qui: "Annulla" ci riporta lì. */
+const TRASHED_PARAM = "prima";
 
 export default async function OwnerPhotoPage({ params, searchParams }: PageProps<"/foto/[id]">) {
   await requireOwner();
@@ -57,10 +63,17 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
   const href = (pid: string | null) => (pid ? `/foto/${pid}${q}` : null);
   const self = `/foto/${photo.public_id}`;
   // Dopo "Sposta nel cestino" si passa alla foto successiva dell'album (comodo per scremare).
+  const nextAfterTrash = href(neighbors?.next ?? null) ?? href(neighbors?.prev ?? null);
   const afterTrash =
-    href(neighbors?.next ?? null) ??
-    href(neighbors?.prev ?? null) ??
+    (nextAfterTrash && withQueryParam(nextAfterTrash, TRASHED_PARAM, photo.public_id)) ??
     (album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : (photosList ?? "/album"));
+  // Dal visore il cestino porta alla foto vicina con il visore aperto; se non ce n'è, all'elenco.
+  const afterTrashFullscreen = nextAfterTrash
+    ? withQueryParam(withQueryParam(nextAfterTrash, LIGHTBOX_PARAM, "1"), TRASHED_PARAM, photo.public_id)
+    : afterTrash;
+  // "Annulla" riporta alla foto appena spostata nel cestino (?prima=), se si arriva da lì.
+  const trashedHere = typeof sp[TRASHED_PARAM] === "string" && /^[0-9A-Za-z]{22}$/.test(sp[TRASHED_PARAM]);
+  const undoBack = trashedHere ? `/foto/${sp[TRASHED_PARAM]}${q}` : `${self}${q}`;
   // "Usa come copertina": per l'album da cui arrivi, altrimenti per ogni album che contiene la foto.
   // Anche per gli album che li contengono (sotto-album): così un album con soli sotto-album ha la sua copertina.
   const direct = albums.filter((a) => !album || a.public_id === album.public_id);
@@ -85,6 +98,13 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
       level="original"
       access={{}}
       showPrivate
+      notice={<PhotoTrashNotice sp={sp} back={undoBack} />}
+      lightbox={{
+        actions: (
+          <LightboxTrash photoId={photo.public_id} back={afterTrashFullscreen} withExport={!!photo.export_public_id} />
+        ),
+        notice: <LightboxTrashNotice sp={sp} back={withQueryParam(undoBack, LIGHTBOX_PARAM, "1")} />,
+      }}
     >
       <TagEditor kind="photo" targetId={photo.public_id} tags={tags} allTags={allTags} />
       {faces.length > 0 && (

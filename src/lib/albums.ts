@@ -235,3 +235,42 @@ export async function moveAlbum(
   await execute("UPDATE albums SET parent_id = ? WHERE id = ? AND deleted_at IS NULL", [parentId, album.id]);
   return { ok: true };
 }
+
+/**
+ * "Togli dall'album": le foto escono da questo album ma restano
+ * nell'archivio (e negli altri album). Un CR2 porta con sé il suo export
+ * collegato, come nel cestino. Se una era la copertina, l'album torna alla
+ * copertina automatica. Restituisce quante foto scelte stavano nell'album.
+ */
+export async function removePhotosFromAlbum(albumPublicId: string, photoPublicIds: string[]): Promise<number> {
+  if (!photoPublicIds.length) return 0;
+  const album = await queryOne<{ id: number }>("SELECT id FROM albums WHERE public_id = ? AND deleted_at IS NULL", [
+    albumPublicId,
+  ]);
+  if (!album) return 0;
+  const picked = await query<{ id: number }>(
+    `SELECT p.id FROM photos p JOIN album_photos ap ON ap.photo_id = p.id AND ap.album_id = ?
+      WHERE p.public_id IN (?)`,
+    [album.id, photoPublicIds],
+  );
+  if (!picked.length) return 0;
+  const pickedIds = picked.map((r) => r.id);
+  const exports = await query<{ id: number }>(
+    "SELECT id FROM photos WHERE derived_from_id IN (?) AND match_status IN ('auto', 'confirmed')",
+    [pickedIds],
+  );
+  const ids = [...new Set([...pickedIds, ...exports.map((r) => r.id)])];
+  const conn = await pool().getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query("DELETE FROM album_photos WHERE album_id = ? AND photo_id IN (?)", [album.id, ids]);
+    await conn.query("UPDATE albums SET cover_photo_id = NULL WHERE id = ? AND cover_photo_id IN (?)", [album.id, ids]);
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+  return pickedIds.length;
+}

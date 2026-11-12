@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { purgeMessage, runLimited, storageKeysOf } from "../src/lib/trash-rules";
+import { decodeUndo, encodeUndo, purgeMessage, runLimited, storageKeysOf, topmostSelected } from "../src/lib/trash-rules";
 
 describe("storageKeysOf", () => {
   it("prende originale, anteprima, miniatura e volti senza vuoti né doppioni", () => {
@@ -40,5 +40,35 @@ describe("purgeMessage", () => {
     expect(purgeMessage(1, 0)).toBe("1 foto eliminata definitivamente.");
     expect(purgeMessage(3, 0)).toBe("3 foto eliminate definitivamente.");
     expect(purgeMessage(0, 2)).toContain("2 non eliminate");
+  });
+});
+
+describe("annulla dopo il cestino", () => {
+  const pid = "AbCdEfGhIjKlMnOpQrStUv";
+  it("foto e album vanno e tornano dal cookie", () => {
+    expect(decodeUndo(encodeUndo({ kind: "photos", ids: [3, 15, 3] }))).toEqual({ kind: "photos", ids: [3, 15] });
+    expect(decodeUndo(encodeUndo({ kind: "albums", publicIds: [pid] }))).toEqual({ kind: "albums", publicIds: [pid] });
+  });
+  it("200 foto di una pagina ci stanno, troppe no", () => {
+    const ids = Array.from({ length: 200 }, (_, i) => 1_000_000 + i);
+    expect(encodeUndo({ kind: "photos", ids })).not.toBeNull();
+    expect(encodeUndo({ kind: "photos", ids: Array.from({ length: 1000 }, (_, i) => 1_000_000 + i) })).toBeNull();
+    expect(encodeUndo({ kind: "photos", ids: [] })).toBeNull();
+  });
+  it("scarta valori sporchi", () => {
+    for (const v of [undefined, "", "f:", "f:1;DROP", "a:corto", "x:1", "f:0", "f:-1"]) expect(decodeUndo(v)).toBeNull();
+  });
+});
+
+describe("topmostSelected", () => {
+  it("toglie i sotto-album che se ne vanno già con il padre", () => {
+    const parent = new Map<number, number | null>([
+      [1, null],
+      [2, 1],
+      [3, 2],
+      [4, null],
+    ]);
+    expect(topmostSelected([3, 1, 4], (id) => parent.get(id))).toEqual([1, 4]);
+    expect(topmostSelected([2, 3], (id) => parent.get(id))).toEqual([2]);
   });
 });

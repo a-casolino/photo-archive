@@ -11,8 +11,11 @@ export function SelectBar({
   name,
   children,
   single,
+  masculine = false,
 }: {
   name: string;
+  /** Per gli album: "selezionati", "Seleziona tutti", "Nessuno". */
+  masculine?: boolean;
   children: ReactNode;
   /** Azioni che valgono per una sola foto: attive solo con esattamente una selezionata. */
   single?: ReactNode;
@@ -45,10 +48,10 @@ export function SelectBar({
   return (
     <div ref={ref} className="select-bar">
       <strong>
-        {count} selezionat{count === 1 ? "a" : "e"} su {total}
+        {count} selezionat{masculine ? (count === 1 ? "o" : "i") : count === 1 ? "a" : "e"} su {total}
       </strong>
       <button type="button" className="link" onClick={() => setAll(count < total)}>
-        {count < total ? "Seleziona tutte" : "Nessuna"}
+        {count < total ? `Seleziona tutt${masculine ? "i" : "e"}` : masculine ? "Nessuno" : "Nessuna"}
       </button>
       <fieldset disabled={count === 0} style={{ display: "contents" }}>
         {children}
