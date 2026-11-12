@@ -35,6 +35,7 @@ import { env } from "../../src/lib/env";
 import { DriveClient, driveQuote, FOLDER_MIME } from "../../src/lib/google-drive";
 import { mimeFor, VIDEO_EXT } from "../import/metadata";
 import { fillPlaceNames } from "../luoghi/places";
+import { runTakeoutCheck } from "./check";
 import { openDriveZip, zipEntries } from "./zip-reader";
 
 const MARGIN_BYTES = 2e9;
@@ -404,6 +405,28 @@ async function runJob(client: DriveClient, job: Job) {
   }
 }
 
+async function runChecks() {
+  for (;;) {
+    const check = await queryOne<{ id: number; label: string; drive_ids: string[] }>(
+      "SELECT id, label, drive_ids FROM drive_checks WHERE status = 'queued' ORDER BY created_at, id LIMIT 1",
+    );
+    if (!check) return;
+    await execute("UPDATE drive_checks SET status = 'running', message = 'Avvio…' WHERE id = ?", [check.id]);
+    const client = await DriveClient.forOwner();
+    try {
+      if (!client) throw new Error("Google Drive non è collegato: collegalo dalla pagina Import → Google Drive.");
+      await runTakeoutCheck(client, check, log);
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      log(`Errore nella verifica «${check.label}»: ${msg}`);
+      await execute(
+        "UPDATE drive_checks SET status = 'failed', finished_at = UTC_TIMESTAMP(), message = ? WHERE id = ?",
+        [msg.slice(0, 1024), check.id],
+      );
+    }
+  }
+}
+
 async function main() {
   await mkdir(workDir(), { recursive: true });
   const release = await takeLock();
@@ -418,6 +441,9 @@ async function main() {
   try {
     // Abbiamo il blocco: un import "in corso" è rimasto da un giro morto e si riprende.
     await execute("UPDATE drive_imports SET status = 'queued' WHERE status = 'running'");
+    await execute("UPDATE drive_checks SET status = 'queued' WHERE status = 'running'");
+    // Prima le verifiche (pochi minuti): così non aspettano un import lungo.
+    await runChecks();
     for (;;) {
       const job = await queryOne<Job>(
         `SELECT id, public_id, kind, label, drive_ids, batches_done, files_total, created_by
