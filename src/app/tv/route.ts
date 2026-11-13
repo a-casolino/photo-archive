@@ -33,12 +33,15 @@ const HTML = `<!doctype html>
   }
   #stage[data-transition="zoom"] img.ready.still { animation: fade 1s ease both; }
   #stage[data-transition="zoom"] img.leaving { transform: scale(1.08); }
+  #stage[data-transition="dissolvenza"] img.leaving,
+  #stage[data-transition="zoom"] img.leaving { animation: fade-out 1s ease both; }
   #stage[data-transition="scorrimento"] img.ready { animation: in-next 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
   #stage[data-transition="scorrimento"] img.leaving { animation: out-next 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
   #stage[data-transition="scorrimento"][data-dir="prev"] img.ready { animation-name: in-prev; }
   #stage[data-transition="scorrimento"][data-dir="prev"] img.leaving { animation-name: out-prev; }
   #stage[data-transition="nessuna"] img.leaving { opacity: 0; }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
   @keyframes zoom { from { transform: scale(1); } to { transform: scale(1.08); } }
   @keyframes in-next { from { transform: translateX(100%); } to { transform: translateX(0); } }
   @keyframes out-next { from { transform: translateX(0); } to { transform: translateX(-100%); } }
