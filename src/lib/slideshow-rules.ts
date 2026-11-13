@@ -24,6 +24,24 @@ export type Slide = {
 export const SLIDE_INTERVALS = [3, 5, 8, 15, 30] as const;
 export const DEFAULT_INTERVAL = 5;
 
+/**
+ * Transizione tra una foto e l'altra (scelta del 2026-11-13). Sul Chromecast
+ * non vale: la TV usa la dissolvenza del ricevitore di Google.
+ */
+export const SLIDE_TRANSITIONS = [
+  { id: "dissolvenza", label: "Dissolvenza" },
+  { id: "scorrimento", label: "Scorrimento" },
+  { id: "zoom", label: "Zoom lento" },
+  { id: "nessuna", label: "Nessuna" },
+] as const;
+export type SlideTransition = (typeof SLIDE_TRANSITIONS)[number]["id"];
+export const DEFAULT_TRANSITION: SlideTransition = "dissolvenza";
+
+/** Transizione letta dalle preferenze salvate; se sconosciuta, quella di base. */
+export function parseTransition(value: unknown): SlideTransition {
+  return SLIDE_TRANSITIONS.find((t) => t.id === value)?.id ?? DEFAULT_TRANSITION;
+}
+
 /** Foto per richiesta all'API: le successive arrivano mentre la presentazione va avanti. */
 export const SLIDE_BATCH = 100;
 

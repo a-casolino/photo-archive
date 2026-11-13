@@ -5,6 +5,8 @@ import {
   batchOf,
   castSupported,
   DEFAULT_INTERVAL,
+  DEFAULT_TRANSITION,
+  parseTransition,
   parseInterval,
   SLIDE_BATCH_MAX_AGE_MS,
   stepIndex,
@@ -74,5 +76,14 @@ describe("castSupported", () => {
       castSupported("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"),
     ).toBe(false);
     expect(castSupported("Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")).toBe(false);
+  });
+});
+
+describe("parseTransition", () => {
+  it("accetta solo le transizioni proposte", () => {
+    expect(parseTransition("scorrimento")).toBe("scorrimento");
+    expect(parseTransition("nessuna")).toBe("nessuna");
+    expect(parseTransition("girandola")).toBe(DEFAULT_TRANSITION);
+    expect(parseTransition(null)).toBe(DEFAULT_TRANSITION);
   });
 });

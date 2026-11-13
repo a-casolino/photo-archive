@@ -327,14 +327,19 @@ condivisioni di un album (`/condivisi/...`, `/l/...`), deciso con Antonio il
 - **Lettore**: schermo intero (Fullscreen API, non su iPhone), avanti da solo
   ogni 3–30 s (scelta ricordata in `localStorage`), pausa, frecce, swipe,
   tastiera (← → spazio F Esc), dissolvenza, la foto successiva scaricata in
-  anticipo, schermo sempre acceso (Wake Lock). Controlli e cursore spariscono
+  anticipo, schermo sempre acceso (Wake Lock). Transizione a scelta
+  (dissolvenza, scorrimento nel verso del passo, zoom lento, nessuna; ricordata
+  in `localStorage`, vale dalla foto successiva), con animazioni CSS in
+  `slideshow.css`; con "meno movimento" del sistema resta la dissolvenza. Controlli e cursore spariscono
   dopo 3 secondi; la barra rossa in basso mostra quanto manca alla prossima.
 - **Chromecast**: Google Cast Web Sender SDK (`gstatic.com`), caricato solo
   all'apertura della presentazione e solo su Chrome/Edge fuori da iOS. Usa il
   Default Media Receiver di Google (nessuna registrazione): la pagina manda
   alla TV l'URL di una foto alla volta (`loadMedia`, `image/jpeg`) e fa da
   telecomando, quindi deve restare aperta. Il pulsante compare solo se c'è un
-  dispositivo Cast nella rete. Con `STORAGE_DRIVER=local` gli URL puntano
+  dispositivo Cast nella rete. Le transizioni non arrivano alla TV: il
+  ricevitore di Google usa sempre la sua dissolvenza (per sceglierle servirebbe
+  un ricevitore nostro, registrato nella Cast Developer Console). Con `STORAGE_DRIVER=local` gli URL puntano
   all'app: funzionano sulla TV solo se l'app è raggiungibile da lei.
 
 ## Cestino ed eliminazione
