@@ -78,12 +78,15 @@ export function SlideshowButton({
   title,
   hasSubalbums,
   onlyEdited,
+  castAppId = null,
   variant = "outline",
 }: {
   source: SlideshowSource;
   title: string;
   hasSubalbums: boolean;
   onlyEdited: boolean;
+  /** App ID del ricevitore Chromecast nostro (CAST_APP_ID), o null per quello di Google. */
+  castAppId?: string | null;
   variant?: "outline" | "default" | "secondary";
 }) {
   const [open, setOpen] = useState(false);
@@ -124,6 +127,7 @@ export function SlideshowButton({
           onClose={close}
           settings={settings}
           setSettings={setSettings}
+          castAppId={castAppId}
         />
       )}
     </>
@@ -139,6 +143,7 @@ function SlideshowPlayer({
   onClose,
   settings,
   setSettings,
+  castAppId,
 }: {
   source: SlideshowSource;
   title: string;
@@ -148,6 +153,7 @@ function SlideshowPlayer({
   onClose: () => void;
   settings: boolean;
   setSettings: (v: boolean | ((prev: boolean) => boolean)) => void;
+  castAppId: string | null;
 }) {
   const [slides, setSlides] = useState<Record<number, Slide>>({});
   const [total, setTotal] = useState<number | null>(null);
@@ -172,7 +178,7 @@ function SlideshowPlayer({
   const inflight = useRef(new Set<number>());
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipe = useRef<{ x: number; y: number } | null>(null);
-  const cast = useCast();
+  const cast = useCast(castAppId);
 
   const loaded = Object.keys(slides).length;
   const slide = slides[index] ?? null;
@@ -249,11 +255,23 @@ function SlideshowPlayer({
     if (next?.src) new Image().src = next.src;
   }, [index, total, loaded, slides]);
 
-  // Sulla TV: ogni foto mostrata va anche al Chromecast.
+  // Sulla TV: ogni foto mostrata va anche al Chromecast, con la stessa
+  // transizione. Intervallo e pausa letti da un ref: cambiarli non rimanda la foto.
+  const timing = useRef({ interval, playing });
+  useEffect(() => {
+    timing.current = { interval, playing };
+  }, [interval, playing]);
   useEffect(() => {
     if (!cast.device || !slide?.src) return;
-    castPhoto(new URL(slide.src, window.location.href).href, slide.name, slide.takenAt);
-  }, [cast.device, slide]);
+    castPhoto({
+      url: new URL(slide.src, window.location.href).href,
+      title: slide.name,
+      takenAt: slide.takenAt,
+      transition: enterWith,
+      dir,
+      seconds: timing.current.playing ? timing.current.interval : 0,
+    });
+  }, [cast.device, slide, enterWith, dir]);
 
   // --- Controlli che spariscono durante la riproduzione ---
 
@@ -494,7 +512,9 @@ function SlideshowPlayer({
                   </button>
                 ))}
               </div>
-              {cast.device && <p className="slideshow-hint">Sulla TV la transizione è sempre la dissolvenza del Chromecast.</p>}
+              {cast.device && !cast.custom && (
+                <p className="slideshow-hint">Sulla TV le foto cambiano senza transizione (ricevitore standard di Google).</p>
+              )}
               {onBranchChange && (
                 <label className="slideshow-check">
                   <input type="checkbox" checked={branch} onChange={(e) => onBranchChange(e.target.checked)} />

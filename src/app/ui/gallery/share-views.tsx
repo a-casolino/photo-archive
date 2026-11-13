@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { ChevronRightIcon } from "lucide-react";
+import { env } from "@/lib/env";
 import { formatCount } from "@/lib/format";
 import {
   albumBranchSummary,
@@ -112,6 +113,7 @@ export async function ShareHome(ctx: Ctx) {
               title={album.title}
               hasSubalbums={branch.children > 0}
               onlyEdited={onlyEdited}
+              castAppId={env().CAST_APP_ID ?? null}
             />
           )}
         </div>
