@@ -12,13 +12,16 @@ import {
   XIcon,
 } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   batchesFor,
   batchFresh,
   parseInterval,
+  parseTransition,
   SLIDE_INTERVALS,
+  SLIDE_TRANSITIONS,
+  type SlideTransition,
   stepIndex,
   type Slide,
   type SlideshowResponse,
@@ -41,13 +44,22 @@ import "./slideshow.css";
 export type SlideshowSource = { album?: string; s?: string; t?: string };
 
 const INTERVAL_KEY = "presentazione-intervallo";
+const TRANSITION_KEY = "presentazione-transizione";
 const HIDE_CONTROLS_MS = 3000;
 
-function readInterval(): number {
+function readPref(key: string): string | null {
   try {
-    return parseInterval(localStorage.getItem(INTERVAL_KEY));
+    return localStorage.getItem(key);
   } catch {
-    return parseInterval(null);
+    return null;
+  }
+}
+
+function savePref(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Navigazione privata: la scelta vale solo per questa volta.
   }
 }
 
@@ -142,9 +154,17 @@ function SlideshowPlayer({
   const [error, setError] = useState(false);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [interval, setIntervalSec] = useState(readInterval);
+  const [interval, setIntervalSec] = useState(() => parseInterval(readPref(INTERVAL_KEY)));
+  const [transition, setTransition] = useState<SlideTransition>(() => parseTransition(readPref(TRANSITION_KEY)));
+  /**
+   * Transizione con cui è entrata la foto attuale: cambiando la scelta nelle
+   * impostazioni vale dalla foto successiva, senza rifare l'animazione di questa.
+   */
+  const [enterWith, setEnterWith] = useState<SlideTransition>(transition);
+  /** Verso dell'ultimo passo: lo scorrimento entra da destra (avanti) o da sinistra (indietro). */
+  const [dir, setDir] = useState<"next" | "prev">("next");
   const [readySrc, setReadySrc] = useState<string | null>(null);
-  /** Foto di prima, tenuta sotto mentre la nuova compare in dissolvenza. */
+  /** Foto di prima, tenuta sotto (o che esce) mentre compare la nuova. */
   const [backSrc, setBackSrc] = useState<string | null>(null);
   const [controls, setControls] = useState(true);
   const [fullscreen, setFullscreen] = useState(fullscreenOn);
@@ -208,9 +228,11 @@ function SlideshowPlayer({
     (step: 1 | -1) => {
       if (!total) return;
       setBackSrc(readySrc);
+      setDir(step === 1 ? "next" : "prev");
+      setEnterWith(transition);
       setIndex((i) => stepIndex(i, step, total, loaded));
     },
-    [total, loaded, readySrc],
+    [total, loaded, readySrc, transition],
   );
 
   // Avanti da sola: il tempo parte quando la foto è a schermo.
@@ -304,11 +326,12 @@ function SlideshowPlayer({
 
   function chooseInterval(sec: number) {
     setIntervalSec(sec);
-    try {
-      localStorage.setItem(INTERVAL_KEY, String(sec));
-    } catch {
-      // Navigazione privata: l'intervallo vale solo per questa volta.
-    }
+    savePref(INTERVAL_KEY, String(sec));
+  }
+
+  function chooseTransition(t: SlideTransition) {
+    setTransition(t);
+    savePref(TRANSITION_KEY, t);
   }
 
   // --- Swipe e tocchi ---
@@ -342,6 +365,10 @@ function SlideshowPlayer({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Content
           className={`slideshow${showControls ? "" : " is-idle"}`}
+          data-transition={enterWith}
+          data-dir={dir}
+          data-playing={playing ? "1" : "0"}
+          style={{ "--slide-duration": `${interval}s` } as CSSProperties}
           aria-describedby={undefined}
           onEscapeKeyDown={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -352,12 +379,18 @@ function SlideshowPlayer({
           <div className="slideshow-stage" onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
             {backSrc && backSrc !== front && (
               // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei
-              <img src={backSrc} alt="" className="slideshow-img is-back" draggable={false} />
+              <img
+                key={`back:${backSrc}`}
+                src={backSrc}
+                alt=""
+                className={`slideshow-img is-back${readySrc === front ? " is-leaving" : ""}`}
+                draggable={false}
+              />
             )}
             {front && (
               // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei
               <img
-                key={front}
+                key={`front:${front}`}
                 src={front}
                 alt={slide?.name ?? ""}
                 className={`slideshow-img${readySrc === front ? " is-ready" : ""}`}
@@ -447,6 +480,21 @@ function SlideshowPlayer({
                   </button>
                 ))}
               </div>
+              <p>Transizione</p>
+              <div className="slideshow-chips">
+                {SLIDE_TRANSITIONS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={t.id === transition ? "is-on" : undefined}
+                    aria-pressed={t.id === transition}
+                    onClick={() => chooseTransition(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {cast.device && <p className="slideshow-hint">Sulla TV la transizione è sempre la dissolvenza del Chromecast.</p>}
               {onBranchChange && (
                 <label className="slideshow-check">
                   <input type="checkbox" checked={branch} onChange={(e) => onBranchChange(e.target.checked)} />
