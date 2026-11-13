@@ -543,6 +543,12 @@ l'hanno). Chi riceve una condivisione o un link non li vede.
   Attenzione: quando c'è uno script di deploy, xCloud **non** esegue da solo
   install e build, quindi devono stare nello script. Poi PM2 avvia
   `npm run start -- -p 3200` e OpenLiteSpeed fa da proxy sulla porta 3200.
+- **Versione nel footer** (decisa da Antonio il 13/11/2026): `v0.<numero
+  dell'ultima PR unita>`, per esempio `v0.62`. La calcola `next.config.ts`
+  durante `npm run build` leggendo gli oggetti dei commit con `git log`
+  ("Merge pull request #N" o "… (#N)"); il commit corto si vede passando sopra
+  alla versione. Funziona perché xCloud fa il deploy con `git pull` e la
+  cartella `.git` c'è; senza Git il footer resta vuoto.
 - Database MySQL `photo_archive` con utente `photo_archive` (solo locale).
 - Le variabili d'ambiente stanno nel `.env` gestito da xCloud (Site → impostazioni
   di deploy), non nel repository. Email via xCloud Mail Delivery
