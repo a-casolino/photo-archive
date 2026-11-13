@@ -33,6 +33,11 @@ con altre persone.
   - **protetta**: solo utenti registrati scelti da Antonio;
   - **libera**: chiunque abbia l'URL, che non è indicizzato (`noindex`) e
     contiene un token casuale lungo.
+- **Presentazione sulla TV** (chiesta il 2026-11-13): un album (anche
+  condiviso o da link libero) scorre a schermo intero come slideshow, e da
+  Chrome/Edge si manda a un Chromecast. Su iPhone resta AirPlay o la
+  duplicazione dello schermo. Dettagli in
+  [architettura](architettura.md#presentazione-e-chromecast).
 - **Riconoscimento facciale**: vedere tutte le foto di una persona. L'app trova
   i volti e raggruppa quelli simili; Antonio dà un nome ai gruppi e conferma i
   suggerimenti sulle foto nuove. Dettagli in [architettura](architettura.md#volti).

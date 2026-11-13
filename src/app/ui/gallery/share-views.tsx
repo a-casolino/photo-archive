@@ -20,6 +20,7 @@ import {
 } from "@/lib/gallery";
 import { effectiveDownload, type Role } from "@/lib/roles";
 import { recordShareEvent, shareCoversPhoto, type ShareRow } from "@/lib/shares";
+import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
 import { albumDetail, AlbumGrid, AlbumList, type AlbumEntry } from "./album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "./album-view-pref";
 import { albumDates } from "./dates";
@@ -103,7 +104,17 @@ export async function ShareHome(ctx: Ctx) {
           {album.description && <p>{album.description}</p>}
           {share.message && album.id === share.album_id && <p className="share-note">{share.message}</p>}
         </div>
-        <EditedFilter base={here} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
+        <div className="page-head-actions">
+          <EditedFilter base={here} onlyEdited={onlyEdited} total={counts.total} edited={counts.edited} />
+          {branch.photos > 0 && (
+            <SlideshowButton
+              source={{ s: ctx.access.share, t: ctx.access.token, ...albumQ }}
+              title={album.title}
+              hasSubalbums={branch.children > 0}
+              onlyEdited={onlyEdited}
+            />
+          )}
+        </div>
       </div>
       {childEntries.length > 0 && (
         <section className="subalbums" aria-label="Sotto-album">

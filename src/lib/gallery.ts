@@ -385,6 +385,43 @@ export async function albumPhotos(
   );
 }
 
+/**
+ * Foto della presentazione (slideshow) di un album. Con `branch` anche
+ * quelle dei sotto-album, senza doppioni e in ordine di scatto (l'ordine
+ * manuale vale dentro un solo album); senza, nell'ordine dell'album.
+ */
+export async function slideshowPhotos(
+  albumId: number,
+  opts: { branch: boolean; onlyEdited: boolean; offset: number; limit: number },
+): Promise<{ total: number; photos: PhotoCard[] }> {
+  if (!opts.branch) {
+    const [counts, photos] = await Promise.all([
+      albumCounts(albumId),
+      albumPhotos(albumId, { onlyEdited: opts.onlyEdited, offset: opts.offset, limit: opts.limit }),
+    ]);
+    return { total: opts.onlyEdited ? counts.edited : counts.total, photos };
+  }
+  const edited = opts.onlyEdited ? "AND x.id IS NOT NULL" : "";
+  const inBranch = `p.id IN (SELECT ap.photo_id FROM tree t JOIN album_photos ap ON ap.album_id = t.id)`;
+  const [count, photos] = await Promise.all([
+    queryOne<{ n: number }>(
+      `${treeCte("a.id = ? AND a.deleted_at IS NULL")}
+       SELECT COUNT(*) AS n FROM photos p ${LINKED_EXPORT}
+        WHERE p.deleted_at IS NULL AND ${inBranch} ${edited}`,
+      [albumId],
+    ),
+    query<PhotoCard>(
+      `${treeCte("a.id = ? AND a.deleted_at IS NULL")}
+       SELECT ${CARD_COLUMNS} FROM photos p ${LINKED_EXPORT}
+        WHERE p.deleted_at IS NULL AND ${inBranch} ${edited}
+        ORDER BY p.taken_at IS NULL, p.taken_at, p.taken_at_subsec, p.id
+        LIMIT ? OFFSET ?`,
+      [albumId, opts.limit, opts.offset],
+    ),
+  ]);
+  return { total: Number(count?.n ?? 0), photos };
+}
+
 /** Foto precedente e successiva nell'album (con lo stesso filtro), e posizione. */
 export async function albumNeighbors(
   albumId: number,
@@ -494,14 +531,17 @@ async function photoBy(column: "p.public_id" | "p.id", value: string | number): 
   );
 }
 
-/** URL firmati (brevi) per un elenco di chiavi, senza doppioni. */
-export async function signKeys(keys: (string | null | undefined)[]): Promise<Map<string, string>> {
+/** URL firmati (brevi, o di `ttlSeconds`) per un elenco di chiavi, senza doppioni. */
+export async function signKeys(
+  keys: (string | null | undefined)[],
+  ttlSeconds?: number,
+): Promise<Map<string, string>> {
   const s = storage();
   const urls = new Map<string, string>();
   await Promise.all(
     [...new Set(keys.filter((k): k is string => !!k))].map(async (k) => {
       try {
-        urls.set(k, await s.readUrl(k));
+        urls.set(k, await s.readUrl(k, ttlSeconds));
       } catch (e) {
         // Archivio non configurato (es. bucket non ancora creato): la
         // pagina si vede lo stesso, con i segnaposto.
