@@ -99,20 +99,3 @@ export async function AlbumTrashNotice({ sp, back }: { sp: SP; back: string }) {
     </div>
   );
 }
-
-/** Nel visore a schermo intero: "Foto spostata nel cestino · Annulla", dopo il cestino dal visore. */
-export async function LightboxTrashNotice({ sp, back }: { sp: SP; back: string }) {
-  const trashed = num(sp.cestino);
-  if (!trashed || (await undoKind()) !== "photos") return null;
-  return (
-    <div className="lightbox-notice" role="status">
-      <span>{trashed === 1 ? "Foto spostata" : `${formatCount(trashed)} foto spostate`} nel cestino</span>
-      <form action={undoTrashAction}>
-        <input type="hidden" name="back" value={back} />
-        <button type="submit" className="lightbox-pill">
-          Annulla
-        </button>
-      </form>
-    </div>
-  );
-}
