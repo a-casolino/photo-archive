@@ -307,6 +307,36 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   portano all'album tenuto e un nuovo import della stessa cartella mette le
   foto lì. Non c'è un "annulla" nell'interfaccia.
 
+## Presentazione e Chromecast
+
+Pulsante **Presentazione** nella pagina di un album (proprietario) e nelle
+condivisioni di un album (`/condivisi/...`, `/l/...`), deciso con Antonio il
+2026-11-13. Codice in `src/app/ui/slideshow/`, regole pure in
+`src/lib/slideshow-rules.ts` (test in `tests/slideshow-rules.test.ts`).
+
+- **Foto**: `/api/presentazione` restituisce blocchi di 100 foto con l'URL
+  firmato dell'anteprima grande (la versione mostrata, quindi l'export di
+  Lightroom se c'è). Permessi come le pagine: `?album=` solo per il
+  proprietario, `?s=` condivisione protetta, `?t=` link libero (anche con
+  nome); con una condivisione solo l'album condiviso o un suo sotto-album.
+  `&rami=1` aggiunge le foto dei sotto-album (senza doppioni, in ordine di
+  scatto), `&solo=regolazioni` segue il filtro della pagina.
+- **URL firmati**: durano 3 ore (`SLIDE_URL_TTL_SECONDS`) perché la TV
+  scarica la foto quando la riceve e una presentazione può restare in pausa;
+  il browser richiede un blocco più vecchio di 90 minuti.
+- **Lettore**: schermo intero (Fullscreen API, non su iPhone), avanti da solo
+  ogni 3–30 s (scelta ricordata in `localStorage`), pausa, frecce, swipe,
+  tastiera (← → spazio F Esc), dissolvenza, la foto successiva scaricata in
+  anticipo, schermo sempre acceso (Wake Lock). Controlli e cursore spariscono
+  dopo 3 secondi; la barra rossa in basso mostra quanto manca alla prossima.
+- **Chromecast**: Google Cast Web Sender SDK (`gstatic.com`), caricato solo
+  all'apertura della presentazione e solo su Chrome/Edge fuori da iOS. Usa il
+  Default Media Receiver di Google (nessuna registrazione): la pagina manda
+  alla TV l'URL di una foto alla volta (`loadMedia`, `image/jpeg`) e fa da
+  telecomando, quindi deve restare aperta. Il pulsante compare solo se c'è un
+  dispositivo Cast nella rete. Con `STORAGE_DRIVER=local` gli URL puntano
+  all'app: funzionano sulla TV solo se l'app è raggiungibile da lei.
+
 ## Cestino ed eliminazione
 
 Codice in `src/lib/trash.ts` (regole testabili in `src/lib/trash-rules.ts`),

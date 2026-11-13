@@ -35,6 +35,7 @@ import { NamedLinkPanel } from "@/app/ui/gallery/named-link-list";
 import { appUrl } from "@/lib/mail";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { AddPhotosButton, AlbumUploader } from "@/app/ui/upload/album-uploader";
+import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
 import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
 import { Button } from "@/components/ui/button";
 import {
@@ -224,6 +225,14 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
           <TagEditor kind="album" targetId={album.public_id} tags={tags} allTags={allTags} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {branch.photos > 0 && (
+            <SlideshowButton
+              source={{ album: album.public_id }}
+              title={album.title}
+              hasSubalbums={branch.children > 0}
+              onlyEdited={onlyEdited}
+            />
+          )}
           <Dialog>
             <DialogTrigger asChild>
               <Button>

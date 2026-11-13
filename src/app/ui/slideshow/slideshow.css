@@ -1,0 +1,283 @@
+/* --- Presentazione a schermo intero (slideshow.tsx) ---
+   Stessi pulsanti tondi del lightbox (.lightbox-btn in gallery.css), sfondo nero pieno. */
+
+.slideshow {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: #000;
+  color: #fff;
+  outline: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Durante la riproduzione, senza movimenti, spariscono controlli e cursore. */
+.slideshow.is-idle {
+  cursor: none;
+}
+
+.slideshow-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.slideshow-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+  -webkit-user-drag: none;
+}
+
+.slideshow-img.is-ready,
+.slideshow-img.is-back {
+  opacity: 1;
+}
+
+.slideshow-msg {
+  position: relative;
+  margin: 0;
+  padding: 0 24px;
+  color: rgb(255 255 255 / 0.75);
+  text-align: center;
+}
+
+.slideshow-msg button {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.slideshow-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgb(255 255 255 / 0.2);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: slideshow-spin 0.9s linear infinite;
+}
+
+@keyframes slideshow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.slideshow-top,
+.slideshow-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: opacity 0.3s ease;
+}
+
+.slideshow.is-idle .slideshow-top,
+.slideshow.is-idle .slideshow-bottom,
+.slideshow.is-idle .slideshow-casting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.slideshow-top {
+  top: 0;
+  justify-content: space-between;
+  padding: 8px 8px 24px 16px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: linear-gradient(rgb(0 0 0 / 0.55), transparent);
+}
+
+.slideshow-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.slideshow-title strong {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slideshow-title span {
+  font-size: 0.85rem;
+  color: rgb(255 255 255 / 0.75);
+  font-variant-numeric: tabular-nums;
+}
+
+.slideshow-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.slideshow .lightbox-btn.is-on {
+  background: var(--accent);
+}
+
+.slideshow .lightbox-btn:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.slideshow-bottom {
+  bottom: 0;
+  flex-direction: column;
+  padding: 32px 16px 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.55));
+}
+
+.slideshow-name {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.85rem;
+  color: rgb(255 255 255 / 0.8);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slideshow-buttons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.slideshow-play {
+  width: 56px;
+  height: 56px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.slideshow-play svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* Barra sottile in basso: quanto manca alla prossima foto. */
+.slideshow-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  animation-name: slideshow-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  opacity: 0.85;
+}
+
+.slideshow.is-idle .slideshow-progress {
+  opacity: 0.45;
+}
+
+@keyframes slideshow-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.slideshow-settings {
+  position: absolute;
+  top: calc(max(8px, env(safe-area-inset-top)) + 52px);
+  right: 8px;
+  width: min(300px, calc(100vw - 16px));
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgb(24 24 24 / 0.94);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.5);
+  font-size: 0.9rem;
+}
+
+.slideshow-settings p {
+  margin: 0 0 8px;
+  color: rgb(255 255 255 / 0.75);
+}
+
+.slideshow-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slideshow-chips button {
+  min-width: 48px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 999px;
+  background: none;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.slideshow-chips button.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.slideshow-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  cursor: pointer;
+}
+
+.slideshow-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.slideshow-casting {
+  position: absolute;
+  left: 50%;
+  top: calc(max(8px, env(safe-area-inset-top)) + 60px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.7);
+  font-size: 0.875rem;
+  transition: opacity 0.3s ease;
+}
+
+.slideshow-casting svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slideshow-img {
+    transition: none;
+  }
+}
