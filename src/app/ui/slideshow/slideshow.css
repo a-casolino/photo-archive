@@ -38,7 +38,7 @@
 /*
  * Transizioni (data-transition sulla presentazione, scelta nelle impostazioni).
  * La foto nuova resta invisibile finché non è scaricata (.is-ready); quella di
- * prima (.is-back) resta sotto e, con lo scorrimento, esce (.is-leaving).
+ * prima (.is-back) esce (.is-leaving): svanisce o scorre via.
  * Animazioni e non transizioni CSS: partono anche se la foto era già in cache.
  */
 .slideshow-img:not(.is-back):not(.is-ready) {
@@ -60,6 +60,13 @@
 
 .slideshow[data-transition="zoom"] .slideshow-img.is-back {
   transform: scale(1.08);
+}
+
+/* Intanto quella di prima svanisce: altrimenti, se le proporzioni sono diverse
+   (verticale dopo orizzontale), resterebbe visibile ai lati della nuova. */
+.slideshow[data-transition="dissolvenza"] .slideshow-img.is-leaving,
+.slideshow[data-transition="zoom"] .slideshow-img.is-leaving {
+  animation: slideshow-fade-out 0.8s ease both;
 }
 
 .slideshow[data-transition="zoom"][data-playing="0"] .slideshow-img.is-ready {
@@ -94,6 +101,15 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes slideshow-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 
@@ -391,9 +407,11 @@
   .slideshow .slideshow-img.is-ready {
     animation: slideshow-fade-in 0.4s ease both !important;
   }
-  .slideshow .slideshow-img.is-leaving,
   .slideshow .slideshow-img.is-back {
     animation: none !important;
     transform: none !important;
+  }
+  .slideshow .slideshow-img.is-leaving {
+    animation: slideshow-fade-out 0.4s ease both !important;
   }
 }
