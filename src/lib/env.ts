@@ -42,6 +42,13 @@ const schema = z.object({
   // Se manca se ne genera uno a ogni avvio: gli URL firmati scadono al riavvio.
   STORAGE_SIGNING_SECRET: z.string().min(32).optional(),
   GCS_BUCKET: z.string().optional(),
+  // App ID del ricevitore Chromecast nostro (pagina /tv, registrata nella Cast
+  // Developer Console). Vuoto = ricevitore standard di Google, senza transizioni.
+  CAST_APP_ID: z
+    .string()
+    .regex(/^[0-9A-F]{8}$/i)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // File JSON dell'account di servizio; se vuoti sia questo sia GCS_KEY_JSON
   // si usano le credenziali predefinite di Google (GOOGLE_APPLICATION_CREDENTIALS).
   GCS_KEY_FILE: z.string().optional(),

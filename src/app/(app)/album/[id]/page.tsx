@@ -231,6 +231,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               title={album.title}
               hasSubalbums={branch.children > 0}
               onlyEdited={onlyEdited}
+              castAppId={env().CAST_APP_ID ?? null}
             />
           )}
           <Dialog>
