@@ -172,6 +172,14 @@ function SlideshowPlayer({
   const [readySrc, setReadySrc] = useState<string | null>(null);
   /** Foto di prima, tenuta sotto (o che esce) mentre compare la nuova. */
   const [backSrc, setBackSrc] = useState<string | null>(null);
+  /**
+   * Trasformazione (zoom) che la foto di prima aveva nel momento del cambio:
+   * resta ferma lì mentre svanisce, invece di saltare a fine zoom.
+   */
+  const [backTransform, setBackTransform] = useState<string | null>(null);
+  /** Gli <img> a schermo, per indirizzo: ogni foto tiene lo stesso elemento quando passa sotto. */
+  const imgs = useRef(new Map<string, HTMLImageElement>());
+  const frontNow = useRef<string | null>(null);
   const [controls, setControls] = useState(true);
   const [fullscreen, setFullscreen] = useState(fullscreenOn);
   const fetched = useRef(new Map<number, number>());
@@ -184,6 +192,25 @@ function SlideshowPlayer({
   const slide = slides[index] ?? null;
   const front = slide?.src ?? null;
   const ready = slide !== null && (front === null || readySrc === front);
+
+  useEffect(() => {
+    frontNow.current = front;
+  }, [front]);
+
+  /** La foto è pronta quando è anche decodificata: così compare senza un fotogramma vuoto. */
+  const markReady = useCallback((el: HTMLImageElement | null, src: string) => {
+    const done = () => {
+      if (frontNow.current === src) setReadySrc(src);
+    };
+    if (!el) return done();
+    el.decode().then(done, done);
+  }, []);
+
+  // Un elemento già caricato (si torna alla foto appena lasciata) non rimanda onLoad.
+  useEffect(() => {
+    const el = front ? imgs.current.get(front) : undefined;
+    if (front && el?.complete) markReady(el, front);
+  }, [front, markReady]);
 
   // --- Foto dall'API, a blocchi ---
 
@@ -234,6 +261,8 @@ function SlideshowPlayer({
     (step: 1 | -1) => {
       if (!total) return;
       setBackSrc(readySrc);
+      const el = readySrc ? imgs.current.get(readySrc) : undefined;
+      setBackTransform(el ? getComputedStyle(el).transform : null);
       setDir(step === 1 ? "next" : "prev");
       setEnterWith(transition);
       setIndex((i) => stepIndex(i, step, total, loaded));
@@ -395,28 +424,39 @@ function SlideshowPlayer({
           <DialogPrimitive.Title className="sr-only">Presentazione: {title}</DialogPrimitive.Title>
 
           <div className="slideshow-stage" onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-            {backSrc && backSrc !== front && (
-              // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei
-              <img
-                key={`back:${backSrc}`}
-                src={backSrc}
-                alt=""
-                className={`slideshow-img is-back${readySrc === front ? " is-leaving" : ""}`}
-                draggable={false}
-              />
-            )}
-            {front && (
-              // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei
-              <img
-                key={`front:${front}`}
-                src={front}
-                alt={slide?.name ?? ""}
-                className={`slideshow-img${readySrc === front ? " is-ready" : ""}`}
-                draggable={false}
-                onLoad={() => setReadySrc(front)}
-                onError={() => setReadySrc(front)}
-              />
-            )}
+            {[backSrc !== front ? backSrc : null, front]
+              .filter((src): src is string => !!src)
+              // Ordine fisso (non "sotto, sopra"): React non sposta mai gli elementi,
+              // che altrimenti si ricaricherebbero e ripartirebbero da capo. Chi sta
+              // sopra lo decide lo z-index (.is-back).
+              .sort()
+              .map((src) => {
+                const isFront = src === front;
+                const shown = readySrc === front;
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei
+                  <img
+                    key={src}
+                    ref={(el) => {
+                      if (el) imgs.current.set(src, el);
+                      return () => {
+                        if (imgs.current.get(src) === el) imgs.current.delete(src);
+                      };
+                    }}
+                    src={src}
+                    alt={isFront ? (slide?.name ?? "") : ""}
+                    className={
+                      isFront
+                        ? `slideshow-img${shown ? " is-ready" : ""}`
+                        : `slideshow-img is-back${shown ? " is-leaving" : ""}`
+                    }
+                    style={!isFront && backTransform ? { transform: backTransform } : undefined}
+                    draggable={false}
+                    onLoad={isFront ? (e) => markReady(e.currentTarget, src) : undefined}
+                    onError={isFront ? () => markReady(null, src) : undefined}
+                  />
+                );
+              })}
             {slide && !front && <p className="slideshow-msg">Anteprima non disponibile</p>}
             {!slide && !error && !empty && <div className="slideshow-spinner" aria-label="Caricamento" />}
             {error && !slide && (

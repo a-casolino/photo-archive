@@ -32,7 +32,6 @@ const HTML = `<!doctype html>
     animation: fade 1s ease both, zoom calc(var(--slide-duration, 5s) + 1s) linear both;
   }
   #stage[data-transition="zoom"] img.ready.still { animation: fade 1s ease both; }
-  #stage[data-transition="zoom"] img.leaving { transform: scale(1.08); }
   #stage[data-transition="dissolvenza"] img.leaving,
   #stage[data-transition="zoom"] img.leaving { animation: fade-out 1s ease both; }
   #stage[data-transition="scorrimento"] img.ready { animation: in-next 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
@@ -67,7 +66,12 @@ const HTML = `<!doctype html>
     lastUrl = d.url;
     var img = new Image();
     img.alt = "";
-    img.onload = img.onerror = function () {
+    img.onload = function () {
+      // Decodificata prima di comparire: niente fotogramma vuoto al cambio.
+      if (img.decode) img.decode().then(place, place); else place();
+    };
+    img.onerror = place;
+    function place() {
       if (lastUrl !== d.url) return; // nel frattempo è arrivata un'altra foto
       idle.style.display = "none";
       stage.dataset.transition = TRANSITIONS.indexOf(d.transition) >= 0 ? d.transition : "dissolvenza";
@@ -80,12 +84,14 @@ const HTML = `<!doctype html>
       stage.appendChild(img);
       img.classList.add("ready");
       if (old) {
+        // Lo zoom resta fermo dov'era mentre la foto svanisce (prima saltava a fine zoom).
+        old.style.transform = getComputedStyle(old).transform;
         old.classList.remove("ready", "still");
         old.classList.add("leaving");
         setTimeout(function () { if (old !== current) old.remove(); }, 1500);
       }
       current = img;
-    };
+    }
     img.src = d.url;
   }
 
