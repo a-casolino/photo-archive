@@ -24,6 +24,7 @@
   align-items: center;
   justify-content: center;
   touch-action: none;
+  isolation: isolate; /* gli z-index delle foto restano sotto i controlli */
 }
 
 .slideshow-img {
@@ -33,6 +34,12 @@
   height: 100%;
   object-fit: contain;
   -webkit-user-drag: none;
+  z-index: 2;
+}
+
+/* La foto di prima sta sotto la nuova. */
+.slideshow-img.is-back {
+  z-index: 1;
 }
 
 /*
@@ -56,10 +63,6 @@
   animation:
     slideshow-fade-in 0.8s ease both,
     slideshow-zoom calc(var(--slide-duration, 5s) + 0.8s) linear both;
-}
-
-.slideshow[data-transition="zoom"] .slideshow-img.is-back {
-  transform: scale(1.08);
 }
 
 /* Intanto quella di prima svanisce: altrimenti, se le proporzioni sono diverse
