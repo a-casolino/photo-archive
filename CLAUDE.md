@@ -70,7 +70,7 @@ npm run volti -- --file foto.jpg        # prova su file locali, senza database
 npm run drive                           # lavora la coda Import → Google Drive: Takeout e cartelle di Drive (cron sulla VPS ogni 15 min)
 npm run luoghi [-- --tutte|--scarica|--prova LAT LON]  # nome del luogo dal GPS (GeoNames in locale; gira anche alla fine di npm run drive)
 npm run cestino [-- --giorni N]         # elimina per sempre (anche dal bucket) album e foto nel cestino da più di 30 giorni (cron sulla VPS)
-npm run impronte [-- --max N|--prova|--rifai]  # impronte visive delle miniature e collegamento export → CR2 per immagine (sulla VPS, bassa priorità)
+npm run impronte [-- --max N|--prova|--rifai]  # impronte visive delle miniature e collegamento export → CR2 per immagine (sulla VPS, bassa priorità; cron alle 4:00)
 ```
 
 Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm run build`.

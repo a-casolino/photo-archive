@@ -497,3 +497,18 @@ CREATE TABLE share_events (
 -- solo l'indice degli zip; report (JSON, tipo TakeoutCheckReport in
 -- src/lib/takeout-check.ts) confronta album per album foto attese, presenti,
 -- nel cestino e mancanti.
+
+-- =====================================================================
+-- Migrazione 019_coppie_album.sql (2026-11-16)
+-- =====================================================================
+
+-- album_pairs: coppie album Google (origin 'google_photos', primo livello)
+-- ↔ cartella del disco (origin 'disk_folder', sotto il primo livello) che
+-- contiene gli originali dello stesso evento. Proposte dall'app
+-- (src/lib/album-pair-rules.ts: una foto dell'album "vota" per le cartelle
+-- dove sta il suo CR2 collegato o uno scatto con stessa fotocamera e stesso
+-- istante; coppia se la cartella ha almeno il 20% e 3 foto dell'album),
+-- confermate o scartate in Import → Coppie album. shared_photos/album_photos
+-- sono i conteggi dell'ultimo calcolo; status 'proposed' | 'confirmed' |
+-- 'rejected'. Una cartella va al più a un album. Serviranno all'unione degli
+-- album (passo 3).

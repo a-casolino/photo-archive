@@ -27,7 +27,7 @@ const KIND_LABEL = { raw: "CR2", phone: "Altre foto", edit: "Export modificati" 
 export default async function ImportPage() {
   await requireOwner();
 
-  const [imports, devices, kinds, review, duplicates, pendingOriginals] = await Promise.all([
+  const [imports, devices, kinds, review, duplicates, pendingOriginals, pairs] = await Promise.all([
     query<ImportRow & { device_name: string | null }>(
       `SELECT i.*, d.name AS device_name FROM imports i LEFT JOIN import_devices d ON d.id = i.device_id
         ORDER BY i.started_at DESC, i.id DESC LIMIT 100`,
@@ -50,6 +50,7 @@ export default async function ImportPage() {
     queryOne<{ n: number; bytes: number }>(
       "SELECT COUNT(*) AS n, COALESCE(SUM(file_size), 0) AS bytes FROM photos WHERE original_pending = 1 AND deleted_at IS NULL",
     ),
+    queryOne<{ n: number }>("SELECT COUNT(DISTINCT google_album_id) AS n FROM album_pairs WHERE status = 'proposed'"),
   ]);
 
   const running = imports.filter((i) => i.status === "running");
@@ -125,6 +126,10 @@ export default async function ImportPage() {
         <Link prefetch={false} className="card" href="/admin/import/doppioni">
           <div className="stat-value">{formatCount(duplicates)}</div>
           <div className="stat-label">Probabili doppioni da rivedere</div>
+        </Link>
+        <Link prefetch={false} className="card" href="/admin/import/coppie">
+          <div className="stat-value">{formatCount(Number(pairs?.n ?? 0))}</div>
+          <div className="stat-label">Album Google da abbinare alla cartella del disco</div>
         </Link>
       </div>
       <dl className="import-legend">
