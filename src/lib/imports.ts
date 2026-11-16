@@ -4,6 +4,7 @@ import { execute, pool, query, queryOne } from "./db";
 import { newToken, randomBase62, sha256 } from "./crypto";
 import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
 import { countDuplicatePairs } from "./duplicates";
+import { matchByName, type NamedPhoto } from "./match-rules";
 import { storage } from "./storage";
 import {
   classifyKind,
@@ -552,8 +553,64 @@ export const CANDIDATE_JOIN = `
   JOIN cameras cr ON cr.id = r.camera_id AND cr.make = ce.make AND cr.model = ce.model
                  AND (ce.serial = '' OR cr.serial = ce.serial)`;
 
-/** Collega in automatico gli export che hanno un solo CR2 candidato. */
+/**
+ * Collega in automatico gli export che hanno un solo CR2 candidato: prima per
+ * istante di scatto e fotocamera, poi per nome (export senza EXIF della
+ * fotocamera, vedi match-rules.ts).
+ */
 export async function autoMatch(): Promise<number> {
+  return (await matchByCamera()) + (await matchByNameAuto());
+}
+
+/** Export senza fotocamera ancora da collegare, e tutti i CR2: per il confronto dei nomi. */
+async function nameMatchInput(): Promise<{ exports: NamedPhoto[]; raws: NamedPhoto[] }> {
+  const [exports, raws] = await Promise.all([
+    query<{ id: number; name: string; taken: Date | null }>(
+      `SELECT id, original_filename AS name, taken_at AS taken FROM photos
+        WHERE kind = 'phone' AND camera_id IS NULL AND match_status = 'none'
+          AND derived_from_id IS NULL AND deleted_at IS NULL`,
+    ),
+    query<{ id: number; name: string; taken: Date | null }>(
+      "SELECT id, original_filename AS name, taken_at AS taken FROM photos WHERE kind = 'raw' AND deleted_at IS NULL",
+    ),
+  ]);
+  return { exports, raws };
+}
+
+/**
+ * Collegamento per nome ed export entro 2 giorni dopo il CR2. Il confronto dei
+ * nomi si fa qui e non in SQL: in MySQL, senza indice, teneva un core occupato
+ * per minuti. La foto diventa un export ('edit') collegato in automatico.
+ */
+async function matchByNameAuto(): Promise<number> {
+  const { exports, raws } = await nameMatchInput();
+  if (!exports.length || !raws.length) return 0;
+  const { auto } = matchByName(exports, raws);
+  let n = 0;
+  for (let i = 0; i < auto.length; i += 500) {
+    const chunk = auto.slice(i, i + 500);
+    const res = await execute(
+      `UPDATE photos p JOIN (${chunk.map(() => "SELECT ? AS eid, ? AS rid").join(" UNION ALL ")}) m ON m.eid = p.id
+          SET p.kind = 'edit', p.derived_from_id = m.rid, p.match_status = 'auto', p.match_method = 'name+date'
+        WHERE p.match_status = 'none' AND p.derived_from_id IS NULL AND p.deleted_at IS NULL`,
+      chunk.flatMap((m) => [m.exportId, m.rawId]),
+    );
+    n += res.affectedRows;
+  }
+  return n;
+}
+
+/**
+ * Export con lo stesso nome di uno o più CR2 ma fuori dalla finestra dei 2
+ * giorni (o con più CR2 dentro): si sceglie a mano nella pagina Collegamenti.
+ */
+export async function possibleNameMatches(): Promise<{ exportId: number; rawIds: number[] }[]> {
+  const { exports, raws } = await nameMatchInput();
+  if (!exports.length || !raws.length) return [];
+  return matchByName(exports, raws).possible;
+}
+
+async function matchByCamera(): Promise<number> {
   const res = await execute(
     `UPDATE photos p
        JOIN (SELECT e.id AS eid, MIN(r.id) AS rid, MAX(ce.serial <> '') AS by_serial
