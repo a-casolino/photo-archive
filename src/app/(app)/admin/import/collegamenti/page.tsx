@@ -24,7 +24,7 @@ type PhotoSide = {
   camera: string | null;
 };
 
-type Pair = { e: PhotoSide; r: PhotoSide; byName: boolean };
+type Pair = { e: PhotoSide; r: PhotoSide; method: string | null };
 
 const PAGE = 30;
 
@@ -96,7 +96,7 @@ export default async function MatchReviewPage() {
   const autoPairs: Pair[] = autoRows.map((row) => ({
     e: side("e", row),
     r: side("r", row),
-    byName: row.match_method === "name+date",
+    method: (row.match_method as string | null) ?? null,
   }));
 
   const ambiguousIds = await query<{ id: number }>(
@@ -180,7 +180,7 @@ export default async function MatchReviewPage() {
           <p className="muted">Niente da confermare.</p>
         ) : (
           <div className="match-list">
-            {autoPairs.map(({ e, r, byName }) => (
+            {autoPairs.map(({ e, r, method }) => (
               <div key={e.pid} className="match-row">
                 <Photo p={e} urls={urls} label="Export" />
                 <span className="match-arrow" aria-hidden>
@@ -190,9 +190,11 @@ export default async function MatchReviewPage() {
                   p={r}
                   urls={urls}
                   label={
-                    byName
+                    method === "name+date"
                       ? `CR2 · stesso nome, ${exportGapLabel(e.taken_at, r.taken_at) ?? "data diversa"}`
-                      : `CR2${e.camera ? ` · ${e.camera}` : ""}`
+                      : method === "pixel"
+                        ? "CR2 · stessa immagine (confronto dei pixel)"
+                        : `CR2${e.camera ? ` · ${e.camera}` : ""}`
                   }
                 />
                 <div className="actions" style={{ alignSelf: "center" }}>
