@@ -541,17 +541,29 @@ async function addToAlbum(albumId: number, photoId: number, conn: Runner = pool(
 // Collegamento export -> CR2
 // ---------------------------------------------------------------------
 
+/** Percorso senza l'ultima estensione ("2012/01-01/IMG_1.JPG" → "2012/01-01/IMG_1"). */
+function pathWithoutExt(col: string): string {
+  return `LEFT(${col}, CHAR_LENGTH(${col}) - CHAR_LENGTH(SUBSTRING_INDEX(${col}, '.', -1)) - 1)`;
+}
+
 /**
  * Condizione di "candidato": stesso istante di scatto (al secondo, e ai
  * millisecondi se entrambi li hanno), stessa marca e modello, e stesso
  * numero di serie se l'export lo conserva.
+ *
+ * Non è un export il JPEG che la fotocamera salva accanto al CR2 (scatto
+ * RAW+JPEG): stessa cartella e stesso nome, cambia solo l'estensione. Se lo si
+ * collegasse, un CR2 con anche l'export di Lightroom potrebbe mostrare il JPEG
+ * della fotocamera al posto della versione regolata (2.303 casi il 2026-11-16).
  */
 export const CANDIDATE_JOIN = `
   JOIN cameras ce ON ce.id = e.camera_id
   JOIN photos r   ON r.kind = 'raw' AND r.deleted_at IS NULL AND r.taken_at = e.taken_at
                  AND (e.taken_at_subsec IS NULL OR r.taken_at_subsec IS NULL OR r.taken_at_subsec = e.taken_at_subsec)
   JOIN cameras cr ON cr.id = r.camera_id AND cr.make = ce.make AND cr.model = ce.model
-                 AND (ce.serial = '' OR cr.serial = ce.serial)`;
+                 AND (ce.serial = '' OR cr.serial = ce.serial)
+                 AND NOT (e.source_path IS NOT NULL AND r.source_path IS NOT NULL
+                          AND ${pathWithoutExt("e.source_path")} = ${pathWithoutExt("r.source_path")})`;
 
 /**
  * Collega in automatico gli export che hanno un solo CR2 candidato: prima per

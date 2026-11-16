@@ -59,7 +59,9 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   hanno), stessa marca e modello, stesso seriale se l'export lo conserva. Un solo
   candidato → `auto`; più candidati (raffiche) → scelta manuale nella pagina
   `/admin/import/collegamenti`, dove si conferma, si sceglie o si scarta.
-  Il calcolo gira a fine import e con il pulsante "Ricalcola".
+  Il calcolo gira a fine import e con il pulsante "Ricalcola". Non si collega il
+  JPEG salvato dalla fotocamera accanto al CR2 (RAW+JPEG: stessa cartella e stesso
+  nome, cambia l'estensione): non è un export e coprirebbe quello di Lightroom.
 - **Collegamento per nome** (`src/lib/match-rules.ts`, deciso con Antonio il
   2026-11-16): gli export senza EXIF della fotocamera (entrano come `phone`, con
   la data dell'export o del caricamento) si collegano al CR2 con lo stesso nome
