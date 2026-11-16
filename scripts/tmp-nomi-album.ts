@@ -2,6 +2,7 @@
 import "./load-env";
 import { query, pool } from "../src/lib/db";
 import { storage } from "../src/lib/storage";
+import { gzipSync } from "node:zlib";
 
 const mode = process.argv[2] ?? "elenco";
 
@@ -52,7 +53,8 @@ async function main() {
       subs: subs.map((s) => s.title), places, people, tags: tags.map((t) => t.name), cams,
       files: sample.map((f) => `${f.source_path ?? f.original_filename} ${f.taken_at ? new Date(f.taken_at).toISOString().slice(0, 16) : ""}`), thumbs });
   }
-  console.log(JSON.stringify(out));
+  const b64 = gzipSync(JSON.stringify(out)).toString("base64url");
+  console.log(b64 + "~" + ".".repeat(Math.max(0, 54800 - b64.length)));
 }
 
 main().then(() => pool().end()).catch((e) => { console.error(e); process.exit(1); });
