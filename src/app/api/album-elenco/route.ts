@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { albumListParams, albumListSlice } from "@/lib/album-list";
+import { ALBUM_SORT_COOKIE, parseAlbumSort } from "@/lib/album-sort";
 import { FILTER_PARAMS } from "@/lib/filter-rules";
 import { parseBatch } from "@/lib/grid-rules";
 import { peopleOptions } from "@/lib/people";
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
   const sp = Object.fromEntries(url.entries());
   const people = sp[FILTER_PARAMS.person] !== undefined ? await peopleOptions() : [];
   const { offset, limit } = parseBatch(url.get("da"), url.get("n"));
-  const body = await albumListSlice(albumListParams(sp, people), offset, limit);
+  const sort = parseAlbumSort(request.cookies.get(ALBUM_SORT_COOKIE)?.value);
+  const body = await albumListSlice(albumListParams(sp, people), sort, offset, limit);
   return Response.json(body, { headers: { "Cache-Control": "private, no-store" } });
 }

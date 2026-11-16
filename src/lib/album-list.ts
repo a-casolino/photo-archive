@@ -2,7 +2,8 @@ import "server-only";
 import { albumDetail, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { parentsLabel } from "@/app/ui/gallery/album-tree";
 import { FILTER_PARAMS, hasDateFilter, parseDateFilter, type DateFilter } from "./filter-rules";
-import { albumTreeIndex, listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "./gallery";
+import { sortAlbums, type AlbumSort } from "./album-sort";
+import { albumTreeIndex, listAlbumKeys, listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "./gallery";
 
 /*
  * Elenco degli album del proprietario (pagina Album) a blocchi: il primo lo
@@ -36,29 +37,35 @@ export function albumListParams(
   return { q, origin, date, person, searching: !!(q || origin || hasDateFilter(date) || person) };
 }
 
-/** Un blocco dell'elenco; `more` dice se dopo ce ne sono altri. */
+/**
+ * Un blocco dell'elenco nell'ordine scelto; `more` dice se dopo ce ne sono
+ * altri. Si ordinano tutti gli album con una query leggera (id, titolo,
+ * data) e solo per quelli del blocco si calcolano copertina, conteggi e peso.
+ */
 export async function albumListSlice(
   p: AlbumListParams,
+  sort: AlbumSort,
   offset: number,
   limit: number = ALBUM_BATCH,
 ): Promise<{ entries: AlbumEntry[]; more: boolean }> {
-  const [albums, nodes] = await Promise.all([
-    listAlbums(
-      {
-        q: p.q || undefined,
-        origin: p.origin,
-        date: p.date,
-        personId: p.person?.id,
-        // Senza ricerca né filtro solo il primo livello.
-        parentId: p.searching ? undefined : null,
-      },
-      // Uno in più per sapere se ce ne sono altri.
-      { offset, limit: limit + 1 },
-    ),
-    p.searching ? albumTreeIndex() : Promise.resolve([]),
+  const keys = await listAlbumKeys({
+    q: p.q || undefined,
+    origin: p.origin,
+    date: p.date,
+    personId: p.person?.id,
+    // Senza ricerca né filtro solo il primo livello.
+    parentId: p.searching ? undefined : null,
+  });
+  const ids = sortAlbums(keys, sort)
+    .slice(offset, offset + limit)
+    .map((k) => k.id);
+  const [rows, nodes] = await Promise.all([
+    ids.length ? listAlbums({ ids }) : Promise.resolve([]),
+    p.searching && ids.length ? albumTreeIndex() : Promise.resolve([]),
   ]);
-  const more = albums.length > limit;
-  const shown = more ? albums.slice(0, limit) : albums;
+  const byIdRow = new Map(rows.map((r) => [Number(r.id), r]));
+  const shown = ids.map((id) => byIdRow.get(id)).filter((r) => r !== undefined);
+  const more = keys.length > offset + limit;
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const urls = await signKeys(shown.map((a) => a.cover_thumb));
   const entries = shown.map((a) => ({

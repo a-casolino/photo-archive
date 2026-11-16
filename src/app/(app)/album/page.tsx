@@ -12,6 +12,8 @@ import { AlbumTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { AlbumViewSwitch } from "@/app/ui/gallery/album-views";
 import { AlbumEntries } from "@/app/ui/gallery/album-entries";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
+import { AlbumSortSelect } from "@/app/ui/gallery/album-sort-select";
+import { ALBUM_SORT_COOKIE, parseAlbumSort } from "@/lib/album-sort";
 import { SearchSuggest } from "@/app/ui/search-suggest";
 import { FilterBar } from "@/app/ui/gallery/filter-bar";
 import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
@@ -31,10 +33,12 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
   const activeLabels = [dateFilterLabel(date), origin && ORIGIN_LABEL[origin], person?.name].filter(
     (x): x is string => !!x,
   );
-  // Solo il primo blocco: gli altri arrivano mentre si scorre (AlbumEntries).
-  const { entries: albums, more } = await albumListSlice(params, 0, ALBUM_BATCH);
+  const jar = await cookies();
+  const sort = parseAlbumSort(jar.get(ALBUM_SORT_COOKIE)?.value);
+  // Solo il primo blocco, nell'ordine scelto: gli altri arrivano mentre si scorre (AlbumEntries).
+  const { entries: albums, more } = await albumListSlice(params, sort, 0, ALBUM_BATCH);
 
-  const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
+  const view = parseAlbumView(jar.get(ALBUM_VIEW_COOKIE)?.value);
   const selecting = sp.seleziona === "1";
   // Questa pagina con ricerca e filtri, senza selezione né messaggi.
   const MESSAGE_PARAMS = ["seleziona", "album_cestino", "sotto_album", "album_n", "album_ripristinati"];
@@ -78,6 +82,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
           {albums.length > 0 && (
             <SelectToggle selecting={selecting} href={selecting ? here : pathWith("/album", { ...listQuery, seleziona: "1" })} />
           )}
+          {albums.length > 1 && <AlbumSortSelect sort={sort} />}
           {albums.length > 0 && <AlbumViewSwitch view={view} />}
         </div>
       </div>

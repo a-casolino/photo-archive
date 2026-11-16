@@ -288,8 +288,10 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   Gli stessi controlli di accesso delle pagine (`src/lib/album-access.ts`,
   condiviso con `/api/presentazione`). Aprendo una foto si salva in
   `sessionStorage` quanti elementi erano caricati e lo scroll: tornando si
-  ricaricano e si torna lì. Nell'elenco album `listAlbums(…, slice)` ordina
-  tutti ma calcola conteggi, peso e copertina solo per il blocco. Tag e
+  ricaricano e si torna lì. Nell'elenco album si ordinano tutti gli album
+  con una query leggera (`listAlbumKeys`: id, titolo, data) nell'ordine
+  scelto (cookie `album_ordine`), poi `listAlbums({ ids })` calcola
+  conteggi, peso e copertina solo per il blocco. Tag e
   persona hanno ancora le pagine da 200.
 - **Foto singola**: le anteprime della precedente e della successiva si
   scaricano dopo il caricamento della pagina (`preload-images.tsx`), così

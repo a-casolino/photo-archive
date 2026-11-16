@@ -193,31 +193,34 @@ export function branchPhotoCount(alias: string): string {
 
 const ALBUM_COLUMNS = "id, public_id, title, description, origin, origin_ref, parent_id, date_from, date_to, cover_photo_id";
 
-/**
- * Album con copertina, numero di foto (comprese quelle dei sotto-album) e
- * periodo (anche dei sotto-album). `parentId`: solo gli album dentro
- * quell'album (null = primo livello); se manca, tutti i livelli.
- */
-export async function listAlbums(
-  filter: {
-    q?: string;
-    origin?: AlbumRow["origin"];
-    tagId?: number;
-    parentId?: number | null;
-    /** Solo gli album (con i sotto-album) che hanno almeno una foto scattata in quella data… */
-    date?: DateFilter;
-    /** …e/o in cui compare quella persona (volti confermati, nella stessa foto se c'è anche la data). */
-    personId?: number;
-  } = {},
-  /**
-   * Solo un blocco dell'elenco (pagina Album, che si allunga mentre si
-   * scorre): l'ordine si calcola su tutti, le colonne pesanti (conteggi,
-   * peso, copertina) solo per gli album del blocco.
-   */
-  slice?: { offset: number; limit: number },
-): Promise<AlbumListItem[]> {
+export type AlbumListFilter = {
+  q?: string;
+  origin?: AlbumRow["origin"];
+  tagId?: number;
+  parentId?: number | null;
+  /** Solo gli album (con i sotto-album) che hanno almeno una foto scattata in quella data… */
+  date?: DateFilter;
+  /** …e/o in cui compare quella persona (volti confermati, nella stessa foto se c'è anche la data). */
+  personId?: number;
+  /** Solo questi album (un blocco della pagina Album). */
+  ids?: number[];
+};
+
+/** Prima data del ramo dell'album `alias` (serve la CTE `tree` di treeCte). */
+const BRANCH_DATE_FROM = (alias: string) =>
+  `(SELECT MIN(d.date_from) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = ${alias}.id)`;
+
+function albumListWhere(filter: AlbumListFilter): { cond: string; params: unknown[] } {
   const where = ["a.deleted_at IS NULL"];
   const params: unknown[] = [];
+  if (filter.ids) {
+    // Lista vuota: nessun album (IN () non è SQL valido).
+    if (!filter.ids.length) where.push("FALSE");
+    else {
+      where.push("a.id IN (?)");
+      params.push(filter.ids);
+    }
+  }
   if (filter.parentId !== undefined) {
     if (filter.parentId === null) where.push("a.parent_id IS NULL");
     else {
@@ -250,16 +253,32 @@ export async function listAlbums(
                          WHERE (ap.album_id = a.id OR ${inSubalbums("ap.album_id", "a")}) AND ${photoCond.join(" AND ")})`);
     params.push(...(date?.params ?? []), ...(filter.personId ? [filter.personId] : []));
   }
-  const cond = where.join(" AND ");
-  const dateFrom = (alias: string) =>
-    `(SELECT MIN(d.date_from) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = ${alias}.id)`;
-  // Con `slice`: prima gli id del blocco, in ordine, poi il resto solo per quelli.
-  const source = slice
-    ? `(SELECT a.id FROM albums a WHERE ${cond}
-         ORDER BY ${dateFrom("a")} IS NULL, ${dateFrom("a")} DESC, a.title, a.id
-         LIMIT ${Math.max(1, Math.floor(slice.limit))} OFFSET ${Math.max(0, Math.floor(slice.offset))}) pick
-       JOIN albums a ON a.id = pick.id`
-    : `albums a WHERE ${cond}`;
+  return { cond: where.join(" AND "), params };
+}
+
+/**
+ * Solo id, titolo e data degli album dell'elenco: leggero, serve a ordinarli
+ * tutti e a leggere le colonne pesanti di listAlbums solo per un blocco.
+ */
+export async function listAlbumKeys(
+  filter: AlbumListFilter,
+): Promise<{ id: number; title: string; date_from: Date | null }[]> {
+  const { cond, params } = albumListWhere(filter);
+  return query(`${treeCte(cond)} SELECT a.id, a.title, ${BRANCH_DATE_FROM("a")} AS date_from FROM albums a WHERE ${cond}`, [
+    ...params,
+    ...params,
+  ]);
+}
+
+/**
+ * Album con copertina, numero di foto (comprese quelle dei sotto-album) e
+ * periodo (anche dei sotto-album). `parentId`: solo gli album dentro
+ * quell'album (null = primo livello); se manca, tutti i livelli.
+ */
+export async function listAlbums(
+  filter: AlbumListFilter = {},
+): Promise<AlbumListItem[]> {
+  const { cond, params } = albumListWhere(filter);
   // La copertina effettiva si calcola in una tabella derivata: il join su photos resta per chiave primaria.
   return query<AlbumListItem>(
     `${treeCte(cond)}
@@ -271,7 +290,7 @@ export async function listAlbums(
             IF(x.id IS NULL, p.orientation, x.orientation) AS cover_orientation
        FROM (
          SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.parent_id, a.cover_photo_id,
-                ${dateFrom("a")} AS date_from,
+                ${BRANCH_DATE_FROM("a")} AS date_from,
                 (SELECT MAX(d.date_to) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = a.id) AS date_to,
                 (SELECT COUNT(DISTINCT ap.photo_id) FROM tree t
                    JOIN album_photos ap ON ap.album_id = t.id
@@ -283,11 +302,12 @@ export async function listAlbums(
                 ) AS total_bytes,
                 (SELECT COUNT(*) FROM albums c WHERE c.parent_id = a.id AND c.deleted_at IS NULL) AS child_count,
                 COALESCE(${albumCoverId("a")}, ${branchCoverId("a")}) AS shown_cover_id
-           FROM ${source}
+           FROM albums a
+          WHERE ${cond}
        ) a
        LEFT JOIN photos p ON p.id = a.shown_cover_id
        ${LINKED_EXPORT}
-      ORDER BY a.date_from IS NULL, a.date_from DESC, a.title, a.id`,
+      ORDER BY a.date_from IS NULL, a.date_from DESC, a.title`,
     [...params, ...params],
   );
 }
