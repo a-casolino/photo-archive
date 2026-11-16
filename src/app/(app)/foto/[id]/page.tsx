@@ -44,7 +44,7 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
     ? `/foto${Object.keys(photosCtx.query).length ? `?${new URLSearchParams(photosCtx.query)}` : ""}`
     : null;
   const [urls, albums, above, shares, people, tags, allTags, faces] = await Promise.all([
-    signKeys([photo.preview_key]),
+    signKeys([photo.preview_key, neighbors?.prevPreview, neighbors?.nextPreview]),
     albumsOfPhoto(photo.id),
     albumsAbovePhoto(photo.id),
     listShares({ photoId: photo.id }),
@@ -89,6 +89,7 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
         up: album ? `/album/${album.public_id}${onlyEdited ? "?solo=regolazioni" : ""}` : (photosList ?? "/album"),
         upLabel: album ? album.title : photosList ? "Foto" : "Album",
         position: neighbors ? `${neighbors.index} di ${neighbors.total}` : undefined,
+        preload: [neighbors?.nextPreview, neighbors?.prevPreview].map((k) => (k ? urls.get(k) : null)),
       }}
       level="original"
       access={{}}

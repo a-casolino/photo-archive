@@ -9,7 +9,6 @@ import {
   albumCounts,
   albumNeighbors,
   albumPath,
-  albumPhotos,
   getAlbum,
   getAlbumById,
   getPhoto,
@@ -25,18 +24,10 @@ import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
 import { albumDetail, AlbumGrid, AlbumList, type AlbumEntry } from "./album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "./album-view-pref";
 import { albumDates } from "./dates";
-import { Masonry } from "./masonry";
-import {
-  EditedFilter,
-  ExtraHeading,
-  PAGE_SIZE,
-  Pager,
-  parsePage,
-  PhotoView,
-  photoItems,
-  splitSections,
-  type DownloadAccess,
-} from "./views";
+import { albumTiles } from "@/lib/album-grid";
+import { GRID_BATCH } from "@/lib/grid-rules";
+import { GrowingGrid } from "./growing-grid";
+import { EditedFilter, ExtraHeading, PhotoView, type DownloadAccess } from "./views";
 
 /*
  * Cosa vede chi riceve una condivisione: le stesse pagine per le
@@ -75,19 +66,16 @@ export async function ShareHome(ctx: Ctx) {
   if (!where) notFound();
   const { album, path } = where;
   const onlyEdited = ctx.searchParams.solo === "regolazioni";
-  const page = parsePage(ctx.searchParams.pagina);
   const albumQ: Record<string, string> = album.id === share.album_id ? {} : { album: album.public_id };
   const here = withQuery(base, albumQ);
-  const [counts, photos, children, branch] = await Promise.all([
+  const [counts, items, children, branch] = await Promise.all([
     albumCounts(album.id),
-    albumPhotos(album.id, { onlyEdited, offset: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }),
-    page === 1 && !onlyEdited ? listAlbums({ parentId: album.id }) : Promise.resolve([]),
+    // Solo il primo blocco: gli altri arrivano mentre si scorre (GrowingGrid).
+    albumTiles({ album, base, albumQ, owner: false }, { onlyEdited, offset: 0, limit: GRID_BATCH }),
+    !onlyEdited ? listAlbums({ parentId: album.id }) : Promise.resolve([]),
     albumBranchSummary(album.id),
   ]);
-  const urls = await signKeys([...photos.map((p) => p.thumb_key), ...children.map((c) => c.cover_thumb)]);
-  const photoQ: Record<string, string> = { ...albumQ, ...(onlyEdited ? { solo: "regolazioni" } : {}) };
-  const items = photoItems(photos, urls, (pid) => withQuery(`${base}/foto/${pid}`, photoQ));
-  const sections = splitSections(photos, items);
+  const urls = await signKeys(children.map((c) => c.cover_thumb));
   const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
   const childEntries: AlbumEntry[] = children.map((c) => ({
     key: c.public_id,
@@ -96,7 +84,12 @@ export async function ShareHome(ctx: Ctx) {
     title: c.title,
     detail: albumDetail(c),
   }));
-  const pagerQuery = new URLSearchParams(photoQ).toString();
+  // Per /api/griglia: la stessa condivisione (s o t) e lo stesso album.
+  const gridSource: Record<string, string> = {
+    ...(ctx.access.token ? { t: ctx.access.token } : { s: ctx.access.share ?? "" }),
+    ...albumQ,
+    ...(onlyEdited ? { solo: "regolazioni" } : {}),
+  };
 
   return (
     <>
@@ -134,25 +127,16 @@ export async function ShareHome(ctx: Ctx) {
           {view === "lista" ? <AlbumList albums={childEntries} /> : <AlbumGrid albums={childEntries} />}
         </section>
       )}
-      {photos.length === 0 ? (
+      {items.length === 0 ? (
         childEntries.length > 0 ? null : <p className="muted">Non ci sono foto.</p>
       ) : (
-        <>
-          {sections.main.length > 0 && <Masonry items={sections.main} />}
-          {sections.extra.length > 0 && (
-            <>
-              <ExtraHeading total={counts.extra} />
-              <Masonry items={sections.extra} />
-            </>
-          )}
-        </>
+        <GrowingGrid
+          initial={items}
+          total={onlyEdited ? counts.edited : counts.total}
+          source={gridSource}
+          extraHeading={<ExtraHeading total={counts.extra} />}
+        />
       )}
-      <Pager
-        base={base}
-        page={page}
-        total={onlyEdited ? counts.edited : counts.total}
-        query={pagerQuery || undefined}
-      />
     </>
   );
 }
@@ -223,7 +207,7 @@ export async function SharedPhoto(ctx: Ctx & { photoPid: string | null }) {
     where && where.album.id !== share.album_id ? { album: where.album.public_id } : {};
   const q: Record<string, string> = { ...albumQ, ...(onlyEdited ? { solo: "regolazioni" } : {}) };
   const neighbors = where ? await albumNeighbors(where.album.id, photo.id, onlyEdited) : null;
-  const urls = await signKeys([photo.preview_key]);
+  const urls = await signKeys([photo.preview_key, neighbors?.prevPreview, neighbors?.nextPreview]);
   const href = (pid: string | null) => (pid ? withQuery(`${base}/foto/${pid}`, q) : null);
   const album = where?.album ?? null;
 
@@ -237,6 +221,7 @@ export async function SharedPhoto(ctx: Ctx & { photoPid: string | null }) {
         up: album ? withQuery(base, q) : null,
         upLabel: album?.title,
         position: neighbors ? `${neighbors.index} di ${neighbors.total}` : undefined,
+        preload: [neighbors?.nextPreview, neighbors?.prevPreview].map((k) => (k ? urls.get(k) : null)),
       }}
       level={effectiveDownload(share.allow_download, role)}
       access={ctx.access}

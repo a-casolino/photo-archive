@@ -14,6 +14,8 @@ export type MasonryItem = {
   ratio: number | null;
   badge?: string;
   caption?: { title: string; detail?: string };
+  /** Negli album: foto della sezione "Altri scatti". */
+  extra?: boolean;
 };
 
 /**

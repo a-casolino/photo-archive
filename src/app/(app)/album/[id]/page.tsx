@@ -26,8 +26,9 @@ import {
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
 import { albumDetail, AlbumGrid, AlbumList, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { albumDates } from "@/app/ui/gallery/dates";
-import { Masonry } from "@/app/ui/gallery/masonry";
+import { GrowingGrid } from "@/app/ui/gallery/growing-grid";
 import { SelectBar } from "@/app/ui/gallery/select-bar";
+import { AlbumTrashText } from "@/app/ui/gallery/album-trash-text";
 import { AlbumTrashNotice, PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { ShareForm } from "@/app/ui/gallery/share-form";
 import { ShareList } from "@/app/ui/gallery/share-list";
@@ -36,15 +37,8 @@ import { appUrl } from "@/lib/mail";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { AddPhotosButton, AlbumUploader } from "@/app/ui/upload/album-uploader";
 import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
-import {
-  EditedFilter,
-  ExtraHeading,
-  PAGE_SIZE,
-  Pager,
-  parsePage,
-  photoItems,
-  splitSections,
-} from "@/app/ui/gallery/views";
+import { markCover } from "@/app/ui/gallery/tiles";
+import { EditedFilter, ExtraHeading } from "@/app/ui/gallery/views";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,10 +52,11 @@ import { env } from "@/lib/env";
 import { activeSharesByAlbum, mergedInto } from "@/lib/albums";
 import { depthOf, MAX_ALBUM_DEPTH, moveTargets, PATH_SEP } from "@/lib/album-tree-rules";
 import { formatCount } from "@/lib/format";
+import { albumTiles } from "@/lib/album-grid";
+import { GRID_BATCH } from "@/lib/grid-rules";
 import {
   albumBranchSummary,
   albumCounts,
-  albumPhotos,
   albumTreeIndex,
   getAlbum,
   getAlbumCover,
@@ -70,7 +65,6 @@ import {
   signKeys,
 } from "@/lib/gallery";
 import { requireOwner } from "@/lib/session";
-import { albumTrashPreview } from "@/lib/trash";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
 import { uploaderProps } from "@/lib/upload/page-props";
@@ -90,23 +84,23 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
 
   const onlyEdited = sp.solo === "regolazioni";
   const selecting = sp.seleziona === "1";
-  const page = parsePage(sp.pagina);
-  const [counts, photos, shares, people, tags, allTags, cover, children, branch, nodes, sharedAlbums] = await Promise.all([
+  const gridWhere = { album, base: "", albumQ: { album: album.public_id }, owner: true };
+  const [counts, firstTiles, shares, people, tags, allTags, cover, children, branch, nodes, sharedAlbums, upload] = await Promise.all([
     albumCounts(album.id),
-    albumPhotos(album.id, { onlyEdited, offset: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }),
+    // Solo il primo blocco: gli altri arrivano mentre si scorre (GrowingGrid).
+    albumTiles(gridWhere, { onlyEdited, offset: 0, limit: GRID_BATCH }),
     listShares({ albumId: album.id }),
     shareableUsers(),
     tagsOf({ kind: "album", id: album.id }),
     listTags(),
     getAlbumCover(album),
-    page === 1 ? listAlbums({ parentId: album.id }) : Promise.resolve([]),
+    listAlbums({ parentId: album.id }),
     albumBranchSummary(album.id),
     albumTreeIndex(),
     activeSharesByAlbum(),
+    uploaderProps(),
   ]);
-  const [trashPreview, upload] = await Promise.all([albumTrashPreview(album.id), uploaderProps()]);
   const urls = await signKeys([
-    ...photos.map((p) => p.thumb_key),
     ...children.map((c) => c.cover_thumb),
     cover?.thumb_key ?? null,
   ]);
@@ -149,15 +143,14 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
   }));
   const parentHref = ancestors.length ? `/album/${ancestors[ancestors.length - 1].public_id}` : "/album";
   const base = `/album/${album.public_id}`;
-  const photoQuery = new URLSearchParams({ album: album.public_id, ...(onlyEdited ? { solo: "regolazioni" } : {}) });
-  const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true }).map((it) =>
-    it.key === cover?.public_id ? { ...it, badge: it.badge ? `Copertina · ${it.badge}` : "Copertina" } : it,
-  );
-  const sections = splitSections(photos, items);
-  const listQuery = new URLSearchParams({
+  const items = markCover(firstTiles, cover?.public_id);
+  const gridSource: Record<string, string> = {
+    album: album.public_id,
     ...(onlyEdited ? { solo: "regolazioni" } : {}),
-    ...(page > 1 ? { pagina: String(page) } : {}),
-  });
+    ...(cover ? { copertina: cover.public_id } : {}),
+  };
+  const gridTotal = onlyEdited ? counts.edited : counts.total;
+  const listQuery = new URLSearchParams(onlyEdited ? { solo: "regolazioni" } : {});
   const withQuery = (extra: Record<string, string> = {}) => {
     const q = new URLSearchParams({ ...Object.fromEntries(listQuery), ...extra }).toString();
     return q ? `${base}?${q}` : base;
@@ -326,20 +319,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
                     <Trash2Icon />
                     Elimina album
                   </Button>
-                  <p className="muted">
-                    L&apos;album va nel cestino
-                    {trashPreview.subalbums > 0
-                      ? ` con ${trashPreview.subalbums === 1 ? "il suo sotto-album" : `i suoi ${formatCount(trashPreview.subalbums)} sotto-album`}`
-                      : ""}
-                    {trashPreview.only > 0
-                      ? ` con ${trashPreview.only === 1 ? "la foto che sta" : `le ${formatCount(trashPreview.only)} foto che stanno`} solo ${trashPreview.subalbums > 0 ? "lì" : "qui"}`
-                      : ""}
-                    {trashPreview.elsewhere > 0
-                      ? `; ${trashPreview.elsewhere === 1 ? "la foto che è" : `le ${formatCount(trashPreview.elsewhere)} foto che sono`} anche in altri album ${trashPreview.elsewhere === 1 ? "resta" : "restano"} lì`
-                      : ""}
-                    . Puoi ripristinarlo dal Cestino per {env().TRASH_RETENTION_DAYS} giorni, poi viene eliminato per
-                    sempre, file compresi.
-                  </p>
+                  <AlbumTrashText albumId={album.public_id} retentionDays={env().TRASH_RETENTION_DAYS} />
                 </form>
               </div>
             </DialogContent>
@@ -351,7 +331,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
             options={moveOptions}
             atTop={album.parent_id === null}
           />
-          {photos.length > 0 && (
+          {items.length > 0 && (
             <Button asChild variant={selecting ? "secondary" : "outline"}>
               <Link href={selecting ? withQuery() : withQuery({ seleziona: "1" })} prefetch={false}>
                 {selecting ? <CheckIcon /> : <SquareCheckIcon />}
@@ -377,7 +357,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
 
       <PhotoTrashNotice sp={sp} back={withQuery()} />
 
-      {photos.length === 0 ? (
+      {items.length === 0 ? (
         <p className="muted">
           {onlyEdited
             ? "Nessuna foto con regolazioni."
@@ -408,31 +388,22 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               Sposta nel cestino
             </button>
           </SelectBar>
-          {sections.main.length > 0 && <Masonry items={sections.main} selectName="photo" />}
-          {sections.extra.length > 0 && (
-            <>
-              <ExtraHeading total={counts.extra} />
-              <Masonry items={sections.extra} selectName="photo" />
-            </>
-          )}
+          <GrowingGrid
+            initial={items}
+            total={gridTotal}
+            source={gridSource}
+            extraHeading={<ExtraHeading total={counts.extra} />}
+            selectName="photo"
+          />
         </form>
       ) : (
-        <>
-          {sections.main.length > 0 && <Masonry items={sections.main} />}
-          {sections.extra.length > 0 && (
-            <>
-              <ExtraHeading total={counts.extra} />
-              <Masonry items={sections.extra} />
-            </>
-          )}
-        </>
+        <GrowingGrid
+          initial={items}
+          total={gridTotal}
+          source={gridSource}
+          extraHeading={<ExtraHeading total={counts.extra} />}
+        />
       )}
-      <Pager
-        base={base}
-        page={page}
-        total={onlyEdited ? counts.edited : counts.total}
-        query={onlyEdited ? "solo=regolazioni" : undefined}
-      />
     </>
   );
 }

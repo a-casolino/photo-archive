@@ -209,6 +209,12 @@ export async function listAlbums(
     /** …e/o in cui compare quella persona (volti confermati, nella stessa foto se c'è anche la data). */
     personId?: number;
   } = {},
+  /**
+   * Solo un blocco dell'elenco (pagina Album, che si allunga mentre si
+   * scorre): l'ordine si calcola su tutti, le colonne pesanti (conteggi,
+   * peso, copertina) solo per gli album del blocco.
+   */
+  slice?: { offset: number; limit: number },
 ): Promise<AlbumListItem[]> {
   const where = ["a.deleted_at IS NULL"];
   const params: unknown[] = [];
@@ -245,6 +251,15 @@ export async function listAlbums(
     params.push(...(date?.params ?? []), ...(filter.personId ? [filter.personId] : []));
   }
   const cond = where.join(" AND ");
+  const dateFrom = (alias: string) =>
+    `(SELECT MIN(d.date_from) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = ${alias}.id)`;
+  // Con `slice`: prima gli id del blocco, in ordine, poi il resto solo per quelli.
+  const source = slice
+    ? `(SELECT a.id FROM albums a WHERE ${cond}
+         ORDER BY ${dateFrom("a")} IS NULL, ${dateFrom("a")} DESC, a.title, a.id
+         LIMIT ${Math.max(1, Math.floor(slice.limit))} OFFSET ${Math.max(0, Math.floor(slice.offset))}) pick
+       JOIN albums a ON a.id = pick.id`
+    : `albums a WHERE ${cond}`;
   // La copertina effettiva si calcola in una tabella derivata: il join su photos resta per chiave primaria.
   return query<AlbumListItem>(
     `${treeCte(cond)}
@@ -256,7 +271,7 @@ export async function listAlbums(
             IF(x.id IS NULL, p.orientation, x.orientation) AS cover_orientation
        FROM (
          SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.parent_id, a.cover_photo_id,
-                (SELECT MIN(d.date_from) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = a.id) AS date_from,
+                ${dateFrom("a")} AS date_from,
                 (SELECT MAX(d.date_to) FROM tree t JOIN albums d ON d.id = t.id WHERE t.root_id = a.id) AS date_to,
                 (SELECT COUNT(DISTINCT ap.photo_id) FROM tree t
                    JOIN album_photos ap ON ap.album_id = t.id
@@ -268,12 +283,11 @@ export async function listAlbums(
                 ) AS total_bytes,
                 (SELECT COUNT(*) FROM albums c WHERE c.parent_id = a.id AND c.deleted_at IS NULL) AS child_count,
                 COALESCE(${albumCoverId("a")}, ${branchCoverId("a")}) AS shown_cover_id
-           FROM albums a
-          WHERE ${cond}
+           FROM ${source}
        ) a
        LEFT JOIN photos p ON p.id = a.shown_cover_id
        ${LINKED_EXPORT}
-      ORDER BY a.date_from IS NULL, a.date_from DESC, a.title`,
+      ORDER BY a.date_from IS NULL, a.date_from DESC, a.title, a.id`,
     [...params, ...params],
   );
 }
@@ -427,19 +441,55 @@ export async function slideshowPhotos(
   return { total: Number(count?.n ?? 0), photos };
 }
 
+/** Foto precedente e successiva (public_id e anteprima da precaricare) e posizione. */
+export type Neighbors = {
+  prev: string | null;
+  next: string | null;
+  prevPreview: string | null;
+  nextPreview: string | null;
+  index: number;
+  total: number;
+};
+
+export type NeighborRow = {
+  prev_id: string | null;
+  next_id: string | null;
+  prev_preview: string | null;
+  next_preview: string | null;
+  rn: number;
+  total: number;
+};
+
+/** Colonne della finestra `w` per NeighborRow (con l'export collegato `x`). */
+export const NEIGHBOR_COLUMNS = `
+  LAG(p.public_id)  OVER w AS prev_id,
+  LEAD(p.public_id) OVER w AS next_id,
+  LAG(COALESCE(x.gcs_preview_key, p.gcs_preview_key))  OVER w AS prev_preview,
+  LEAD(COALESCE(x.gcs_preview_key, p.gcs_preview_key)) OVER w AS next_preview,
+  ROW_NUMBER()      OVER w AS rn,
+  COUNT(*) OVER ()         AS total`;
+
+export function neighborsOf(row: NeighborRow): Neighbors {
+  return {
+    prev: row.prev_id,
+    next: row.next_id,
+    prevPreview: row.prev_preview,
+    nextPreview: row.next_preview,
+    index: Number(row.rn),
+    total: Number(row.total),
+  };
+}
+
 /** Foto precedente e successiva nell'album (con lo stesso filtro), e posizione. */
 export async function albumNeighbors(
   albumId: number,
   photoId: number,
   onlyEdited = false,
-): Promise<{ prev: string | null; next: string | null; index: number; total: number } | null> {
-  const row = await queryOne<{ prev_id: string | null; next_id: string | null; rn: number; total: number }>(
-    `SELECT prev_id, next_id, rn, total FROM (
+): Promise<Neighbors | null> {
+  const row = await queryOne<NeighborRow>(
+    `SELECT prev_id, next_id, prev_preview, next_preview, rn, total FROM (
        SELECT p.id,
-              LAG(p.public_id)  OVER w AS prev_id,
-              LEAD(p.public_id) OVER w AS next_id,
-              ROW_NUMBER()      OVER w AS rn,
-              COUNT(*) OVER ()         AS total
+              ${NEIGHBOR_COLUMNS}
          FROM album_photos ap
          JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
          ${LINKED_EXPORT}
@@ -448,8 +498,7 @@ export async function albumNeighbors(
      ) t WHERE t.id = ?`,
     [albumId, photoId],
   );
-  if (!row) return null;
-  return { prev: row.prev_id, next: row.next_id, index: Number(row.rn), total: Number(row.total) };
+  return row ? neighborsOf(row) : null;
 }
 
 export async function isPhotoInAlbum(albumId: number, photoId: number): Promise<boolean> {

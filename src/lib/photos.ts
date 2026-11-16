@@ -1,7 +1,16 @@
 import "server-only";
 import { query, queryOne } from "./db";
 import { dateFilterSql, type DateFilter } from "./filter-rules";
-import { CARD_COLUMNS, LINKED_EXPORT, type AlbumRow, type PhotoCard } from "./gallery";
+import {
+  CARD_COLUMNS,
+  LINKED_EXPORT,
+  NEIGHBOR_COLUMNS,
+  neighborsOf,
+  type AlbumRow,
+  type NeighborRow,
+  type Neighbors,
+  type PhotoCard,
+} from "./gallery";
 import { escapeLike } from "./search-rules";
 
 /*
@@ -88,26 +97,18 @@ export async function countPhotos(f: PhotoFilter): Promise<number> {
 }
 
 /** Foto precedente e successiva con gli stessi filtri, e posizione. */
-export async function photoNeighbors(
-  f: PhotoFilter,
-  photoId: number,
-): Promise<{ prev: string | null; next: string | null; index: number; total: number } | null> {
+export async function photoNeighbors(f: PhotoFilter, photoId: number): Promise<Neighbors | null> {
   const { where, params } = photoWhere(f);
-  const row = await queryOne<{ prev_id: string | null; next_id: string | null; rn: number; total: number }>(
-    `SELECT prev_id, next_id, rn, total FROM (
-       SELECT p.id,
-              LAG(p.public_id)  OVER w AS prev_id,
-              LEAD(p.public_id) OVER w AS next_id,
-              ROW_NUMBER()      OVER w AS rn,
-              COUNT(*) OVER ()         AS total
+  const row = await queryOne<NeighborRow>(
+    `SELECT prev_id, next_id, prev_preview, next_preview, rn, total FROM (
+       SELECT p.id, ${NEIGHBOR_COLUMNS}
          FROM photos p ${LINKED_EXPORT}
         WHERE ${where}
        WINDOW w AS (ORDER BY ${PHOTO_ORDER})
      ) t WHERE t.id = ?`,
     [...params, photoId],
   );
-  if (!row) return null;
-  return { prev: row.prev_id, next: row.next_id, index: Number(row.rn), total: Number(row.total) };
+  return row ? neighborsOf(row) : null;
 }
 
 /** Anni in cui ci sono foto (per il filtro di data), dal più recente. */
