@@ -1664,3 +1664,9 @@ button.danger:not(.link) {
 .album-extra-head p {
   margin: 4px 0 0;
 }
+
+/* --- Ordinamento dell'elenco album --- */
+
+.album-sort {
+  max-width: 100%;
+}
