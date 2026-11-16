@@ -1,6 +1,7 @@
 import "server-only";
+import { folderSections, proposePairs, shotKey, type AlbumVotes } from "./album-pair-rules";
+import { mergeAlbums } from "./albums";
 import { execute, query } from "./db";
-import { proposePairs, shotKey, type AlbumVotes } from "./album-pair-rules";
 
 /*
  * Calcolo delle coppie album Google ↔ cartella del disco (vedi
@@ -18,7 +19,8 @@ export async function computeAlbumPairs(): Promise<{ proposed: number; albums: n
          FROM albums a
          JOIN album_photos ap ON ap.album_id = a.id
          JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-        WHERE a.origin = 'google_photos' AND a.parent_id IS NULL AND a.deleted_at IS NULL`,
+        WHERE a.origin = 'google_photos' AND a.parent_id IS NULL AND a.deleted_at IS NULL
+          AND ap.section = 'main'`,
     ),
     // Le cartelle del disco sotto il primo livello ("Backup Foto" › anno › giorno).
     query<Row>(
@@ -75,4 +77,64 @@ export async function computeAlbumPairs(): Promise<{ proposed: number; albums: n
     );
   }
   return { proposed: pairs.length, albums: new Set(pairs.map((p) => p.googleId)).size };
+}
+
+// ---------------------------------------------------------------------
+// Unione (passo 3): album Google + cartelle confermate
+// ---------------------------------------------------------------------
+
+type PhotoRow = { id: number; kind: string; camera_id: number | null; taken_at: Date | null; raw_id: number | null };
+
+/**
+ * Unisce all'album Google le sue cartelle confermate e non ancora unite.
+ * Le foto della cartella entrano come 'source' se stanno dietro a un export
+ * dell'album (CR2 collegato, oppure stessa fotocamera e stesso istante),
+ * altrimenti come 'extra' ("Altri scatti"). Le condivisioni delle cartelle
+ * passano all'album; le cartelle vanno nel cestino con merged_into_id
+ * (vedi mergeAlbums).
+ */
+export async function mergeAlbumPair(googlePublicId: string): Promise<{ ok: true; folders: number } | { ok: false; error: string }> {
+  const rows = await query<{ g: number; f: number; f_pid: string }>(
+    `SELECT ap.google_album_id AS g, ap.folder_album_id AS f, fa.public_id AS f_pid
+       FROM album_pairs ap
+       JOIN albums ga ON ga.id = ap.google_album_id AND ga.public_id = ? AND ga.deleted_at IS NULL
+       JOIN albums fa ON fa.id = ap.folder_album_id AND fa.deleted_at IS NULL
+      WHERE ap.status = 'confirmed' AND ap.merged_at IS NULL`,
+    [googlePublicId],
+  );
+  if (!rows.length) return { ok: false, error: "Nessuna cartella confermata da unire a questo album." };
+  const googleId = Number(rows[0].g);
+  const folderIds = rows.map((r) => Number(r.f));
+
+  const photoSql = `SELECT p.id, p.kind, p.camera_id, p.taken_at, p.derived_from_id AS raw_id
+                      FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+                     WHERE ap.album_id IN (?)`;
+  const [inAlbum, inFolders] = await Promise.all([
+    query<PhotoRow>(photoSql, [[googleId]]),
+    query<PhotoRow>(photoSql, [folderIds]),
+  ]);
+  const sections = folderSections(inAlbum, inFolders);
+
+  const res = await mergeAlbums({
+    intoPublicId: googlePublicId,
+    sourcePublicIds: rows.map((r) => r.f_pid),
+    title: null,
+    shares: "move",
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+
+  for (const section of ["source", "extra"] as const) {
+    const ids = sections[section];
+    for (let i = 0; i < ids.length; i += 1000) {
+      await execute(
+        "UPDATE album_photos SET section = ? WHERE album_id = ? AND photo_id IN (?) AND section = 'main'",
+        [section, googleId, ids.slice(i, i + 1000)],
+      );
+    }
+  }
+  await execute(
+    "UPDATE album_pairs SET merged_at = UTC_TIMESTAMP() WHERE google_album_id = ? AND folder_album_id IN (?)",
+    [googleId, folderIds],
+  );
+  return { ok: true, folders: folderIds.length };
 }

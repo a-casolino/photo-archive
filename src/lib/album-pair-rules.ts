@@ -58,3 +58,30 @@ export function proposePairs(albums: AlbumVotes[]): AlbumPair[] {
 export function shotKey(cameraId: number | null, takenAt: Date | null): string | null {
   return cameraId && takenAt ? `${cameraId}|${takenAt.getTime()}` : null;
 }
+
+type SectionPhoto = { id: number; kind: string; camera_id: number | null; taken_at: Date | null; raw_id: number | null };
+
+/**
+ * Sezione delle foto di una cartella che entra nell'album Google:
+ * 'source' se stanno dietro a un export dell'album (CR2 collegato, o stesso
+ * scatto: stessa fotocamera e stesso istante), 'extra' ("Altri scatti")
+ * altrimenti. Quelle già nell'album restano come sono.
+ */
+export function folderSections(
+  album: SectionPhoto[],
+  folder: SectionPhoto[],
+): { source: number[]; extra: number[] } {
+  const ids = new Set(album.map((p) => Number(p.id)));
+  const raws = new Set(album.flatMap((p) => (p.raw_id ? [Number(p.raw_id)] : [])));
+  const shots = new Set(album.map((p) => shotKey(p.camera_id, p.taken_at)).filter((k): k is string => !!k));
+  const out = { source: [] as number[], extra: [] as number[] };
+  const seen = new Set<number>();
+  for (const p of folder) {
+    const id = Number(p.id);
+    if (ids.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    const k = shotKey(p.camera_id, p.taken_at);
+    (raws.has(id) || (k && shots.has(k)) ? out.source : out.extra).push(id);
+  }
+  return out;
+}

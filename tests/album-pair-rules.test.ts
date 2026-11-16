@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { proposePairs, shotKey } from "../src/lib/album-pair-rules";
+import { folderSections, proposePairs, shotKey } from "../src/lib/album-pair-rules";
 
 const votes = (spec: [number, number][]) => spec.flatMap(([folder, n]) => Array.from({ length: n }, () => [folder]));
 
@@ -53,5 +53,27 @@ describe("shotKey", () => {
     expect(shotKey(null, new Date(0))).toBeNull();
     expect(shotKey(3, null)).toBeNull();
     expect(shotKey(3, new Date("2016-07-10T00:18:38Z"))).toBe("3|1468109918000");
+  });
+});
+
+describe("folderSections", () => {
+  const t = (s: string) => new Date(`${s}Z`);
+  const album = [
+    { id: 1, kind: "edit", camera_id: null, taken_at: t("2016-07-10T16:08:36"), raw_id: 100 }, // export rinominato
+    { id: 2, kind: "edit", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null }, // export con EXIF
+    { id: 3, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:30:00"), raw_id: null }, // già nell'album
+  ];
+
+  it("dietro a un export → source, il resto → extra, quelle già nell'album restano", () => {
+    const folder = [
+      { id: 100, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:18:38"), raw_id: null },
+      { id: 101, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null },
+      { id: 102, kind: "edit", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null },
+      { id: 103, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:25:00"), raw_id: null },
+      { id: 104, kind: "edit", camera_id: 7, taken_at: t("2016-07-10T00:26:00"), raw_id: null },
+      { id: 3, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:30:00"), raw_id: null },
+      { id: 103, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:25:00"), raw_id: null },
+    ];
+    expect(folderSections(album, folder)).toEqual({ source: [100, 101, 102], extra: [103, 104] });
   });
 });

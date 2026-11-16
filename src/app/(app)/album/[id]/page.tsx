@@ -36,7 +36,15 @@ import { appUrl } from "@/lib/mail";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { AddPhotosButton, AlbumUploader } from "@/app/ui/upload/album-uploader";
 import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
-import { EditedFilter, PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
+import {
+  EditedFilter,
+  ExtraHeading,
+  PAGE_SIZE,
+  Pager,
+  parsePage,
+  photoItems,
+  splitSections,
+} from "@/app/ui/gallery/views";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -145,6 +153,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
   const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true }).map((it) =>
     it.key === cover?.public_id ? { ...it, badge: it.badge ? `Copertina · ${it.badge}` : "Copertina" } : it,
   );
+  const sections = splitSections(photos, items);
   const listQuery = new URLSearchParams({
     ...(onlyEdited ? { solo: "regolazioni" } : {}),
     ...(page > 1 ? { pagina: String(page) } : {}),
@@ -399,10 +408,24 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               Sposta nel cestino
             </button>
           </SelectBar>
-          <Masonry items={items} selectName="photo" />
+          {sections.main.length > 0 && <Masonry items={sections.main} selectName="photo" />}
+          {sections.extra.length > 0 && (
+            <>
+              <ExtraHeading total={counts.extra} />
+              <Masonry items={sections.extra} selectName="photo" />
+            </>
+          )}
         </form>
       ) : (
-        <Masonry items={items} />
+        <>
+          {sections.main.length > 0 && <Masonry items={sections.main} />}
+          {sections.extra.length > 0 && (
+            <>
+              <ExtraHeading total={counts.extra} />
+              <Masonry items={sections.extra} />
+            </>
+          )}
+        </>
       )}
       <Pager
         base={base}

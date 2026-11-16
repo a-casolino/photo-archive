@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { confirmSurePairs, decideAlbumPair, recomputeAlbumPairs } from "@/app/actions/album-pairs";
+import {
+  confirmSurePairs,
+  decideAlbumPair,
+  mergeAlbumPairAction,
+  mergeAllConfirmedPairs,
+  recomputeAlbumPairs,
+} from "@/app/actions/album-pairs";
 import { PAIR_MIN_SHARE, PAIR_SURE_SHARE } from "@/lib/album-pair-rules";
 import { query } from "@/lib/db";
 import { formatCount } from "@/lib/format";
@@ -73,7 +79,7 @@ function PairButtons({ g, f, status }: { g: string; f: string; status: PairRow["
   );
 }
 
-function GroupRow({ g, urls }: { g: Group; urls: Map<string, string> }) {
+function GroupRow({ g, urls, merge = false }: { g: Group; urls: Map<string, string>; merge?: boolean }) {
   return (
     <div className="match-row">
       <div className="match-photo">
@@ -104,6 +110,12 @@ function GroupRow({ g, urls }: { g: Group; urls: Map<string, string> }) {
           <PairButtons g={g.g_pid} f={f.f_pid} status={f.status} />
         </div>
       ))}
+      {merge && (
+        <form action={mergeAlbumPairAction} style={{ alignSelf: "center" }}>
+          <input type="hidden" name="google" value={g.g_pid} />
+          <button type="submit">Unisci</button>
+        </form>
+      )}
     </div>
   );
 }
@@ -125,6 +137,9 @@ export default async function AlbumPairsPage() {
        LEFT JOIN photos fc ON fc.id = f.cover_photo_id
       ORDER BY ap.shared_photos / ap.album_photos DESC, g.title, ap.shared_photos DESC`,
   );
+  const [mergedRow] = await query<{ n: number }>(
+    "SELECT COUNT(DISTINCT google_album_id) AS n FROM album_pairs WHERE merged_at IS NOT NULL",
+  );
   const unpaired = await query<{ public_id: string; title: string; n: number }>(
     `SELECT a.public_id, a.title,
             (SELECT COUNT(*) FROM album_photos x JOIN photos p ON p.id = x.photo_id AND p.deleted_at IS NULL
@@ -136,6 +151,7 @@ export default async function AlbumPairsPage() {
   );
 
   const proposed = group(rows.filter((r) => r.status === "proposed"));
+  // Le coppie già unite non compaiono: la cartella è nel cestino.
   const confirmed = group(rows.filter((r) => r.status === "confirmed"));
   const rejected = group(rows.filter((r) => r.status === "rejected"));
   const sure = rows.filter(
@@ -193,7 +209,21 @@ export default async function AlbumPairsPage() {
       </section>
 
       <section className="card">
-        <h2>Confermate ({formatCount(confirmed.length)} album)</h2>
+        <div className="import-head">
+          <h2>Confermate, da unire ({formatCount(confirmed.length)} album)</h2>
+          {confirmed.length > 0 && (
+            <form action={mergeAllConfirmedPairs}>
+              <button type="submit">Unisci tutte</button>
+            </form>
+          )}
+        </div>
+        <p className="muted">
+          Unendo, l&apos;album Google resta (titolo, condivisioni, link con nome) e riceve le foto della cartella: gli
+          scatti non esportati vanno in fondo, nella sezione «Altri scatti»; i CR2 e i JPEG che stanno dietro a un
+          export non si vedono nella griglia ma si aprono dal link al RAW. La cartella va nel cestino e il suo vecchio
+          indirizzo porta all&apos;album. Già unite: {formatCount(Number(mergedRow?.n ?? 0))} album. «Unisci tutte»
+          lavora per circa 40 secondi: se ne restano, premi di nuovo.
+        </p>
         {confirmed.length === 0 ? (
           <p className="muted">Nessuna.</p>
         ) : (
@@ -201,7 +231,7 @@ export default async function AlbumPairsPage() {
             <summary>Mostra</summary>
             <div className="match-list">
               {confirmed.map((g) => (
-                <GroupRow key={g.g_pid} g={g} urls={urls} />
+                <GroupRow key={g.g_pid} g={g} urls={urls} merge />
               ))}
             </div>
           </details>

@@ -86,8 +86,15 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   il suo CR2 collegato, uno scatto con stessa fotocamera e stesso istante, o lei
   stessa. Coppia proposta se la cartella ha almeno il 20% (e 3) delle foto
   dell'album; una cartella va a un solo album. Il proprietario conferma o scarta;
-  le coppie confermate serviranno all'unione degli album (export in primo piano,
-  poi gli altri scatti della cartella).
+  le coppie confermate si uniscono dalla stessa pagina ("Unisci" o "Unisci tutte",
+  a giri di ~40 s): resta l'album Google (titolo, condivisioni, link con nome),
+  le cartelle vanno nel cestino con `merged_into_id` (`mergeAlbums`, condivisioni
+  spostate) e le loro foto entrano con una sezione (`album_photos.section`,
+  migrazione 020): `source` se stanno dietro a un export dell'album (CR2
+  collegato o stesso scatto: nascoste nelle griglie, raggiungibili dal link al RAW
+  e coperte dalle condivisioni), `extra` per gli scatti non esportati (sezione
+  "Altri scatti" in fondo all'album). Le griglie, i conteggi, le copertine e la
+  navigazione usano solo `main` ed `extra` (`VISIBLE_IN_ALBUM` in `gallery.ts`).
 - **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
   più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
   FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in

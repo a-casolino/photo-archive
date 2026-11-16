@@ -147,8 +147,8 @@ export async function discardDuplicate(formData: FormData): Promise<void> {
   if (!ids) return;
   const [discard, keep] = [ids.a, ids.b];
   await execute(
-    `INSERT IGNORE INTO album_photos (album_id, photo_id, position)
-     SELECT album_id, ?, position FROM album_photos WHERE photo_id = ?`,
+    `INSERT IGNORE INTO album_photos (album_id, photo_id, position, section)
+     SELECT album_id, ?, position, section FROM album_photos WHERE photo_id = ?`,
     [keep, discard],
   );
   await execute("DELETE FROM album_photos WHERE photo_id = ?", [discard]);
