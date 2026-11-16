@@ -24,7 +24,7 @@ async function main() {
     for (const a of albums) console.log(`${isDateOnly(a.title) ? "*" : " "} ${a.id}\t${a.origin}\t${a.n}\t${a.title}`);
     return;
   }
-  const ids = mode === "dettagli" ? albums.filter((a) => isDateOnly(a.title)).map((a) => a.id) : mode.split(",").map(Number);
+  const ids = mode.startsWith("dettagli") ? albums.filter((a) => isDateOnly(a.title)).map((a) => a.id).slice(Number(mode.split(":")[1] ?? 0), Number(mode.split(":")[1] ?? 0) + Number(mode.split(":")[2] ?? 999)) : mode.split(",").map(Number);
   const per = Number(process.argv[3] ?? 8);
   const out: unknown[] = [];
   for (const id of ids) {
@@ -50,7 +50,7 @@ async function main() {
     const cams = [...new Set(files.map((f) => f.model ?? "?"))].slice(0, 4);
     out.push({ id, public_id: a.public_id, title: a.title, origin_ref: a.origin_ref, n: a.n, extra: a.extra, from: a.date_from, to: a.date_to,
       subs: subs.map((s) => s.title), places, people, tags: tags.map((t) => t.name), cams,
-      files: sample.map((f) => `${f.source_path ?? f.original_filename} ${f.taken_at ?? ""}`), thumbs });
+      files: sample.map((f) => `${f.source_path ?? f.original_filename} ${f.taken_at ? new Date(f.taken_at).toISOString().slice(0, 16) : ""}`), thumbs });
   }
   console.log(JSON.stringify(out));
 }
