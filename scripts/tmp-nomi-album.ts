@@ -52,6 +52,13 @@ async function main() {
       subs: subs.map((s) => s.title), pl: places.map((p) => `${p.place_name}:${p.c}`), pe: people.map((p) => `${p.name}:${p.c}`), tg: tags.map((t) => t.name), cams,
       f: sample.map((f) => `${f.source_path ?? f.original_filename} ${f.taken_at ? new Date(f.taken_at).toISOString().slice(11, 16) : ""}`), ...(thumbs.length ? { th: thumbs.map((u) => u.replace(/^.*thumbs\//, "").replace(/\?.*Signature=/, "|")) } : {}) });
   }
+  if (process.argv[4] === "t") {
+    // Solo miniature, senza virgolette né barre; riempito a lunghezza fissa.
+    let txt = "";
+    for (const o of out as { id: number; th?: string[] }[]) for (const u of o.th ?? []) txt += `${o.id} ${u.replace(/^..\//, "").replace(".jpg", "")}\n`;
+    console.log(txt + "~".repeat(Math.max(0, 56000 - txt.length)));
+    return;
+  }
   for (const o of out) console.log(JSON.stringify(o));
 }
 
