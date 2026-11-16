@@ -93,7 +93,7 @@ const CAMERA_MAKERS = /^(canon|nikon|sony|fujifilm|olympus|om digital|panasonic|
  *  - dal disco: i CR2 sono 'raw';
  *  - da Takeout: se l'EXIF dice che viene da una fotocamera (marca da
  *    fotocamera o numero di serie) è un export, quindi 'edit' da
- *    collegare al suo CR2; altrimenti è una foto del telefono.
+ *    collegare al suo CR2; altrimenti è un'altra foto (cellulare, screenshot, immagini ricevute).
  */
 export function classifyKind(source: ImportSource, mime: string, camera: CameraInfo | null): "raw" | "phone" | "edit" {
   if (mime === "image/x-canon-cr2" || mime === "image/x-adobe-dng") return "raw";

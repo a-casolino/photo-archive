@@ -22,7 +22,7 @@ import "./stats.css";
 /** Dimensione dell'archivio completo per la proiezione (stima di Antonio: ~1 TB di CR2). */
 const FULL_ARCHIVE_BYTES = 1e12;
 
-const KIND_LABEL = { raw: "CR2", phone: "Foto del telefono", edit: "Export modificati" } as const;
+const KIND_LABEL = { raw: "CR2", phone: "Altre foto", edit: "Export modificati" } as const;
 
 const eur = (usd: number) =>
   toEur(usd).toLocaleString("it-IT", {

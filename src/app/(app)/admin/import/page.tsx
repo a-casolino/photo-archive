@@ -22,7 +22,7 @@ type DeviceRow = {
 
 type KindStat = { kind: "raw" | "phone" | "edit"; n: number; bytes: number };
 
-const KIND_LABEL = { raw: "CR2", phone: "Foto del telefono", edit: "Export modificati" } as const;
+const KIND_LABEL = { raw: "CR2", phone: "Altre foto", edit: "Export modificati" } as const;
 
 export default async function ImportPage() {
   await requireOwner();
@@ -133,10 +133,10 @@ export default async function ImportPage() {
           <dd>I RAW della reflex già nell&apos;archivio.</dd>
         </div>
         <div>
-          <dt>Foto del telefono</dt>
+          <dt>Altre foto</dt>
           <dd>
-            Le foto senza i dati EXIF di una fotocamera: scattate col cellulare, ma anche screenshot e immagini
-            ricevute. Non hanno un CR2 dietro.
+            Le foto senza i dati EXIF di una fotocamera, quindi senza un CR2 dietro: scattate col cellulare,
+            screenshot, immagini ricevute.
           </dd>
         </div>
         <div>
@@ -148,7 +148,7 @@ export default async function ImportPage() {
         </div>
         <div>
           <dt>Spazio occupato</dt>
-          <dd>Il peso dei file originali di tutte le foto (CR2, foto del telefono ed export), anteprime escluse.</dd>
+          <dd>Il peso dei file originali di tutte le foto (CR2, altre foto ed export), anteprime escluse.</dd>
         </div>
         <div>
           <dt>Collegamenti da rivedere</dt>
