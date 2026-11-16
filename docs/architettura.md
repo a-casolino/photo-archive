@@ -60,6 +60,14 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   candidato → `auto`; più candidati (raffiche) → scelta manuale nella pagina
   `/admin/import/collegamenti`, dove si conferma, si sceglie o si scarta.
   Il calcolo gira a fine import e con il pulsante "Ricalcola".
+- **Collegamento per nome** (`src/lib/match-rules.ts`, deciso con Antonio il
+  2026-11-16): gli export senza EXIF della fotocamera (entrano come `phone`, con
+  la data dell'export o del caricamento) si collegano al CR2 con lo stesso nome
+  (senza estensione e suffissi "-edit", "-modificato", "(1)") se l'export è da 0 a
+  2 giorni dopo il CR2: diventano `edit` con `match_status = 'auto'` e
+  `match_method = 'name+date'`, da confermare. Stesso nome ma data lontana →
+  sezione "stesso nome, data lontana" in Collegamenti. Il confronto dei nomi si fa
+  in Node, non in SQL (senza indice teneva un core occupato per minuti).
 - **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
   più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
   FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in

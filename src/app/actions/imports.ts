@@ -55,7 +55,8 @@ export async function decideMatch(formData: FormData): Promise<void> {
   await requireOwner();
   const d = decision.parse(Object.fromEntries(formData));
   const edit = await queryOne<{ id: number }>(
-    "SELECT id FROM photos WHERE public_id = ? AND kind = 'edit' AND deleted_at IS NULL",
+    // 'phone': export senza EXIF della fotocamera, proposto per nome (match-rules.ts).
+    "SELECT id FROM photos WHERE public_id = ? AND kind IN ('edit', 'phone') AND deleted_at IS NULL",
     [d.edit],
   );
   if (!edit) return;
@@ -67,8 +68,11 @@ export async function decideMatch(formData: FormData): Promise<void> {
     );
   } else if (d.decision === "reject") {
     // "Nessuno di questi": l'export resta senza originale e non viene più proposto.
+    // Senza EXIF della fotocamera torna a essere una foto qualunque ('phone').
     await execute(
-      "UPDATE photos SET derived_from_id = NULL, match_status = 'rejected', match_method = 'manual' WHERE id = ?",
+      `UPDATE photos SET derived_from_id = NULL, match_status = 'rejected', match_method = 'manual',
+              kind = IF(camera_id IS NULL, 'phone', kind)
+        WHERE id = ?`,
       [edit.id],
     );
   } else {
@@ -78,7 +82,7 @@ export async function decideMatch(formData: FormData): Promise<void> {
     );
     if (!raw) return;
     await execute(
-      "UPDATE photos SET derived_from_id = ?, match_status = 'confirmed', match_method = 'manual' WHERE id = ?",
+      "UPDATE photos SET kind = 'edit', derived_from_id = ?, match_status = 'confirmed', match_method = 'manual' WHERE id = ?",
       [raw.id, edit.id],
     );
   }
