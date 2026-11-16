@@ -58,3 +58,64 @@ export function proposePairs(albums: AlbumVotes[]): AlbumPair[] {
 export function shotKey(cameraId: number | null, takenAt: Date | null): string | null {
   return cameraId && takenAt ? `${cameraId}|${takenAt.getTime()}` : null;
 }
+
+type SectionPhoto = { id: number; kind: string; camera_id: number | null; taken_at: Date | null; raw_id: number | null };
+
+/**
+ * Cosa fare delle foto di una cartella che si unisce all'album Google:
+ *  - `behind`: stanno dietro a un export dell'album (il CR2 collegato, o lo
+ *    stesso scatto: stessa fotocamera e stesso istante). Non entrano
+ *    nell'album: si aprono dal link al RAW dell'export.
+ *  - `extra`: gli altri scatti, in fondo all'album ("Altri scatti").
+ *  - `links`: export dell'album ancora senza CR2 che hanno nella cartella un
+ *    solo CR2 dello stesso scatto: si collegano.
+ * Quelle già nell'album restano come sono.
+ */
+export function folderSections(
+  album: SectionPhoto[],
+  folder: SectionPhoto[],
+): { behind: number[]; extra: number[]; links: { exportId: number; rawId: number }[] } {
+  const ids = new Set(album.map((p) => Number(p.id)));
+  const raws = new Set(album.flatMap((p) => (p.raw_id ? [Number(p.raw_id)] : [])));
+  const shots = new Set(album.map((p) => shotKey(p.camera_id, p.taken_at)).filter((k): k is string => !!k));
+  const out = { behind: [] as number[], extra: [] as number[], links: [] as { exportId: number; rawId: number }[] };
+  const seen = new Set<number>();
+  const rawsOfShot = new Map<string, number[]>();
+  for (const p of folder) {
+    const id = Number(p.id);
+    if (ids.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    const k = shotKey(p.camera_id, p.taken_at);
+    (raws.has(id) || (k && shots.has(k)) ? out.behind : out.extra).push(id);
+    if (k && p.kind === "raw") rawsOfShot.set(k, [...(rawsOfShot.get(k) ?? []), id]);
+  }
+  for (const e of album) {
+    if (e.kind === "raw" || e.raw_id) continue;
+    const k = shotKey(e.camera_id, e.taken_at);
+    const r = k ? rawsOfShot.get(k) : undefined;
+    if (r?.length === 1) out.links.push({ exportId: Number(e.id), rawId: r[0] });
+  }
+  return out;
+}
+
+/** La cartella del disco che si chiama così contiene gli anni e i giorni. */
+export const BACKUP_ROOT_TITLE = /^backup foto$/i;
+
+/**
+ * Titolo di una cartella di Backup Foto portata al primo livello: la data
+ * completa se la cartella comincia con mese-giorno ("07-10 compleanno catia"
+ * in "2016" → "2016-07-10 compleanno catia"), altrimenti l'anno tra
+ * parentesi se nel titolo non c'è già.
+ */
+export function promotedTitle(yearTitle: string | null, title: string): string {
+  const year = yearTitle?.trim().match(/^\d{4}$/)?.[0];
+  if (!year) return title;
+  if (/^\d{2}-\d{2}(\b|$)/.test(title)) return `${year}-${title}`;
+  if (title.includes(year)) return title;
+  return `${title} (${year})`;
+}
+
+/** Titolo di una cartella anno con foto sue, fuori dai giorni. */
+export function looseYearTitle(yearTitle: string): string {
+  return `${yearTitle} (foto senza cartella)`;
+}

@@ -86,8 +86,18 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   il suo CR2 collegato, uno scatto con stessa fotocamera e stesso istante, o lei
   stessa. Coppia proposta se la cartella ha almeno il 20% (e 3) delle foto
   dell'album; una cartella va a un solo album. Il proprietario conferma o scarta;
-  le coppie confermate serviranno all'unione degli album (export in primo piano,
-  poi gli altri scatti della cartella).
+  le coppie confermate si uniscono dalla stessa pagina ("Unisci" o "Unisci tutte",
+  a giri di ~40 s): resta l'album Google (titolo, link con nome), le cartelle vanno
+  nel cestino con `merged_into_id` (`mergeAlbums`). Le foto della cartella che stanno
+  dietro a un export dell'album (CR2 collegato o stesso scatto) non entrano: si
+  aprono dal link al RAW; gli export ancora senza CR2 con un solo CR2 dello stesso
+  scatto nella cartella si collegano. Le altre entrano con `album_photos.section =
+  'extra'` (migrazione 020) e l'album le mostra in fondo, sotto "Altri scatti".
+  "Porta al primo livello" fa diventare album di primo livello le cartelle di Backup
+  Foto senza album Google ("2016-07-10 compleanno catia"; un anno con foto sue →
+  "AAAA (foto senza cartella)") e mette nel cestino anni e Backup Foto rimasti
+  vuoti. Un nuovo import le ritrova per `origin_ref` e non le rimette sotto un
+  genitore nel cestino.
 - **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
   più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
   FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in

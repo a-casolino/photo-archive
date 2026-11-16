@@ -1649,3 +1649,18 @@ button.danger:not(.link) {
   pointer-events: auto;
 }
 
+
+/* "Altri scatti": gli scatti dell'evento non esportati, dopo quelli in primo piano */
+.album-extra-head {
+  margin: 32px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.album-extra-head h2 {
+  margin: 0;
+}
+
+.album-extra-head p {
+  margin: 4px 0 0;
+}

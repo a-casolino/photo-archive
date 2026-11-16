@@ -44,8 +44,11 @@ export const CARD_COLUMNS = `
   COALESCE(x.gcs_preview_key, p.gcs_preview_key) AS preview_key,
   x.id IS NOT NULL AS edited`;
 
-/** Ordine delle foto in un album: posizione manuale, poi data di scatto. */
-const ALBUM_ORDER = "ap.position, p.taken_at IS NULL, p.taken_at, p.taken_at_subsec, p.id";
+/**
+ * Ordine delle foto in un album: prima la sezione (gli export in primo piano,
+ * poi "Altri scatti"), poi la posizione manuale, poi la data di scatto.
+ */
+const ALBUM_ORDER = "ap.section, ap.position, p.taken_at IS NULL, p.taken_at, p.taken_at_subsec, p.id";
 
 /**
  * Copertina effettiva dell'album `alias`: quella scelta (`cover_photo_id`) se la foto è ancora
@@ -77,6 +80,8 @@ export type PhotoCard = {
   thumb_key: string | null;
   preview_key: string | null;
   edited: 0 | 1;
+  /** Solo nelle foto di un album: sezione in cui la foto compare. */
+  section?: "main" | "extra";
 };
 
 export type PhotoDetail = PhotoCard & {
@@ -357,16 +362,16 @@ export async function getAlbumCover(
   return row ? { public_id: row.public_id, thumb_key: row.thumb_key, chosen: row.id === album.cover_photo_id } : null;
 }
 
-export async function albumCounts(albumId: number): Promise<{ total: number; edited: number }> {
-  const row = await queryOne<{ total: number; edited: number | null }>(
-    `SELECT COUNT(*) AS total, SUM(x.id IS NOT NULL) AS edited
+export async function albumCounts(albumId: number): Promise<{ total: number; edited: number; extra: number }> {
+  const row = await queryOne<{ total: number; edited: number | null; extra: number | null }>(
+    `SELECT COUNT(*) AS total, SUM(x.id IS NOT NULL) AS edited, SUM(ap.section = 'extra') AS extra
        FROM album_photos ap
        JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
        ${LINKED_EXPORT}
       WHERE ap.album_id = ?`,
     [albumId],
   );
-  return { total: Number(row?.total ?? 0), edited: Number(row?.edited ?? 0) };
+  return { total: Number(row?.total ?? 0), edited: Number(row?.edited ?? 0), extra: Number(row?.extra ?? 0) };
 }
 
 export async function albumPhotos(
@@ -374,7 +379,7 @@ export async function albumPhotos(
   opts: { onlyEdited?: boolean; offset?: number; limit?: number } = {},
 ): Promise<PhotoCard[]> {
   return query<PhotoCard>(
-    `SELECT ${CARD_COLUMNS}
+    `SELECT ${CARD_COLUMNS}, ap.section
        FROM album_photos ap
        JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
        ${LINKED_EXPORT}

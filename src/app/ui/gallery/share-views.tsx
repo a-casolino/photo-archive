@@ -26,7 +26,17 @@ import { albumDetail, AlbumGrid, AlbumList, type AlbumEntry } from "./album-view
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "./album-view-pref";
 import { albumDates } from "./dates";
 import { Masonry } from "./masonry";
-import { EditedFilter, PAGE_SIZE, Pager, parsePage, PhotoView, photoItems, type DownloadAccess } from "./views";
+import {
+  EditedFilter,
+  ExtraHeading,
+  PAGE_SIZE,
+  Pager,
+  parsePage,
+  PhotoView,
+  photoItems,
+  splitSections,
+  type DownloadAccess,
+} from "./views";
 
 /*
  * Cosa vede chi riceve una condivisione: le stesse pagine per le
@@ -77,6 +87,7 @@ export async function ShareHome(ctx: Ctx) {
   const urls = await signKeys([...photos.map((p) => p.thumb_key), ...children.map((c) => c.cover_thumb)]);
   const photoQ: Record<string, string> = { ...albumQ, ...(onlyEdited ? { solo: "regolazioni" } : {}) };
   const items = photoItems(photos, urls, (pid) => withQuery(`${base}/foto/${pid}`, photoQ));
+  const sections = splitSections(photos, items);
   const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
   const childEntries: AlbumEntry[] = children.map((c) => ({
     key: c.public_id,
@@ -126,7 +137,15 @@ export async function ShareHome(ctx: Ctx) {
       {photos.length === 0 ? (
         childEntries.length > 0 ? null : <p className="muted">Non ci sono foto.</p>
       ) : (
-        <Masonry items={items} />
+        <>
+          {sections.main.length > 0 && <Masonry items={sections.main} />}
+          {sections.extra.length > 0 && (
+            <>
+              <ExtraHeading total={counts.extra} />
+              <Masonry items={sections.extra} />
+            </>
+          )}
+        </>
       )}
       <Pager
         base={base}

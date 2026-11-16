@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { proposePairs, shotKey } from "../src/lib/album-pair-rules";
+import { folderSections, promotedTitle, proposePairs, shotKey } from "../src/lib/album-pair-rules";
 
 const votes = (spec: [number, number][]) => spec.flatMap(([folder, n]) => Array.from({ length: n }, () => [folder]));
 
@@ -53,5 +53,54 @@ describe("shotKey", () => {
     expect(shotKey(null, new Date(0))).toBeNull();
     expect(shotKey(3, null)).toBeNull();
     expect(shotKey(3, new Date("2016-07-10T00:18:38Z"))).toBe("3|1468109918000");
+  });
+});
+
+describe("folderSections", () => {
+  const t = (s: string) => new Date(`${s}Z`);
+  const album = [
+    { id: 1, kind: "edit", camera_id: null, taken_at: t("2016-07-10T16:08:36"), raw_id: 100 }, // export rinominato
+    { id: 2, kind: "edit", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null }, // export con EXIF, senza CR2
+    { id: 3, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:30:00"), raw_id: null }, // già nell'album
+  ];
+
+  it("dietro a un export → fuori, il resto → Altri scatti, quelle già nell'album restano", () => {
+    const folder = [
+      { id: 100, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:18:38"), raw_id: null },
+      { id: 101, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null },
+      { id: 102, kind: "edit", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null },
+      { id: 103, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:25:00"), raw_id: null },
+      { id: 104, kind: "edit", camera_id: 7, taken_at: t("2016-07-10T00:26:00"), raw_id: null },
+      { id: 3, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:30:00"), raw_id: null },
+      { id: 103, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:25:00"), raw_id: null },
+    ];
+    expect(folderSections(album, folder)).toEqual({
+      behind: [100, 101, 102],
+      extra: [103, 104],
+      links: [{ exportId: 2, rawId: 101 }],
+    });
+  });
+
+  it("raffica: due CR2 dello stesso istante, nessun collegamento", () => {
+    const folder = [
+      { id: 101, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null },
+      { id: 105, kind: "raw", camera_id: 7, taken_at: t("2016-07-10T00:20:00"), raw_id: null },
+    ];
+    expect(folderSections(album, folder).links).toEqual([]);
+  });
+});
+
+describe("promotedTitle", () => {
+  it("mese-giorno sotto un anno → data completa", () => {
+    expect(promotedTitle("2016", "07-10 compleanno catia")).toBe("2016-07-10 compleanno catia");
+    expect(promotedTitle("2007", "12-15")).toBe("2007-12-15");
+  });
+  it("altri titoli: l'anno tra parentesi, se manca", () => {
+    expect(promotedTitle("2017", "Battesimo Annalisa")).toBe("Battesimo Annalisa (2017)");
+    expect(promotedTitle("2011", "carnevale venezia 2011")).toBe("carnevale venezia 2011");
+  });
+  it("genitore che non è un anno: titolo invariato", () => {
+    expect(promotedTitle("Matrimonio", "Rachele")).toBe("Rachele");
+    expect(promotedTitle(null, "03-20")).toBe("03-20");
   });
 });

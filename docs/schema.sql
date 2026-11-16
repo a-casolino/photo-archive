@@ -512,3 +512,15 @@ CREATE TABLE share_events (
 -- sono i conteggi dell'ultimo calcolo; status 'proposed' | 'confirmed' |
 -- 'rejected'. Una cartella va al più a un album. Serviranno all'unione degli
 -- album (passo 3).
+
+-- =====================================================================
+-- Migrazione 020_sezioni_album.sql (2026-11-16)
+-- =====================================================================
+
+-- album_photos.section: 'main' (in primo piano, default) o 'extra' ("Altri
+-- scatti", dopo, in una sezione a parte). L'ordine nell'album è sezione,
+-- posizione, data. Unendo un album Google con la sua cartella, gli originali
+-- dietro a un export (CR2 collegato o stesso scatto) non entrano nell'album:
+-- si raggiungono dal link al RAW dell'export. album_pairs.merged_at: quando
+-- la coppia confermata è stata unita (la cartella è finita nel cestino con
+-- merged_into_id = album Google).
