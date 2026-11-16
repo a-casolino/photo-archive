@@ -117,6 +117,7 @@ CREATE TABLE photos (
   gcs_original_class ENUM('ARCHIVE','COLDLINE','NEARLINE','STANDARD') NOT NULL,
   gcs_preview_key VARCHAR(512) NULL,               -- JPEG grande (~2048px lato lungo)
   gcs_thumb_key   VARCHAR(512) NULL,               -- miniatura (~400px) per le griglie
+  phash           CHAR(16) NULL,                   -- impronta visiva dHash 64 bit in esadecimale (018, npm run impronte)
 
   -- EXIF
   taken_at        DATETIME NULL,                   -- DateTimeOriginal così com'è (ora locale della fotocamera)
@@ -136,7 +137,7 @@ CREATE TABLE photos (
   -- Collegamento export -> CR2 originale
   derived_from_id BIGINT UNSIGNED NULL,
   match_status    ENUM('none','auto','confirmed','rejected') NOT NULL DEFAULT 'none',
-  match_method    VARCHAR(32) NULL,                -- 'serial+datetime', 'datetime', 'manual'
+  match_method    VARCHAR(32) NULL,                -- 'serial+datetime', 'datetime', 'name+date', 'pixel', 'manual'
 
   -- Dati editoriali
   title           VARCHAR(255) NULL,

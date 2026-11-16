@@ -16,7 +16,8 @@
     "volti": "tsx --conditions=react-server scripts/volti/index.ts",
     "cestino": "tsx --conditions=react-server scripts/cestino.ts",
     "drive": "tsx --conditions=react-server scripts/drive/index.ts",
-    "luoghi": "tsx --conditions=react-server scripts/luoghi/index.ts"
+    "luoghi": "tsx --conditions=react-server scripts/luoghi/index.ts",
+    "impronte": "tsx --conditions=react-server scripts/impronte/index.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.4.0",

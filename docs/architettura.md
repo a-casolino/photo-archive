@@ -71,6 +71,14 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   `match_method = 'name+date'`, da confermare. Stesso nome ma data lontana →
   sezione "stesso nome, data lontana" in Collegamenti. Il confronto dei nomi si fa
   in Node, non in SQL (senza indice teneva un core occupato per minuti).
+- **Collegamento per immagine** (`npm run impronte`, `src/lib/phash-rules.ts`,
+  migrazione 018): per gli export rinominati e senza EXIF (es. "catia 30 (23 di
+  100).jpg") si calcola dalla miniatura un dHash a 64 bit (`photos.phash`). Ogni
+  export ancora senza CR2 si collega al CR2 con l'impronta più vicina se differisce
+  al massimo di 6 bit e il secondo CR2 più vicino è almeno 3 bit più lontano
+  (raffiche → a mano), e se il CR2 non è stato scattato più di 26 ore dopo la data
+  dell'export. Risultato: `match_method = 'pixel'`, da confermare. Non regge ai
+  ritagli importanti fatti in Lightroom.
 - **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
   più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
   FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in
