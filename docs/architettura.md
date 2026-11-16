@@ -78,7 +78,16 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   al massimo di 6 bit e il secondo CR2 più vicino è almeno 3 bit più lontano
   (raffiche → a mano), e se il CR2 non è stato scattato più di 26 ore dopo la data
   dell'export. Risultato: `match_method = 'pixel'`, da confermare. Non regge ai
-  ritagli importanti fatti in Lightroom.
+  ritagli importanti fatti in Lightroom. Cron xCloud ogni notte alle 4:00
+  (`flock`, `--max 20000`, dal 2026-11-16).
+- **Coppie album Google ↔ cartella del disco** (`/admin/import/coppie`,
+  `src/lib/album-pair-rules.ts`, `src/lib/album-pairs.ts`, migrazione 019): ogni
+  foto di un album Google di primo livello vota per le cartelle del disco dove sta
+  il suo CR2 collegato, uno scatto con stessa fotocamera e stesso istante, o lei
+  stessa. Coppia proposta se la cartella ha almeno il 20% (e 3) delle foto
+  dell'album; una cartella va a un solo album. Il proprietario conferma o scarta;
+  le coppie confermate serviranno all'unione degli album (export in primo piano,
+  poi gli altri scatti della cartella).
 - **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
   più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
   FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in
