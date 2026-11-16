@@ -6,8 +6,9 @@ import type { PhotoCard, PhotoDetail } from "@/lib/gallery";
 import { canDownload, type DownloadLevel } from "@/lib/roles";
 import { KeyNav } from "./key-nav";
 import { PhotoLightbox } from "./lightbox";
+import { PreloadImages } from "./preload-images";
 import { SwipeNav } from "./swipe-nav";
-import type { MasonryItem } from "./masonry";
+import { photoTitle } from "./tiles";
 
 /*
  * Pezzi comuni alle gallerie del proprietario, delle condivisioni protette
@@ -27,30 +28,7 @@ export function downloadHref(photoPid: string, v: "preview" | "original", access
   return `/api/download?${q}`;
 }
 
-export function photoTitle(p: Pick<PhotoCard, "title" | "original_filename">): string {
-  return p.title || p.original_filename;
-}
-
-export function ratioOf(p: Pick<PhotoCard, "width" | "height" | "orientation">): number | null {
-  const size = displaySize(p.width, p.height, p.orientation);
-  return size ? size.height / size.width : null;
-}
-
-export function photoItems(
-  cards: PhotoCard[],
-  urls: Map<string, string>,
-  hrefFor: (pid: string) => string,
-  opts: { badges?: boolean } = {},
-): MasonryItem[] {
-  return cards.map((p) => ({
-    key: p.public_id,
-    href: hrefFor(p.public_id),
-    src: p.thumb_key ? (urls.get(p.thumb_key) ?? null) : null,
-    alt: photoTitle(p),
-    ratio: ratioOf(p),
-    badge: opts.badges && p.edited ? "Lightroom" : undefined,
-  }));
-}
+export { photoItems, photoTitle, ratioOf } from "./tiles";
 
 /** Link "Tutte / Solo con regolazioni" dell'album. */
 export function EditedFilter({
@@ -146,7 +124,15 @@ export function PhotoView({
 }: {
   photo: PhotoDetail;
   previewUrl: string | null;
-  nav: { prev?: string | null; next?: string | null; up?: string | null; upLabel?: string; position?: string };
+  nav: {
+    prev?: string | null;
+    next?: string | null;
+    up?: string | null;
+    upLabel?: string;
+    position?: string;
+    /** Anteprime della foto precedente e successiva, da scaricare in anticipo. */
+    preload?: (string | null | undefined)[];
+  };
   level: DownloadLevel;
   access: DownloadAccess;
   showPrivate: boolean;
@@ -165,6 +151,7 @@ export function PhotoView({
   return (
     <div className="photo-page">
       <KeyNav prev={nav.prev} next={nav.next} up={nav.up} />
+      {nav.preload && <PreloadImages urls={nav.preload} />}
       <div className="photo-top">
         {nav.up ? <Link href={nav.up}>← {nav.upLabel ?? "Indietro"}</Link> : <span />}
         {nav.position && <span className="muted">{nav.position}</span>}

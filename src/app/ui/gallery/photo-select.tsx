@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CheckIcon, SquareCheckIcon } from "lucide-react";
 import { trashPhotosAction } from "@/app/actions/trash";
+import { GrowingGrid } from "@/app/ui/gallery/growing-grid";
 import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
 import { SelectBar } from "@/app/ui/gallery/select-bar";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,28 @@ export function SelectToggle({ selecting, href }: { selecting: boolean; href: st
   );
 }
 
-/** Griglia di foto; in selezione, con la barra "Sposta nel cestino". `back`: dove tornare dopo. */
-export function SelectableMasonry({ items, selecting, back }: { items: MasonryItem[]; selecting: boolean; back: string }) {
-  if (!selecting) return <Masonry items={items} />;
+/**
+ * Griglia di foto; in selezione, con la barra "Sposta nel cestino". `back`:
+ * dove tornare dopo. Con `growing` le altre foto arrivano mentre si scorre.
+ */
+export function SelectableMasonry({
+  items,
+  selecting,
+  back,
+  growing,
+}: {
+  items: MasonryItem[];
+  selecting: boolean;
+  back: string;
+  growing?: { total: number; endpoint: "/api/foto-elenco"; source: Record<string, string> };
+}) {
+  const grid = (selectName?: string) =>
+    growing ? (
+      <GrowingGrid initial={items} {...growing} selectName={selectName} />
+    ) : (
+      <Masonry items={items} selectName={selectName} />
+    );
+  if (!selecting) return grid();
   return (
     <form>
       <input type="hidden" name="back" value={back} />
@@ -39,7 +59,7 @@ export function SelectableMasonry({ items, selecting, back }: { items: MasonryIt
           Sposta nel cestino
         </button>
       </SelectBar>
-      <Masonry items={items} selectName="photo" />
+      {grid("photo")}
     </form>
   );
 }

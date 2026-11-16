@@ -489,6 +489,15 @@ button.link.danger {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
 }
 
+/* Fondo della griglia che si allunga mentre si scorre (album). */
+.grid-more {
+  display: flex;
+  justify-content: center;
+  min-height: 48px;
+  margin: 24px 0;
+  font-size: 0.875rem;
+}
+
 .pager {
   display: flex;
   justify-content: space-between;

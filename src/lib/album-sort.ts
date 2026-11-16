@@ -1,7 +1,8 @@
 /*
  * Ordinamento dell'elenco album, scelto dal proprietario e ricordato in un
  * cookie del browser (come la veduta griglia/lista). L'ordine si applica in
- * memoria all'elenco già letto: nessuna query in più sul database.
+ * memoria a id, titolo e data di tutti gli album (listAlbumKeys); poi si
+ * leggono per intero solo quelli del blocco mostrato (albumListSlice).
  */
 
 export const ALBUM_SORT_COOKIE = "album_ordine";

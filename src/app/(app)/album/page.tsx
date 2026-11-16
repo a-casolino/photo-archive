@@ -1,21 +1,23 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cookies } from "next/headers";
-import { albumTreeIndex, listAlbums, ORIGIN_LABEL, signKeys, type AlbumRow } from "@/lib/gallery";
+import { ORIGIN_LABEL, type AlbumRow } from "@/lib/gallery";
+import { ALBUM_BATCH, albumListParams, albumListSlice } from "@/lib/album-list";
 import { requireOwner } from "@/lib/session";
-import { NewAlbumDialog, parentsLabel } from "@/app/ui/gallery/album-tree";
+import { NewAlbumDialog } from "@/app/ui/gallery/album-tree";
 import { trashAlbumsAction } from "@/app/actions/trash";
 import { pathWith, SelectToggle } from "@/app/ui/gallery/photo-select";
 import { ConfirmButton, SelectBar } from "@/app/ui/gallery/select-bar";
 import { AlbumTrashNotice } from "@/app/ui/gallery/trash-notice";
-import { albumDetail, AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
+import { AlbumViewSwitch } from "@/app/ui/gallery/album-views";
+import { AlbumEntries } from "@/app/ui/gallery/album-entries";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
 import { AlbumSortSelect } from "@/app/ui/gallery/album-sort-select";
-import { ALBUM_SORT_COOKIE, parseAlbumSort, sortAlbums } from "@/lib/album-sort";
+import { ALBUM_SORT_COOKIE, parseAlbumSort } from "@/lib/album-sort";
 import { SearchSuggest } from "@/app/ui/search-suggest";
 import { FilterBar } from "@/app/ui/gallery/filter-bar";
 import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
-import { dateFilterLabel, FILTER_PARAMS, hasDateFilter, parseDateFilter } from "@/lib/filter-rules";
+import { dateFilterLabel } from "@/lib/filter-rules";
 import { peopleOptions } from "@/lib/people";
 import { photoYears } from "@/lib/photos";
 
@@ -24,26 +26,17 @@ const ORIGINS = Object.keys(ORIGIN_LABEL) as AlbumRow["origin"][];
 export default async function AlbumsPage({ searchParams }: PageProps<"/album">) {
   await requireOwner();
   const sp = await searchParams;
-  const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
-  const origin = ORIGINS.find((o) => o === sp.origine);
-  const date = parseDateFilter(sp);
   const [years, peopleList] = await Promise.all([photoYears(), peopleOptions()]);
-  const person = peopleList.find((p) => p.public_id === sp[FILTER_PARAMS.person]);
-  // Senza ricerca né filtro solo il primo livello; cercando, anche i sotto-album (con il percorso).
-  const searching = !!(q || origin || hasDateFilter(date) || person);
+  const params = albumListParams(sp, peopleList);
+  const { q, origin, date, person, searching } = params;
   // Filtri attivi in parole, per il riepilogo sul telefono.
   const activeLabels = [dateFilterLabel(date), origin && ORIGIN_LABEL[origin], person?.name].filter(
     (x): x is string => !!x,
   );
-  const [unsorted, nodes] = await Promise.all([
-    listAlbums({ q: q || undefined, origin, date, personId: person?.id, parentId: searching ? undefined : null }),
-    searching ? albumTreeIndex() : Promise.resolve([]),
-  ]);
   const jar = await cookies();
   const sort = parseAlbumSort(jar.get(ALBUM_SORT_COOKIE)?.value);
-  const albums = sortAlbums(unsorted, sort);
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const urls = await signKeys(albums.map((a) => a.cover_thumb));
+  // Solo il primo blocco, nell'ordine scelto: gli altri arrivano mentre si scorre (AlbumEntries).
+  const { entries: albums, more } = await albumListSlice(params, sort, 0, ALBUM_BATCH);
 
   const view = parseAlbumView(jar.get(ALBUM_VIEW_COOKIE)?.value);
   const selecting = sp.seleziona === "1";
@@ -55,15 +48,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
     ),
   );
   const here = pathWith("/album", listQuery);
-
-  const entries: AlbumEntry[] = albums.map((a) => ({
-    key: a.public_id,
-    href: `/album/${a.public_id}`,
-    src: a.cover_thumb ? (urls.get(a.cover_thumb) ?? null) : null,
-    title: a.title,
-    path: a.parent_id ? parentsLabel(a.id, byId) : undefined,
-    detail: albumDetail(a, { withSize: true }),
-  }));
+  const entriesProps = { initial: albums, more, query: new URLSearchParams(listQuery).toString(), batch: ALBUM_BATCH, view };
 
   return (
     <>
@@ -125,16 +110,10 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
               confirmLabel="Con i sotto-album e le foto che stanno solo lì"
             />
           </SelectBar>
-          {view === "lista" ? (
-            <AlbumList albums={entries} selectName="album" />
-          ) : (
-            <AlbumGrid albums={entries} selectName="album" />
-          )}
+          <AlbumEntries {...entriesProps} selectName="album" />
         </form>
-      ) : view === "lista" ? (
-        <AlbumList albums={entries} />
       ) : (
-        <AlbumGrid albums={entries} />
+        <AlbumEntries {...entriesProps} />
       )}
     </>
   );

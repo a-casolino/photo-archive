@@ -3,12 +3,13 @@ import { FilterBar } from "@/app/ui/gallery/filter-bar";
 import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
 import { pathWith, SelectableMasonry, SelectToggle } from "@/app/ui/gallery/photo-select";
 import { PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
-import { PAGE_SIZE, Pager, parsePage, photoItems } from "@/app/ui/gallery/views";
+import { GRID_BATCH } from "@/lib/grid-rules";
+import { photoTiles } from "@/lib/photo-grid";
 import { dateFilterLabel, FILTER_PARAMS } from "@/lib/filter-rules";
 import { formatCount } from "@/lib/format";
-import { ORIGIN_LABEL, signKeys } from "@/lib/gallery";
+import { ORIGIN_LABEL } from "@/lib/gallery";
 import { peopleOptions } from "@/lib/people";
-import { countPhotos, listPhotos, photoYears } from "@/lib/photos";
+import { countPhotos, photoYears } from "@/lib/photos";
 import { photoFilterFromParams } from "@/lib/photo-filter-params";
 import { requireOwner } from "@/lib/session";
 import { listTags } from "@/lib/tags";
@@ -19,21 +20,14 @@ const ORIGINS = Object.keys(ORIGIN_LABEL) as (keyof typeof ORIGIN_LABEL)[];
 export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
   await requireOwner();
   const sp = await searchParams;
-  const page = parsePage(sp.pagina);
   const [years, peopleList, tags] = await Promise.all([photoYears(), peopleOptions(), listTags()]);
   const { filter, query, active } = photoFilterFromParams(sp, { people: peopleList, tags });
 
-  const [photos, total] = await Promise.all([
-    listPhotos(filter, (page - 1) * PAGE_SIZE, PAGE_SIZE),
-    countPhotos(filter),
-  ]);
-  const urls = await signKeys(photos.map((p) => p.thumb_key));
-  // La foto si apre con gli stessi filtri: frecce e swipe scorrono questo elenco.
-  const photoQuery = new URLSearchParams({ da: "foto", ...query }).toString();
-  const items = photoItems(photos, urls, (pid) => `/foto/${pid}?${photoQuery}`, { badges: true });
+  // Solo il primo blocco: gli altri arrivano mentre si scorre (GrowingGrid).
+  const [items, total] = await Promise.all([photoTiles(filter, query, 0, GRID_BATCH), countPhotos(filter)]);
   const selecting = sp.seleziona === "1";
-  // Questa pagina con filtri e numero di pagina, senza selezione né messaggi.
-  const listQuery = { ...query, ...(page > 1 ? { pagina: String(page) } : {}) };
+  // Questa pagina con i filtri, senza selezione né messaggi.
+  const listQuery = query;
   const here = pathWith("/foto", listQuery);
   const dateLabel = dateFilterLabel(filter.date ?? {});
   const tagSlug = tags.find((t) => t.id === filter.tagId)?.slug;
@@ -99,7 +93,7 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
             Solo con regolazioni
           </label>
         </FilterBar>
-        {photos.length > 0 && (
+        {items.length > 0 && (
           <div className="page-head-actions">
             <SelectToggle selecting={selecting} href={selecting ? here : pathWith("/foto", { ...listQuery, seleziona: "1" })} />
           </div>
@@ -108,7 +102,7 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
 
       <PhotoTrashNotice sp={sp} back={here} />
 
-      {photos.length === 0 ? (
+      {items.length === 0 ? (
         <p className="muted">
           {active ? (
             <>
@@ -121,9 +115,13 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
           )}
         </p>
       ) : (
-        <SelectableMasonry items={items} selecting={selecting} back={here} />
+        <SelectableMasonry
+          items={items}
+          selecting={selecting}
+          back={here}
+          growing={{ total, endpoint: "/api/foto-elenco", source: query }}
+        />
       )}
-      <Pager base="/foto" page={page} total={total} query={new URLSearchParams(query).toString()} />
     </>
   );
 }

@@ -279,7 +279,24 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   ogni foto con le sue proporzioni (da `width`/`height`, lati scambiati se
   Orientation 5–8); ogni foto va nella colonna più bassa, così l'ordine per
   data si legge da sinistra a destra. Colonne secondo la larghezza (2 su
-  telefono, fino a 6). 200 foto per pagina.
+  telefono, fino a 6). Le miniature hanno `loading="lazy"`.
+- **Caricamento a blocchi mentre si scorre** (`use-growing.ts`,
+  `growing-grid.tsx`, `album-entries.tsx`): album (anche condivisioni e link
+  liberi) e pagina Foto mostrano subito 60 foto, l'elenco degli album 48
+  album; gli altri blocchi arrivano da `/api/griglia`, `/api/foto-elenco` e
+  `/api/album-elenco` quando la fine dell'elenco è a circa due schermate.
+  Gli stessi controlli di accesso delle pagine (`src/lib/album-access.ts`,
+  condiviso con `/api/presentazione`). Aprendo una foto si salva in
+  `sessionStorage` quanti elementi erano caricati e lo scroll: tornando si
+  ricaricano e si torna lì. Nell'elenco album si ordinano tutti gli album
+  con una query leggera (`listAlbumKeys`: id, titolo, data) nell'ordine
+  scelto (cookie `album_ordine`), poi `listAlbums({ ids })` calcola
+  conteggi, peso e copertina solo per il blocco. Tag e
+  persona hanno ancora le pagine da 200.
+- **Foto singola**: le anteprime della precedente e della successiva si
+  scaricano dopo il caricamento della pagina (`preload-images.tsx`), così
+  frecce e swipe sono immediati. Il conteggio di "Elimina album" si chiede
+  solo quando si apre la finestra Modifica.
 - **Versione mostrata**: se un CR2 ha un export collegato (`match_status`
   `auto` o `confirmed`) si usano miniatura e anteprima dell'export; filtro
   "Tutte / Solo con regolazioni". Il download "originale" resta il CR2.

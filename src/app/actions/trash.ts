@@ -9,6 +9,7 @@ import { queryOne } from "@/lib/db";
 import { env } from "@/lib/env";
 import { albumTreeIndex } from "@/lib/gallery";
 import {
+  albumTrashPreview,
   purgeAlbums,
   purgePhotos,
   restoreAlbum,
@@ -117,6 +118,21 @@ export async function purgePhotosAction(formData: FormData): Promise<void> {
 const albumId = z.string().regex(/^[0-9A-Za-z]{22}$/);
 
 /** "Elimina album": l'album, i sotto-album e le foto che stanno solo lì vanno nel cestino. */
+/**
+ * Cosa andrebbe nel cestino con l'album: chiesto solo quando si apre la
+ * finestra Modifica (prima si calcolava a ogni apertura dell'album).
+ */
+export async function albumTrashPreviewAction(
+  publicId: string,
+): Promise<{ only: number; elsewhere: number; subalbums: number } | null> {
+  await requireOwner();
+  if (typeof publicId !== "string") return null;
+  const album = await queryOne<{ id: number }>("SELECT id FROM albums WHERE public_id = ? AND deleted_at IS NULL", [
+    publicId,
+  ]);
+  return album ? albumTrashPreview(album.id) : null;
+}
+
 export async function trashAlbumAction(formData: FormData): Promise<void> {
   await requireOwner();
   const id = albumId.parse(formData.get("albumId"));

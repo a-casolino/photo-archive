@@ -37,7 +37,13 @@ export function SelectBar({
     };
     update();
     form.addEventListener("change", update);
-    return () => form.removeEventListener("change", update);
+    // Le griglie che si allungano mentre si scorre aggiungono caselle.
+    const mo = new MutationObserver(update);
+    mo.observe(form, { childList: true, subtree: true });
+    return () => {
+      form.removeEventListener("change", update);
+      mo.disconnect();
+    };
   }, [name]);
 
   function setAll(checked: boolean) {
