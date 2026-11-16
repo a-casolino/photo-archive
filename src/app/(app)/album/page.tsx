@@ -10,6 +10,8 @@ import { ConfirmButton, SelectBar } from "@/app/ui/gallery/select-bar";
 import { AlbumTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { albumDetail, AlbumGrid, AlbumList, AlbumViewSwitch, type AlbumEntry } from "@/app/ui/gallery/album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "@/app/ui/gallery/album-view-pref";
+import { AlbumSortSelect } from "@/app/ui/gallery/album-sort-select";
+import { ALBUM_SORT_COOKIE, parseAlbumSort, sortAlbums } from "@/lib/album-sort";
 import { SearchSuggest } from "@/app/ui/search-suggest";
 import { FilterBar } from "@/app/ui/gallery/filter-bar";
 import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
@@ -33,14 +35,17 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
   const activeLabels = [dateFilterLabel(date), origin && ORIGIN_LABEL[origin], person?.name].filter(
     (x): x is string => !!x,
   );
-  const [albums, nodes] = await Promise.all([
+  const [unsorted, nodes] = await Promise.all([
     listAlbums({ q: q || undefined, origin, date, personId: person?.id, parentId: searching ? undefined : null }),
     searching ? albumTreeIndex() : Promise.resolve([]),
   ]);
+  const jar = await cookies();
+  const sort = parseAlbumSort(jar.get(ALBUM_SORT_COOKIE)?.value);
+  const albums = sortAlbums(unsorted, sort);
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const urls = await signKeys(albums.map((a) => a.cover_thumb));
 
-  const view = parseAlbumView((await cookies()).get(ALBUM_VIEW_COOKIE)?.value);
+  const view = parseAlbumView(jar.get(ALBUM_VIEW_COOKIE)?.value);
   const selecting = sp.seleziona === "1";
   // Questa pagina con ricerca e filtri, senza selezione né messaggi.
   const MESSAGE_PARAMS = ["seleziona", "album_cestino", "sotto_album", "album_n", "album_ripristinati"];
@@ -92,6 +97,7 @@ export default async function AlbumsPage({ searchParams }: PageProps<"/album">) 
           {albums.length > 0 && (
             <SelectToggle selecting={selecting} href={selecting ? here : pathWith("/album", { ...listQuery, seleziona: "1" })} />
           )}
+          {albums.length > 1 && <AlbumSortSelect sort={sort} />}
           {albums.length > 0 && <AlbumViewSwitch view={view} />}
         </div>
       </div>
