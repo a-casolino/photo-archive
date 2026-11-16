@@ -22,7 +22,7 @@ type DeviceRow = {
 
 type KindStat = { kind: "raw" | "phone" | "edit"; n: number; bytes: number };
 
-const KIND_LABEL = { raw: "CR2", phone: "Foto del telefono", edit: "Export modificati" } as const;
+const KIND_LABEL = { raw: "CR2", phone: "Altre foto", edit: "Export modificati" } as const;
 
 export default async function ImportPage() {
   await requireOwner();
@@ -127,6 +127,46 @@ export default async function ImportPage() {
           <div className="stat-label">Probabili doppioni da rivedere</div>
         </Link>
       </div>
+      <dl className="import-legend">
+        <div>
+          <dt>CR2</dt>
+          <dd>I RAW della reflex già nell&apos;archivio.</dd>
+        </div>
+        <div>
+          <dt>Altre foto</dt>
+          <dd>
+            Le foto senza i dati EXIF di una fotocamera, quindi senza un CR2 dietro: scattate col cellulare,
+            screenshot, immagini ricevute.
+          </dd>
+        </div>
+        <div>
+          <dt>Export modificati</dt>
+          <dd>
+            I JPEG con i dati EXIF della reflex, di solito arrivati da Google Foto: versioni modificate di uno scatto,
+            da collegare al loro CR2.
+          </dd>
+        </div>
+        <div>
+          <dt>Spazio occupato</dt>
+          <dd>Il peso dei file originali di tutte le foto (CR2, altre foto ed export), anteprime escluse.</dd>
+        </div>
+        <div>
+          <dt>Collegamenti da rivedere</dt>
+          <dd>
+            Gli export collegati da soli al loro CR2 (stessa ora di scatto e stessa fotocamera), che mostrano già il
+            JPEG modificato ma aspettano una conferma, più quelli con più CR2 possibili (le raffiche), che mostrano
+            l&apos;anteprima del RAW finché non scegli quello giusto. Il riquadro apre la pagina dove confermarli o
+            scartarli.
+          </dd>
+        </div>
+        <div>
+          <dt>Probabili doppioni</dt>
+          <dd>
+            Coppie di CR2 diversi che sembrano lo stesso scatto (stessa fotocamera, stesso istante, stesso numero di
+            file). I file identici vengono già saltati all&apos;import. Il riquadro apre la pagina per controllarli.
+          </dd>
+        </div>
+      </dl>
 
       {running.map((imp) => (
         <section className="card" key={imp.id}>
