@@ -555,6 +555,9 @@ function pathWithoutExt(col: string): string {
  * RAW+JPEG): stessa cartella e stesso nome, cambia solo l'estensione. Se lo si
  * collegasse, un CR2 con anche l'export di Lightroom potrebbe mostrare il JPEG
  * della fotocamera al posto della versione regolata (2.303 casi il 2026-11-16).
+ * Si esclude il JPEG del tutto, non solo la coppia: nelle raffiche senza
+ * millisecondi (400D) resterebbe come unico candidato il CR2 dello scatto
+ * accanto, collegato in automatico ma sbagliato.
  */
 export const CANDIDATE_JOIN = `
   JOIN cameras ce ON ce.id = e.camera_id
@@ -562,8 +565,11 @@ export const CANDIDATE_JOIN = `
                  AND (e.taken_at_subsec IS NULL OR r.taken_at_subsec IS NULL OR r.taken_at_subsec = e.taken_at_subsec)
   JOIN cameras cr ON cr.id = r.camera_id AND cr.make = ce.make AND cr.model = ce.model
                  AND (ce.serial = '' OR cr.serial = ce.serial)
-                 AND NOT (e.source_path IS NOT NULL AND r.source_path IS NOT NULL
-                          AND ${pathWithoutExt("e.source_path")} = ${pathWithoutExt("r.source_path")})`;
+                 AND NOT EXISTS (
+                   SELECT 1 FROM photos s
+                    WHERE s.kind = 'raw' AND s.deleted_at IS NULL AND s.taken_at = e.taken_at
+                      AND e.source_path IS NOT NULL AND s.source_path IS NOT NULL
+                      AND ${pathWithoutExt("s.source_path")} = ${pathWithoutExt("e.source_path")})`;
 
 /**
  * Collega in automatico gli export che hanno un solo CR2 candidato: prima per

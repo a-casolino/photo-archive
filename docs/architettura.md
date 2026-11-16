@@ -62,6 +62,7 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   Il calcolo gira a fine import e con il pulsante "Ricalcola". Non si collega il
   JPEG salvato dalla fotocamera accanto al CR2 (RAW+JPEG: stessa cartella e stesso
   nome, cambia l'estensione): non è un export e coprirebbe quello di Lightroom.
+  Il JPEG si esclude del tutto, anche dai CR2 vicini delle raffiche.
 - **Collegamento per nome** (`src/lib/match-rules.ts`, deciso con Antonio il
   2026-11-16): gli export senza EXIF della fotocamera (entrano come `phone`, con
   la data dell'export o del caricamento) si collegano al CR2 con lo stesso nome
