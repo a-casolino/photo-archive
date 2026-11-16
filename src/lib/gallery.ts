@@ -51,15 +51,6 @@ export const CARD_COLUMNS = `
 const ALBUM_ORDER = "ap.section, ap.position, p.taken_at IS NULL, p.taken_at, p.taken_at_subsec, p.id";
 
 /**
- * Sezioni di album_photos (migrazione 020, unione album Google + cartella):
- * 'main' in primo piano, 'extra' = "Altri scatti" sotto, 'source' = originali
- * degli export (CR2 o JPEG della fotocamera dietro a un export dell'album).
- * Le 'source' non si mostrano nelle griglie ma fanno parte dell'album: chi ha
- * una condivisione dell'album le apre dal link al RAW e le può scaricare.
- */
-export const VISIBLE_IN_ALBUM = "ap.section <> 'source'";
-
-/**
  * Copertina effettiva dell'album `alias`: quella scelta (`cover_photo_id`) se la foto è ancora
  * nell'album e non è nel cestino, altrimenti la prima foto dell'album. Così una copertina
  * cestinata viene sostituita senza toccare il dato, e torna se la foto viene ripristinata.
@@ -72,7 +63,7 @@ export function albumCoverId(alias: string): string {
         AND (cap.album_id = ${alias}.id OR ${inSubalbums("cap.album_id", alias)})
       LIMIT 1),
     (SELECT p.id FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-      WHERE ap.album_id = ${alias}.id AND ${VISIBLE_IN_ALBUM} ORDER BY ${ALBUM_ORDER} LIMIT 1))`;
+      WHERE ap.album_id = ${alias}.id ORDER BY ${ALBUM_ORDER} LIMIT 1))`;
 }
 
 export type PhotoCard = {
@@ -188,7 +179,7 @@ export function branchCoverId(alias: string): string {
   return `(SELECT p.id FROM albums d
              JOIN album_photos ap ON ap.album_id = d.id
              JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-            WHERE ${inSubalbums("d.id", alias)} AND ${VISIBLE_IN_ALBUM}
+            WHERE ${inSubalbums("d.id", alias)}
             ORDER BY (d.parent_id = ${alias}.id) DESC, (p.id <=> d.cover_photo_id) DESC,
                      p.taken_at IS NULL, p.taken_at, p.id LIMIT 1)`;
 }
@@ -197,7 +188,7 @@ export function branchCoverId(alias: string): string {
 export function branchPhotoCount(alias: string): string {
   return `(SELECT COUNT(DISTINCT ap.photo_id) FROM album_photos ap
              JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
-            WHERE (ap.album_id = ${alias}.id OR ${inSubalbums("ap.album_id", alias)}) AND ${VISIBLE_IN_ALBUM})`;
+            WHERE ap.album_id = ${alias}.id OR ${inSubalbums("ap.album_id", alias)})`;
 }
 
 const ALBUM_COLUMNS = "id, public_id, title, description, origin, origin_ref, parent_id, date_from, date_to, cover_photo_id";
@@ -270,7 +261,7 @@ export async function listAlbums(
                 (SELECT COUNT(DISTINCT ap.photo_id) FROM tree t
                    JOIN album_photos ap ON ap.album_id = t.id
                    JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
-                  WHERE t.root_id = a.id AND ${VISIBLE_IN_ALBUM}) AS photo_count,
+                  WHERE t.root_id = a.id) AS photo_count,
                 (SELECT COALESCE(SUM(q.file_size), 0) FROM photos q
                   WHERE q.deleted_at IS NULL AND q.id IN (
                     SELECT ap.photo_id FROM tree t JOIN album_photos ap ON ap.album_id = t.id WHERE t.root_id = a.id)
@@ -377,7 +368,7 @@ export async function albumCounts(albumId: number): Promise<{ total: number; edi
        FROM album_photos ap
        JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
        ${LINKED_EXPORT}
-      WHERE ap.album_id = ? AND ${VISIBLE_IN_ALBUM}`,
+      WHERE ap.album_id = ?`,
     [albumId],
   );
   return { total: Number(row?.total ?? 0), edited: Number(row?.edited ?? 0), extra: Number(row?.extra ?? 0) };
@@ -392,7 +383,7 @@ export async function albumPhotos(
        FROM album_photos ap
        JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
        ${LINKED_EXPORT}
-      WHERE ap.album_id = ? AND ${VISIBLE_IN_ALBUM} ${opts.onlyEdited ? "AND x.id IS NOT NULL" : ""}
+      WHERE ap.album_id = ? ${opts.onlyEdited ? "AND x.id IS NOT NULL" : ""}
       ORDER BY ${ALBUM_ORDER}
       LIMIT ? OFFSET ?`,
     [albumId, opts.limit ?? 200, opts.offset ?? 0],
@@ -416,8 +407,7 @@ export async function slideshowPhotos(
     return { total: opts.onlyEdited ? counts.edited : counts.total, photos };
   }
   const edited = opts.onlyEdited ? "AND x.id IS NOT NULL" : "";
-  const inBranch = `p.id IN (SELECT ap.photo_id FROM tree t JOIN album_photos ap ON ap.album_id = t.id
-                              WHERE ${VISIBLE_IN_ALBUM})`;
+  const inBranch = `p.id IN (SELECT ap.photo_id FROM tree t JOIN album_photos ap ON ap.album_id = t.id)`;
   const [count, photos] = await Promise.all([
     queryOne<{ n: number }>(
       `${treeCte("a.id = ? AND a.deleted_at IS NULL")}
@@ -453,7 +443,7 @@ export async function albumNeighbors(
          FROM album_photos ap
          JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
          ${LINKED_EXPORT}
-        WHERE ap.album_id = ? AND ${VISIBLE_IN_ALBUM} ${onlyEdited ? "AND x.id IS NOT NULL" : ""}
+        WHERE ap.album_id = ? ${onlyEdited ? "AND x.id IS NOT NULL" : ""}
        WINDOW w AS (ORDER BY ${ALBUM_ORDER})
      ) t WHERE t.id = ?`,
     [albumId, photoId],

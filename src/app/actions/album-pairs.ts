@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { PAIR_SURE_SHARE } from "@/lib/album-pair-rules";
-import { computeAlbumPairs, mergeAlbumPair } from "@/lib/album-pairs";
+import { computeAlbumPairs, mergeAlbumPair, promoteBackupFolders } from "@/lib/album-pairs";
 import { execute, query } from "@/lib/db";
 import { requireOwner } from "@/lib/session";
 
@@ -73,6 +73,14 @@ export async function mergeAllConfirmedPairs(): Promise<void> {
     if (Date.now() - started > MERGE_BUDGET_MS) break;
     await mergeAlbumPair(g.public_id);
   }
+  revalidatePath(PATH);
+  revalidatePath("/album");
+}
+
+/** Le cartelle di Backup Foto senza album Google diventano album di primo livello. */
+export async function promoteBackupFoldersAction(): Promise<void> {
+  await requireOwner();
+  await promoteBackupFolders();
   revalidatePath(PATH);
   revalidatePath("/album");
 }

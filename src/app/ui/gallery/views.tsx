@@ -299,7 +299,7 @@ export function PhotoView({
 
 /**
  * Divide le foto di una pagina d'album tra quelle in primo piano e gli
- * "Altri scatti" (sezione 'extra', vedi VISIBLE_IN_ALBUM in gallery.ts).
+ * "Altri scatti" (sezione 'extra' di album_photos, migrazione 020).
  * `items` va in parallelo a `cards`.
  */
 export function splitSections<T>(cards: PhotoCard[], items: T[]): { main: T[]; extra: T[] } {

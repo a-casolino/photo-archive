@@ -87,14 +87,17 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   stessa. Coppia proposta se la cartella ha almeno il 20% (e 3) delle foto
   dell'album; una cartella va a un solo album. Il proprietario conferma o scarta;
   le coppie confermate si uniscono dalla stessa pagina ("Unisci" o "Unisci tutte",
-  a giri di ~40 s): resta l'album Google (titolo, condivisioni, link con nome),
-  le cartelle vanno nel cestino con `merged_into_id` (`mergeAlbums`, condivisioni
-  spostate) e le loro foto entrano con una sezione (`album_photos.section`,
-  migrazione 020): `source` se stanno dietro a un export dell'album (CR2
-  collegato o stesso scatto: nascoste nelle griglie, raggiungibili dal link al RAW
-  e coperte dalle condivisioni), `extra` per gli scatti non esportati (sezione
-  "Altri scatti" in fondo all'album). Le griglie, i conteggi, le copertine e la
-  navigazione usano solo `main` ed `extra` (`VISIBLE_IN_ALBUM` in `gallery.ts`).
+  a giri di ~40 s): resta l'album Google (titolo, link con nome), le cartelle vanno
+  nel cestino con `merged_into_id` (`mergeAlbums`). Le foto della cartella che stanno
+  dietro a un export dell'album (CR2 collegato o stesso scatto) non entrano: si
+  aprono dal link al RAW; gli export ancora senza CR2 con un solo CR2 dello stesso
+  scatto nella cartella si collegano. Le altre entrano con `album_photos.section =
+  'extra'` (migrazione 020) e l'album le mostra in fondo, sotto "Altri scatti".
+  "Porta al primo livello" fa diventare album di primo livello le cartelle di Backup
+  Foto senza album Google ("2016-07-10 compleanno catia"; un anno con foto sue →
+  "AAAA (foto senza cartella)") e mette nel cestino anni e Backup Foto rimasti
+  vuoti. Un nuovo import le ritrova per `origin_ref` e non le rimette sotto un
+  genitore nel cestino.
 - **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
   più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
   FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in

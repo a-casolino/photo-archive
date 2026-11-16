@@ -517,9 +517,10 @@ CREATE TABLE share_events (
 -- Migrazione 020_sezioni_album.sql (2026-11-16)
 -- =====================================================================
 
--- album_photos.section: 'main' (in primo piano, default), 'extra' ("Altri
--- scatti", dopo, in una sezione a parte), 'source' (originali dietro a un
--- export dell'album: nascosti nelle griglie, raggiungibili dal link al RAW e
--- coperti dalle condivisioni dell'album). L'ordine nell'album è sezione,
--- posizione, data. album_pairs.merged_at: quando la coppia confermata è stata
--- unita (la cartella è finita nel cestino con merged_into_id = album Google).
+-- album_photos.section: 'main' (in primo piano, default) o 'extra' ("Altri
+-- scatti", dopo, in una sezione a parte). L'ordine nell'album è sezione,
+-- posizione, data. Unendo un album Google con la sua cartella, gli originali
+-- dietro a un export (CR2 collegato o stesso scatto) non entrano nell'album:
+-- si raggiungono dal link al RAW dell'export. album_pairs.merged_at: quando
+-- la coppia confermata è stata unita (la cartella è finita nel cestino con
+-- merged_into_id = album Google).

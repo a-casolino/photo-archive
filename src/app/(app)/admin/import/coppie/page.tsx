@@ -4,9 +4,11 @@ import {
   decideAlbumPair,
   mergeAlbumPairAction,
   mergeAllConfirmedPairs,
+  promoteBackupFoldersAction,
   recomputeAlbumPairs,
 } from "@/app/actions/album-pairs";
 import { PAIR_MIN_SHARE, PAIR_SURE_SHARE } from "@/lib/album-pair-rules";
+import { backupFoldersLeft } from "@/lib/album-pairs";
 import { query } from "@/lib/db";
 import { formatCount } from "@/lib/format";
 import { requireOwner } from "@/lib/session";
@@ -150,6 +152,10 @@ export default async function AlbumPairsPage() {
       ORDER BY a.title`,
   );
 
+  const backup = await backupFoldersLeft();
+  const backupDays = backup.days.filter((d) => !Number(d.pending) && Number(d.photos) > 0);
+  const backupWaiting = backup.days.filter((d) => Number(d.pending)).length;
+  const looseYears = backup.years.filter((y) => Number(y.photos) > 0);
   const proposed = group(rows.filter((r) => r.status === "proposed"));
   // Le coppie già unite non compaiono: la cartella è nel cestino.
   const confirmed = group(rows.filter((r) => r.status === "confirmed"));
@@ -218,11 +224,11 @@ export default async function AlbumPairsPage() {
           )}
         </div>
         <p className="muted">
-          Unendo, l&apos;album Google resta (titolo, condivisioni, link con nome) e riceve le foto della cartella: gli
-          scatti non esportati vanno in fondo, nella sezione «Altri scatti»; i CR2 e i JPEG che stanno dietro a un
-          export non si vedono nella griglia ma si aprono dal link al RAW. La cartella va nel cestino e il suo vecchio
-          indirizzo porta all&apos;album. Già unite: {formatCount(Number(mergedRow?.n ?? 0))} album. «Unisci tutte»
-          lavora per circa 40 secondi: se ne restano, premi di nuovo.
+          Unendo, l&apos;album Google resta (titolo, link con nome) e riceve gli scatti della cartella non esportati,
+          in fondo, nella sezione «Altri scatti». I CR2 e i JPEG che stanno dietro a un export non entrano: si aprono
+          dal link al RAW dell&apos;export (gli export ancora senza CR2 si collegano allo scatto della cartella). La
+          cartella va nel cestino e il suo vecchio indirizzo porta all&apos;album. Già unite:{" "}
+          {formatCount(Number(mergedRow?.n ?? 0))} album. «Unisci tutte» lavora per circa 40 secondi: se ne restano, premi di nuovo.
         </p>
         {confirmed.length === 0 ? (
           <p className="muted">Nessuna.</p>
@@ -249,6 +255,26 @@ export default async function AlbumPairsPage() {
               ))}
             </div>
           </details>
+        </section>
+      )}
+
+      {backup.roots.length > 0 && (
+        <section className="card">
+          <div className="import-head">
+            <h2>Cartelle di Backup Foto senza album Google ({formatCount(backupDays.length + looseYears.length)})</h2>
+            {backupDays.length + looseYears.length > 0 && (
+              <form action={promoteBackupFoldersAction}>
+                <button type="submit">Porta al primo livello</button>
+              </form>
+            )}
+          </div>
+          <p className="muted">
+            Ogni cartella diventa un album di primo livello con la data nel titolo (es. «2016-07-10 compleanno
+            catia»); un anno con foto fuori dalle cartelle diventa «AAAA (foto senza cartella)». Gli anni e Backup Foto
+            rimasti vuoti vanno nel cestino. Nessuna foto viene spostata o cancellata.
+            {backupWaiting > 0 &&
+              ` ${formatCount(backupWaiting)} cartelle confermate non sono ancora unite: restano dove sono, uniscile prima.`}
+          </p>
         </section>
       )}
 
