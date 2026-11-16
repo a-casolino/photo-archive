@@ -2,7 +2,6 @@
 import "./load-env";
 import { query, pool } from "../src/lib/db";
 import { storage } from "../src/lib/storage";
-import { gzipSync } from "node:zlib";
 
 const mode = process.argv[2] ?? "elenco";
 
@@ -47,14 +46,13 @@ async function main() {
         WHERE ap.album_id = ? AND p.deleted_at IS NULL ORDER BY ap.section, p.taken_at`, [id]);
     const step = Math.max(1, Math.floor(files.length / per));
     const sample = files.filter((_, i) => i % step === 0).slice(0, per);
-    const thumbs = per > 0 ? await Promise.all(sample.filter((f) => f.gcs_thumb_key).map((f) => storage().readUrl(f.gcs_thumb_key!, 6 * 3600))) : [];
+    const thumbs = process.argv[4] === "t" ? await Promise.all(sample.filter((f) => f.gcs_thumb_key).map((f) => storage().readUrl(f.gcs_thumb_key!, 6 * 3600))) : [];
     const cams = [...new Set(files.map((f) => f.model ?? "?"))].slice(0, 4);
-    out.push({ id, public_id: a.public_id, title: a.title, origin_ref: a.origin_ref, n: a.n, extra: a.extra, from: a.date_from, to: a.date_to,
-      subs: subs.map((s) => s.title), places, people, tags: tags.map((t) => t.name), cams,
-      files: sample.map((f) => `${f.source_path ?? f.original_filename} ${f.taken_at ? new Date(f.taken_at).toISOString().slice(0, 16) : ""}`), thumbs });
+    out.push({ id, t: a.title, n: a.n, x: a.extra,
+      subs: subs.map((s) => s.title), pl: places.map((p) => `${p.place_name}:${p.c}`), pe: people.map((p) => `${p.name}:${p.c}`), tg: tags.map((t) => t.name), cams,
+      f: sample.map((f) => `${f.source_path ?? f.original_filename} ${f.taken_at ? new Date(f.taken_at).toISOString().slice(11, 16) : ""}`), ...(thumbs.length ? { th: thumbs.map((u) => u.replace(/^.*thumbs\//, "").replace(/\?.*Signature=/, "|")) } : {}) });
   }
-  const b64 = gzipSync(JSON.stringify(out)).toString("base64url");
-  console.log(b64 + "~" + ".".repeat(Math.max(0, 54800 - b64.length)));
+  for (const o of out) console.log(JSON.stringify(o));
 }
 
 main().then(() => pool().end()).catch((e) => { console.error(e); process.exit(1); });
