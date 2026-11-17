@@ -20,6 +20,10 @@ async function main() {
             (SELECT COUNT(*) FROM album_photos ap WHERE ap.album_id = a.id AND ap.section = 'extra') AS extra
        FROM albums a WHERE a.deleted_at IS NULL AND a.parent_id IS NULL ORDER BY a.title`,
   );
+  if (mode === "link") {
+    for (const a of albums) if (isDateOnly(a.title)) console.log(`${a.id} https://foto.acasolino.com/album/${a.public_id}`);
+    return;
+  }
   if (mode === "elenco") {
     for (const a of albums) console.log(`${isDateOnly(a.title) ? "*" : " "} ${a.id}\t${a.origin}\t${a.n}\t${a.title}`);
     return;
