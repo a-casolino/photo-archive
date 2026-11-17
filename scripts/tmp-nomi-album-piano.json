@@ -1,0 +1,574 @@
+{
+"renames": [
+{
+"id": 6193,
+"pid": "WK2bsJPbtV7faqNm2o77Zw",
+"old": "2007-11-03",
+"title": "Termoli, castello e borgo"
+},
+{
+"id": 6844,
+"pid": "mVjVz1NcmPrHcYLPRfnFoc",
+"old": "2007-11-08",
+"title": "Paperelle allo stagno"
+},
+{
+"id": 8260,
+"pid": "VCGjUTl2ctVa3ewO886Sy8",
+"old": "2007-11-17",
+"title": "Barbara 2007"
+},
+{
+"id": 8287,
+"pid": "kVTU1okIqpJDYTtAHqZueg",
+"old": "2007-12-01",
+"title": "Termoli, spiaggia e castello"
+},
+{
+"id": 8656,
+"pid": "ouyQ11gCxpBE2u2nqPCXeY",
+"old": "2007-12-15",
+"title": "Passeggiata a Termoli"
+},
+{
+"id": 10029,
+"pid": "uPfpZ8XF093uhlRLhcY0Ae",
+"old": "2008 (foto senza cartella)",
+"title": "Foto varie 2008"
+},
+{
+"id": 10525,
+"pid": "TDZrCwA1kX1yuytkgMB5vz",
+"old": "2008-01-10",
+"title": "Statuine del presepe"
+},
+{
+"id": 10987,
+"pid": "A6STfLlT7UzA2ngxo3i8HF",
+"old": "2008-01-15",
+"title": "Termoli di notte"
+},
+{
+"id": 11032,
+"pid": "qUFwgMfRwQV5MGWA8In4KV",
+"old": "2008-01-16",
+"title": "La scrivania"
+},
+{
+"id": 11062,
+"pid": "Vg0tE6vGWSEdWIDxiX8QMp",
+"old": "2008-02-01",
+"title": "Grafiche e volantini"
+},
+{
+"id": 11098,
+"pid": "w4qI9RwvlYg4QATGhzVIUk",
+"old": "2008-02-17",
+"title": "Ritratti di Barbara"
+},
+{
+"id": 11209,
+"pid": "J9B1BckC767T3bzRGrpbZv",
+"old": "2008-02-25",
+"title": "Antonio in cucina"
+},
+{
+"id": 12745,
+"pid": "butgDW4Oqe7lkpueJIoq0Y",
+"old": "2008-03-16",
+"title": "Rally del Mare"
+},
+{
+"id": 13273,
+"pid": "8HwyIgFzfLd0mAtUa9pSfr",
+"old": "2008-03-22",
+"title": "Nuvole"
+},
+{
+"id": 14578,
+"pid": "L8APofQRe0dTDVC4psYQv2",
+"old": "2008-04-01",
+"title": "Foto notturne al porto"
+},
+{
+"id": 14929,
+"pid": "gfQjA6pikocyljiCyFwrZj",
+"old": "2008-04-04",
+"title": "Castello di Termoli di notte"
+},
+{
+"id": 17788,
+"pid": "dg0xoNwO4XvsT0dNYnGbnq",
+"old": "2008-06-03",
+"title": "Foto d'infanzia"
+},
+{
+"id": 17785,
+"pid": "4kPZRyFP2o9WljY3dtdXcn",
+"old": "2008-06-05",
+"title": "Fiat Cinquecento Sporting"
+},
+{
+"id": 17830,
+"pid": "Qa5jwAF44wP1hkQBHR2hWp",
+"old": "2008-06-06",
+"title": "Foto d'infanzia (scansione)"
+},
+{
+"id": 18250,
+"pid": "y5oA3n6wDyqui5BuKEpMiQ",
+"old": "2008-06-13",
+"title": "Il Bed & Breakfast, camere"
+},
+{
+"id": 19258,
+"pid": "HXxnBHCjxsvoGiKPvr3GJs",
+"old": "2008-06-22",
+"title": "Rally dei Vestini"
+},
+{
+"id": 19840,
+"pid": "b8FOEu1eyQcC8TYVM6RhPb",
+"old": "2008-07-18",
+"title": "B&B Raggio di sole"
+},
+{
+"id": 22132,
+"pid": "VnazcUy2TgPP3aCJlDnlzX",
+"old": "2008-08-13",
+"title": "Termoli dal lungomare"
+},
+{
+"id": 23200,
+"pid": "tNFrLolUWPEB7l9UwQdg1X",
+"old": "2008-08-26",
+"title": "Autoritratti di Antonio"
+},
+{
+"id": 23707,
+"pid": "IWs18IxRcsyk73Y5sCWr1v",
+"old": "2008-10-11",
+"title": "Rallylegend 2008"
+},
+{
+"id": 24805,
+"pid": "tKrb1GGDu8zmFHskmMCBvn",
+"old": "2008-11-08",
+"title": "Rally del Molise 2008"
+},
+{
+"id": 25495,
+"pid": "XKVpmJDuXfBb1xG3AZkweA",
+"old": "2008-12-07",
+"title": "Università del Molise - sede di Termoli"
+},
+{
+"id": 25621,
+"pid": "McCczN8cSqGwyjv4hzrEoB",
+"old": "2008-12-08",
+"title": "Juice"
+},
+{
+"id": 26056,
+"pid": "J1k05lwraGelye4thf1bq9",
+"old": "2008-12-20",
+"title": "Barbara in albergo"
+},
+{
+"id": 27718,
+"pid": "FEy84TQ4pGDW13K6YdgKSI",
+"old": "2009-04-04",
+"title": "Rally dell'Adriatico 2009"
+},
+{
+"id": 28183,
+"pid": "Mllf4IWVBidn0SWpXI2Qsw",
+"old": "2009-07-25",
+"title": "Rally del Golfo 2009"
+},
+{
+"id": 28948,
+"pid": "GP7qhpSLrp3ELwfyssK9J9",
+"old": "2009-08-21",
+"title": "Mare con gli amici"
+},
+{
+"id": 30811,
+"pid": "kRoWDIVa33GmNnyP45XUVa",
+"old": "2009-10-19",
+"title": "Nascita di Rossella"
+},
+{
+"id": 30994,
+"pid": "wrWLBCVf63y1JsHaYnWAs9",
+"old": "2009-10-21",
+"title": "Rossella in ospedale"
+},
+{
+"id": 31324,
+"pid": "mdAHpIpgjqDfG35t0InMyF",
+"old": "2009-11-01",
+"title": "Rossella, primo biberon con i nonni"
+},
+{
+"id": 31420,
+"pid": "XwQenYxa3phEl95tfv9PBw",
+"old": "2009-11-11",
+"title": "Rossella a tre settimane"
+},
+{
+"id": 31435,
+"pid": "j4MaG4MxN4eisv2gu7ACWx",
+"old": "2009-11-14",
+"title": "Rossella col biberon"
+},
+{
+"id": 31561,
+"pid": "OuEFc0ybTgSknEDdGr3Xu8",
+"old": "2009-11-15",
+"title": "Rossella"
+},
+{
+"id": 31642,
+"pid": "sqr5mbKY16OvptEnrqtGcq",
+"old": "2009-11-21",
+"title": "Rossella a un mese"
+},
+{
+"id": 31825,
+"pid": "FV7yti94QWR5HYx59jM8K9",
+"old": "2009-11-29",
+"title": "Rossella con Marianna"
+},
+{
+"id": 32371,
+"pid": "JqfJEtY1cyD40qJLZz0oaJ",
+"old": "2009-12-13",
+"title": "Rossella sul divano"
+},
+{
+"id": 32839,
+"pid": "Sa8oWNfDszYMzVP37k3s0o",
+"old": "2009-12-29",
+"title": "Uscita fotografica tra i ruderi della fornace"
+},
+{
+"id": 33142,
+"pid": "5AKkxCuJmLOB3iLQWPthQ2",
+"old": "2009-12-31",
+"title": "Veglione di Capodanno"
+},
+{
+"id": 33363,
+"pid": "YURyvUwdgKfVGv6T7kVSWQ",
+"old": "2010 (foto senza cartella)",
+"title": "Set calendario inArte 2010"
+},
+{
+"id": 34120,
+"pid": "DdHc8fJuYcwumFlmbjOmia",
+"old": "2010-01-17",
+"title": "Ritratti di Barbara"
+},
+{
+"id": 34129,
+"pid": "1nQQPdGbJMYDTkbyIcPcap",
+"old": "2010-01-24",
+"title": "Rossella a tre mesi"
+},
+{
+"id": 34147,
+"pid": "NxX5A5sIlKtgluptSAV7kV",
+"old": "2010-01-29",
+"title": "Luna piena su Termoli"
+},
+{
+"id": 35410,
+"pid": "FPWKhvWPVehvkOZrbnCTg7",
+"old": "2010-03-21",
+"title": "Rossella a cinque mesi"
+},
+{
+"id": 35593,
+"pid": "AwES7khIQP2rkHoCZJxToQ",
+"old": "2010-04-03",
+"title": "Rossella, vigilia di Pasqua"
+},
+{
+"id": 35872,
+"pid": "NPbkMxa7IG3z95MBTPmz8Q",
+"old": "2010-04-25",
+"title": "Uscita fotografica al porto"
+},
+{
+"id": 36877,
+"pid": "mrTuP2iP0p5eCZAcnWfF3Q",
+"old": "2010-05-16",
+"title": "Rossella a casa dei nonni"
+},
+{
+"id": 36919,
+"pid": "w0vff43j8TBREwBJtP7HcH",
+"old": "2010-05-22",
+"title": "Rossella festeggia la Champions dell'Inter"
+},
+{
+"id": 37579,
+"pid": "CJwrkITi1RAySgkTrXunWx",
+"old": "2010-06-27",
+"title": "Passeggiata nel borgo di Termoli"
+},
+{
+"id": 37858,
+"pid": "BkpLp7gUg7qLBe1M5Eiqep",
+"old": "2010-07-29",
+"title": "Tramonto sul mare e trabucco"
+},
+{
+"id": 39571,
+"pid": "svAjSf52Uc8K1QYvat9A9b",
+"old": "2010-08-22",
+"title": "Rossella ad agosto"
+},
+{
+"id": 39697,
+"pid": "XL6bP8GP1ikCypto4dQd9O",
+"old": "2010-08-29",
+"title": "Spettacolo in piazza"
+},
+{
+"id": 41065,
+"pid": "nltLru0o7MH2GDXP7mfjfA",
+"old": "2010-10-16",
+"title": "Termoli al tramonto"
+},
+{
+"id": 42052,
+"pid": "C4XkCSEXxYFkLCXi7RnQhg",
+"old": "2010-11-07",
+"title": "Borgo vecchio di Termoli"
+},
+{
+"id": 42208,
+"pid": "dbsNAu62uuq0f3E5VhXbVA",
+"old": "2010-11-17",
+"title": "Rossella col nonno"
+},
+{
+"id": 42232,
+"pid": "FELEqBMwk5tmKUq61w53QA",
+"old": "2010-11-20",
+"title": "Rossella col cappottino"
+},
+{
+"id": 43978,
+"pid": "kmNetNv1SqIS0HSMfMzINr",
+"old": "2011-01-02",
+"title": "Rossella sotto l'albero di Natale"
+},
+{
+"id": 44149,
+"pid": "S7QqHFVJZo6o2ki39s477M",
+"old": "2011-01-30",
+"title": "Rossella a pranzo"
+},
+{
+"id": 46186,
+"pid": "2MqKhfU7eqLOaRyuputuRk",
+"old": "2011-03-26",
+"title": "Passeggiata con Rossella e Barbara"
+},
+{
+"id": 46339,
+"pid": "ljaf2qUkZjC3UpTEGIiAbz",
+"old": "2011-04-02",
+"title": "Termoli dall'alto del castello"
+},
+{
+"id": 46417,
+"pid": "21ziYM9HTE3DAlJlKDAXno",
+"old": "2011-04-07",
+"title": "Trabucchi al tramonto"
+},
+{
+"id": 46705,
+"pid": "2v1yzbYyihmlfyzJ4tnJFG",
+"old": "2011-04-10",
+"title": "Pranzo con Rossella"
+},
+{
+"id": 46948,
+"pid": "dqFN10Gr7c78ciNSkXndX1",
+"old": "2011-05-22",
+"title": "Rossella a pranzo con Elvi"
+},
+{
+"id": 46981,
+"pid": "w1YhW2lMMhU766r1UZyZvs",
+"old": "2011-06-04",
+"title": "Rossella a giugno"
+},
+{
+"id": 47005,
+"pid": "IqsC7U0dpMPGMoloNWKsKG",
+"old": "2011-06-05",
+"title": "Rossella con la bisnonna"
+},
+{
+"id": 47074,
+"pid": "M5oYWFdw496xYceWYIiKUa",
+"old": "2011-06-25",
+"title": "Rossella al mare"
+},
+{
+"id": 47995,
+"pid": "DklYMVHmcM96OOCKX7K1ub",
+"old": "2011-07-09",
+"title": "Rossella in terrazzo"
+},
+{
+"id": 126745,
+"pid": "kAYymcIxLiQQeWUoXMf7CJ",
+"old": "2012-04-01",
+"title": "Torre e lungomare di Termoli"
+},
+{
+"id": 128254,
+"pid": "arnH3KVlD2dDotMfhPIBf1",
+"old": "2012-10-11",
+"title": "Biglietti da visita Adverman"
+},
+{
+"id": 128929,
+"pid": "7K44Oe4jst2wjk5aUPXS4x",
+"old": "2012-12-26",
+"title": "Tombolata di Santo Stefano"
+},
+{
+"id": 128937,
+"pid": "6xRG6Co4XwX11bvF61oxV0",
+"old": "2013 (foto senza cartella)",
+"title": "Foto sparse 2013"
+},
+{
+"id": 128938,
+"pid": "u17v8FTxxo9i4VqWCF2cMF",
+"old": "2013-01-12",
+"title": "Tramonto al castello e in spiaggia"
+},
+{
+"id": 131842,
+"pid": "1nWQoVgI867ad4rRlzBOIb",
+"old": "2013-08-14",
+"title": "Shooting moda al porto (Petit Closet)"
+},
+{
+"id": 135828,
+"pid": "DSdFBGHLDOwKHRrrQhUVoB",
+"old": "2014 (foto senza cartella)",
+"title": "Piatto di Nicola Giallo Zafferano"
+},
+{
+"id": 138988,
+"pid": "sernIPvJTqJkXBgI22xuNS",
+"old": "2014-06-22",
+"title": "Shooting Zio Gigi nel parco"
+},
+{
+"id": 141372,
+"pid": "sERqkNtN4UtHkK8AHMEdLh",
+"old": "2015 (foto senza cartella)",
+"title": "Piatto di Nicola"
+},
+{
+"id": 146217,
+"pid": "sWL097kU1BpJacYEWPbq7O",
+"old": "2016 (foto senza cartella)",
+"title": "In cucina con lo chef"
+},
+{
+"id": 150027,
+"pid": "RlqWNACybL2VLddpZeMZz5",
+"old": "2017 (foto senza cartella)",
+"title": "Festa per i 4 anni di Tonino"
+}
+],
+"merges": [
+{
+"into": 5404,
+"from": [
+5437,
+5505,
+5524
+],
+"title": "Foto varie 2006 2007",
+"pid": "LkvjojDVC7rOORp3wz7yeP",
+"fromPid": [
+"MX26oR7vPJHvR9Ge4B2Jpl",
+"Eo15DyvRlIzaQ6VTs3fVDH",
+"gr7JMtu7JmHdfl60hA91M9"
+],
+"old": {
+"5404": "2006-03-20",
+"5437": "2006-05-21",
+"5505": "2007 (foto senza cartella)",
+"5524": "2007-08-19"
+}
+},
+{
+"into": 16366,
+"from": [
+17056
+],
+"title": "Rally del Gargano 2008",
+"pid": "osW2xbaDzla4UipUNoMtmo",
+"fromPid": [
+"qo0Ghe4vAoiiy6hMbNPymV"
+],
+"old": {
+"16366": "2008-05-24",
+"17056": "2008-05-25"
+}
+},
+{
+"into": 29491,
+"from": [
+29824
+],
+"title": "Buongusto 2009",
+"pid": "hhAUeKBs1i8Mex1x7ZQPRz",
+"fromPid": [
+"KMQIdEAapT7c1Rh4HNltIs"
+],
+"old": {
+"29491": "2009-09-12",
+"29824": "2009-09-13"
+}
+},
+{
+"into": 36313,
+"from": [
+36484
+],
+"title": "Rally del Mare 2010",
+"pid": "elX226r22nTXfsHGGTN0bf",
+"fromPid": [
+"pgh9Nlq6WP5sUrz8QArlGo"
+],
+"old": {
+"36313": "2010-05-07",
+"36484": "2010-05-08"
+}
+}
+],
+"skip": [
+[
+8212,
+"Già rinominato a mano"
+],
+[
+11587,
+"Eliminato"
+]
+]
+}
