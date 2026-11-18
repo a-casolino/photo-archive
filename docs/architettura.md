@@ -297,6 +297,14 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   scaricano dopo il caricamento della pagina (`preload-images.tsx`), così
   frecce e swipe sono immediati. Il conteggio di "Elimina album" si chiede
   solo quando si apre la finestra Modifica.
+- **Rami di album nelle query**: copertina presa dai sotto-album, foto del
+  ramo e filtri per data/persona uniscono `album_photos` a una tabella
+  derivata con gli id del ramo (`branchAlbums` in `gallery.ts`), mai con
+  `album_id = … OR album_id IN (…)`: con l'OR MySQL leggeva tutta
+  `album_photos` per ogni album (elenco album da 3 s a 0,1 s con 150.000 foto
+  di prova). Gli anni del filtro di data restano in memoria 10 minuti
+  (`src/lib/memo.ts`). Al cambio pagina compare subito un segnaposto
+  (`app/(app)/loading.tsx`).
 - **Versione mostrata**: se un CR2 ha un export collegato (`match_status`
   `auto` o `confirmed`) si usano miniatura e anteprima dell'export; filtro
   "Tutte / Solo con regolazioni". Il download "originale" resta il CR2.

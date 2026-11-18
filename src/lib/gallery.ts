@@ -171,24 +171,52 @@ export function inSubalbums(col: string, alias: string): string {
 }
 
 /**
+ * Tabella derivata con i sotto-album attivi di `alias` (lvl 1 i figli, 2 i
+ * nipoti) e, con `self`, l'album stesso (lvl 0): colonne id, lvl,
+ * cover_photo_id. Da unire ad album_photos per album_id, così MySQL usa la
+ * chiave primaria: con `album_id = … OR inSubalbums(…)` non poteva e leggeva
+ * tutta album_photos per ogni album (copertina di un album con soli
+ * sotto-album: secondi per riga, misurato con 150.000 foto).
+ */
+function branchAlbums(alias: string, self: boolean): string {
+  return `(${self ? `SELECT ${alias}.id AS id, 0 AS lvl, ${alias}.cover_photo_id AS cover_photo_id UNION ALL ` : ""}
+           SELECT c1.id AS id, 1 AS lvl, c1.cover_photo_id AS cover_photo_id FROM albums c1
+            WHERE c1.parent_id = ${alias}.id AND c1.deleted_at IS NULL
+           UNION ALL
+           SELECT c2.id, 2, c2.cover_photo_id FROM albums c1
+             JOIN albums c2 ON c2.parent_id = c1.id AND c2.deleted_at IS NULL
+            WHERE c1.parent_id = ${alias}.id AND c1.deleted_at IS NULL)`;
+}
+
+/**
  * Copertina presa dai sotto-album di `alias`, per gli album che non hanno
  * foto loro: prima le copertine scelte dei sotto-album diretti, poi la foto
  * più vecchia.
  */
 export function branchCoverId(alias: string): string {
-  return `(SELECT p.id FROM albums d
+  return `(SELECT p.id FROM ${branchAlbums(alias, false)} d
              JOIN album_photos ap ON ap.album_id = d.id
              JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-            WHERE ${inSubalbums("d.id", alias)}
-            ORDER BY (d.parent_id = ${alias}.id) DESC, (p.id <=> d.cover_photo_id) DESC,
+            ORDER BY d.lvl = 1 DESC, (p.id <=> d.cover_photo_id) DESC,
                      p.taken_at IS NULL, p.taken_at, p.id LIMIT 1)`;
 }
 
 /** Foto (senza doppioni) dell'album `alias` e dei suoi sotto-album. */
 export function branchPhotoCount(alias: string): string {
-  return `(SELECT COUNT(DISTINCT ap.photo_id) FROM album_photos ap
-             JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
-            WHERE ap.album_id = ${alias}.id OR ${inSubalbums("ap.album_id", alias)})`;
+  return `(SELECT COUNT(DISTINCT ap.photo_id) FROM ${branchAlbums(alias, true)} b
+             JOIN album_photos ap ON ap.album_id = b.id
+             JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL)`;
+}
+
+/**
+ * Condizione SQL: l'album `alias` o un suo sotto-album ha almeno una foto
+ * attiva (alias `q`) che rispetta `cond`.
+ */
+export function branchHasPhoto(alias: string, cond: string): string {
+  return `EXISTS (SELECT 1 FROM ${branchAlbums(alias, true)} b
+                    JOIN album_photos ap ON ap.album_id = b.id
+                    JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
+                   WHERE ${cond})`;
 }
 
 const ALBUM_COLUMNS = "id, public_id, title, description, origin, origin_ref, parent_id, date_from, date_to, cover_photo_id";
@@ -249,8 +277,7 @@ function albumListWhere(filter: AlbumListFilter): { cond: string; params: unknow
     if (filter.personId) {
       photoCond.push("EXISTS (SELECT 1 FROM faces f WHERE f.photo_id = q.id AND f.person_id = ? AND f.status = 'confirmed')");
     }
-    where.push(`EXISTS (SELECT 1 FROM album_photos ap JOIN photos q ON q.id = ap.photo_id AND q.deleted_at IS NULL
-                         WHERE (ap.album_id = a.id OR ${inSubalbums("ap.album_id", "a")}) AND ${photoCond.join(" AND ")})`);
+    where.push(branchHasPhoto("a", photoCond.join(" AND ")));
     params.push(...(date?.params ?? []), ...(filter.personId ? [filter.personId] : []));
   }
   return { cond: where.join(" AND "), params };
