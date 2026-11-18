@@ -1,5 +1,6 @@
 import "server-only";
 import { query, queryOne } from "./db";
+import { memo } from "./memo";
 import { dateFilterSql, type DateFilter } from "./filter-rules";
 import {
   CARD_COLUMNS,
@@ -111,11 +112,17 @@ export async function photoNeighbors(f: PhotoFilter, photoId: number): Promise<N
   return row ? neighborsOf(row) : null;
 }
 
-/** Anni in cui ci sono foto (per il filtro di data), dal più recente. */
+/**
+ * Anni in cui ci sono foto (per il filtro di data), dal più recente. Legge
+ * tutta la tabella photos, quindi si tiene in memoria per 10 minuti: un anno
+ * nuovo arriva solo con un import.
+ */
 export async function photoYears(): Promise<number[]> {
-  const rows = await query<{ y: number }>(
-    `SELECT DISTINCT YEAR(taken_at) AS y FROM photos
-      WHERE deleted_at IS NULL AND taken_at IS NOT NULL ORDER BY y DESC`,
-  );
-  return rows.map((r) => Number(r.y));
+  return memo("photoYears", 10 * 60 * 1000, async () => {
+    const rows = await query<{ y: number }>(
+      `SELECT DISTINCT YEAR(taken_at) AS y FROM photos
+        WHERE deleted_at IS NULL AND taken_at IS NOT NULL ORDER BY y DESC`,
+    );
+    return rows.map((r) => Number(r.y));
+  });
 }

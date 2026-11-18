@@ -489,6 +489,52 @@ button.link.danger {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
 }
 
+/* Segnaposto mentre il server prepara la pagina (app/(app)/loading.tsx). */
+.page-loading-title {
+  width: min(240px, 60%);
+  height: 32px;
+  margin: 12px 0 24px;
+  border-radius: 8px;
+  background: var(--subtle, var(--border));
+  animation: page-loading-pulse 1.2s ease-in-out infinite;
+}
+
+.page-loading-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.page-loading-grid li {
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  background: var(--subtle, var(--border));
+  animation: page-loading-pulse 1.2s ease-in-out infinite;
+}
+
+@media (max-width: 640px) {
+  .page-loading-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+@keyframes page-loading-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-loading-title,
+  .page-loading-grid li {
+    animation: none;
+  }
+}
+
 /* Fondo della griglia che si allunga mentre si scorre (album). */
 .grid-more {
   display: flex;
