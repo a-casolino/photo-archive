@@ -23,6 +23,12 @@ type DeviceRow = {
 type KindStat = { kind: "raw" | "phone" | "edit"; n: number; bytes: number };
 
 const KIND_LABEL = { raw: "CR2", phone: "Altre foto", edit: "Export modificati" } as const;
+const KIND_HELP = {
+  raw: "I RAW della reflex già nell'archivio.",
+  phone:
+    "Le foto senza i dati EXIF di una fotocamera, quindi senza un CR2 dietro: scattate col cellulare, screenshot, immagini ricevute.",
+  edit: "I JPEG con i dati EXIF della reflex, di solito arrivati da Google Foto: versioni modificate di uno scatto, da collegare al loro CR2.",
+} as const;
 
 export default async function ImportPage() {
   await requireOwner();
@@ -105,73 +111,64 @@ export default async function ImportPage() {
         </Button>
       </section>
 
-      <div className="import-stats">
+      {/* Ogni riquadro ha la sua spiegazione sotto, nello stesso elemento della griglia:
+          così resta allineata a qualsiasi larghezza (anche sul telefono). */}
+      <div className="import-overview">
         {(["raw", "phone", "edit"] as const).map((k) => {
           const s = kinds.find((x) => x.kind === k);
           return (
-            <div className="card" key={k}>
-              <div className="stat-value">{formatCount(Number(s?.n ?? 0))}</div>
-              <div className="stat-label">{KIND_LABEL[k]}</div>
+            <div className="import-stat" key={k}>
+              <div className="card">
+                <div className="stat-value">{formatCount(Number(s?.n ?? 0))}</div>
+                <div className="stat-label">{KIND_LABEL[k]}</div>
+              </div>
+              <p className="import-stat-help">{KIND_HELP[k]}</p>
             </div>
           );
         })}
-        <div className="card">
-          <div className="stat-value">{formatBytes(totalBytes)}</div>
-          <div className="stat-label">Spazio occupato dagli originali</div>
+        <div className="import-stat">
+          <div className="card">
+            <div className="stat-value">{formatBytes(totalBytes)}</div>
+            <div className="stat-label">Spazio occupato dagli originali</div>
+          </div>
+          <p className="import-stat-help">
+            Il peso dei file originali di tutte le foto (CR2, altre foto ed export), anteprime escluse.
+          </p>
         </div>
-        <Link prefetch={false} className="card" href="/admin/import/collegamenti">
-          <div className="stat-value">{formatCount(toReview)}</div>
-          <div className="stat-label">Collegamenti export → CR2 da rivedere</div>
-        </Link>
-        <Link prefetch={false} className="card" href="/admin/import/doppioni">
-          <div className="stat-value">{formatCount(duplicates)}</div>
-          <div className="stat-label">Probabili doppioni da rivedere</div>
-        </Link>
-        <Link prefetch={false} className="card" href="/admin/import/coppie">
-          <div className="stat-value">{formatCount(Number(pairs?.n ?? 0))}</div>
-          <div className="stat-label">Album Google da abbinare alla cartella del disco</div>
-        </Link>
-      </div>
-      <dl className="import-legend">
-        <div>
-          <dt>CR2</dt>
-          <dd>I RAW della reflex già nell&apos;archivio.</dd>
-        </div>
-        <div>
-          <dt>Altre foto</dt>
-          <dd>
-            Le foto senza i dati EXIF di una fotocamera, quindi senza un CR2 dietro: scattate col cellulare,
-            screenshot, immagini ricevute.
-          </dd>
-        </div>
-        <div>
-          <dt>Export modificati</dt>
-          <dd>
-            I JPEG con i dati EXIF della reflex, di solito arrivati da Google Foto: versioni modificate di uno scatto,
-            da collegare al loro CR2.
-          </dd>
-        </div>
-        <div>
-          <dt>Spazio occupato</dt>
-          <dd>Il peso dei file originali di tutte le foto (CR2, altre foto ed export), anteprime escluse.</dd>
-        </div>
-        <div>
-          <dt>Collegamenti da rivedere</dt>
-          <dd>
+        <div className="import-stat">
+          <Link prefetch={false} className="card" href="/admin/import/collegamenti">
+            <div className="stat-value">{formatCount(toReview)}</div>
+            <div className="stat-label">Collegamenti export → CR2 da rivedere</div>
+          </Link>
+          <p className="import-stat-help">
             Gli export collegati da soli al loro CR2 (stessa ora di scatto e stessa fotocamera), che mostrano già il
             JPEG modificato ma aspettano una conferma, più quelli con più CR2 possibili (le raffiche), che mostrano
             l&apos;anteprima del RAW finché non scegli quello giusto. Il riquadro apre la pagina dove confermarli o
             scartarli.
-          </dd>
+          </p>
         </div>
-        <div>
-          <dt>Probabili doppioni</dt>
-          <dd>
+        <div className="import-stat">
+          <Link prefetch={false} className="card" href="/admin/import/doppioni">
+            <div className="stat-value">{formatCount(duplicates)}</div>
+            <div className="stat-label">Probabili doppioni da rivedere</div>
+          </Link>
+          <p className="import-stat-help">
             Coppie di CR2 diversi che sembrano lo stesso scatto (stessa fotocamera, stesso istante, stesso numero di
             file). I file identici vengono già saltati all&apos;import. Il riquadro apre la pagina per controllarli.
-          </dd>
+          </p>
         </div>
-      </dl>
+        <div className="import-stat">
+          <Link prefetch={false} className="card" href="/admin/import/coppie">
+            <div className="stat-value">{formatCount(Number(pairs?.n ?? 0))}</div>
+            <div className="stat-label">Album Google da abbinare alla cartella del disco</div>
+          </Link>
+          <p className="import-stat-help">
+            Album di Google Foto o Drive per cui è proposta la cartella del disco con gli originali dello stesso
+            evento. Confermare la coppia non sposta niente: serve per unire poi i due album. Il riquadro apre la
+            pagina delle proposte.
+          </p>
+        </div>
+      </div>
 
       {running.map((imp) => (
         <section className="card" key={imp.id}>
