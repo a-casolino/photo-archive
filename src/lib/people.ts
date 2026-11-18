@@ -46,7 +46,8 @@ export async function listPeople(): Promise<PersonListItem[]> {
     `SELECT pe.id, pe.public_id, pe.name, pe.cover_face_id,
             (SELECT COUNT(DISTINCT f.photo_id) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
               WHERE f.person_id = pe.id AND f.status = 'confirmed') AS photo_count,
-            (SELECT COUNT(*) FROM faces f WHERE f.person_id = pe.id AND f.status = 'suggested') AS suggested_count,
+            (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+              WHERE f.person_id = pe.id AND f.status = 'suggested') AS suggested_count,
             cf.gcs_face_key AS cover_key
        FROM people pe
        LEFT JOIN faces cf ON cf.id = pe.cover_face_id
@@ -74,10 +75,12 @@ export async function facesSummary(): Promise<FacesSummary> {
     `SELECT
        (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND faces_scanned_at IS NOT NULL) AS scanned,
        (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND gcs_preview_key IS NOT NULL AND faces_scanned_at IS NULL) AS pending,
-       (SELECT COUNT(*) FROM faces WHERE status = 'unknown' AND cluster_id IS NOT NULL) AS unknown,
-       (SELECT COUNT(DISTINCT cluster_id) FROM faces WHERE status = 'unknown' AND cluster_id IS NOT NULL) AS \`groups\`,
-       (SELECT COUNT(*) FROM faces WHERE status = 'suggested') AS suggested,
-       (SELECT COUNT(*) FROM faces WHERE status = 'ignored') AS ignored`,
+       (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+         WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL) AS unknown,
+       (SELECT COUNT(DISTINCT f.cluster_id) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+         WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL) AS \`groups\`,
+       (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL WHERE f.status = 'suggested') AS suggested,
+       (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL WHERE f.status = 'ignored') AS ignored`,
   );
   return row!;
 }
@@ -90,9 +93,9 @@ export type Cluster = { cluster_id: number; size: number; faces: FaceTile[] };
  */
 export async function listClusters(offset: number, limit: number, perCluster = 18, first = 0): Promise<Cluster[]> {
   const groups = await query<{ cluster_id: number; size: number }>(
-    `SELECT cluster_id, COUNT(*) AS size FROM faces
-      WHERE status = 'unknown' AND cluster_id IS NOT NULL
-      GROUP BY cluster_id ORDER BY cluster_id = ? DESC, size DESC, cluster_id LIMIT ? OFFSET ?`,
+    `SELECT f.cluster_id, COUNT(*) AS size FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+      WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL
+      GROUP BY f.cluster_id ORDER BY f.cluster_id = ? DESC, size DESC, f.cluster_id LIMIT ? OFFSET ?`,
     [first, limit, offset],
   );
   if (!groups.length) return [];
@@ -121,7 +124,8 @@ export async function listIgnoredFaces(offset: number, limit: number): Promise<F
 
 export async function countClusters(): Promise<number> {
   const row = await queryOne<{ n: number }>(
-    "SELECT COUNT(DISTINCT cluster_id) AS n FROM faces WHERE status = 'unknown' AND cluster_id IS NOT NULL",
+    `SELECT COUNT(DISTINCT f.cluster_id) AS n FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+      WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL`,
   );
   return row?.n ?? 0;
 }
@@ -131,6 +135,7 @@ export async function listSuggestions(limitPerPerson = 60): Promise<{ person: Pe
   const people = await query<Person & { total: number }>(
     `SELECT pe.id, pe.public_id, pe.name, pe.cover_face_id, COUNT(*) AS total
        FROM faces f JOIN people pe ON pe.id = f.person_id
+       JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
       WHERE f.status = 'suggested'
       GROUP BY pe.id ORDER BY pe.name`,
   );
