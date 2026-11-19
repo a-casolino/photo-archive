@@ -12,6 +12,7 @@ import { listAlbums, signKeys } from "@/lib/gallery";
 import { displaySize } from "@/lib/gallery-rules";
 import { requireOwner } from "@/lib/session";
 import { countPhotosWithTag, getTag, photosWithTag } from "@/lib/tags";
+import { Button } from "@/components/ui/button";
 
 export default async function TagPage({ params, searchParams }: PageProps<"/tag/[slug]">) {
   await requireOwner();
@@ -101,9 +102,9 @@ export default async function TagPage({ params, searchParams }: PageProps<"/tag/
           </ActionForm>
           <form action={deleteTagAction} style={{ marginTop: 12 }}>
             <input type="hidden" name="tagId" value={tag.id} />
-            <button type="submit" className="link danger">
+            <Button type="submit" variant="danger" size="sm">
               Elimina il tag (foto e album restano)
-            </button>
+            </Button>
           </form>
         </div>
       </details>

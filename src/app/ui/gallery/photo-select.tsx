@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckIcon, SquareCheckIcon } from "lucide-react";
+import { CheckIcon, SquareCheckIcon, Trash2Icon } from "lucide-react";
 import { trashPhotosAction } from "@/app/actions/trash";
 import { GrowingGrid } from "@/app/ui/gallery/growing-grid";
 import { Masonry, type MasonryItem } from "@/app/ui/gallery/masonry";
@@ -55,9 +55,10 @@ export function SelectableMasonry({
     <form>
       <input type="hidden" name="back" value={back} />
       <SelectBar name="photo">
-        <button type="submit" className="danger" formAction={trashPhotosAction}>
+        <Button type="submit" variant="danger" size="sm" formAction={trashPhotosAction}>
+          <Trash2Icon />
           Sposta nel cestino
-        </button>
+        </Button>
       </SelectBar>
       {grid("photo")}
     </form>

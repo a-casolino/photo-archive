@@ -6,6 +6,7 @@ import {
   CheckIcon,
   ChevronRightIcon,
   FolderIcon,
+  FolderMinusIcon,
   FolderOpenIcon,
   ImageIcon,
   PencilIcon,
@@ -372,21 +373,26 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
           <SelectBar
             name="photo"
             single={
-              <button type="submit" formAction={setAlbumCover} title="Seleziona una sola foto">
+              <Button type="submit" variant="outline" size="sm" formAction={setAlbumCover} title="Seleziona una sola foto">
+                <ImageIcon />
                 Usa come copertina
-              </button>
+              </Button>
             }
           >
-            <button
+            <Button
               type="submit"
+              variant="outline"
+              size="sm"
               formAction={removeFromAlbumAction}
               title="Le foto escono da questo album ma restano nell'archivio e negli altri album"
             >
+              <FolderMinusIcon />
               Togli dall&apos;album
-            </button>
-            <button type="submit" className="danger" formAction={trashPhotosAction}>
+            </Button>
+            <Button type="submit" variant="danger" size="sm" formAction={trashPhotosAction}>
+              <Trash2Icon />
               Sposta nel cestino
-            </button>
+            </Button>
           </SelectBar>
           <GrowingGrid
             initial={items}

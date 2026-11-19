@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 /*
  * Barra della selezione multipla: conta le caselle `name` spuntate nel form
@@ -56,17 +57,18 @@ export function SelectBar({
       <strong>
         {count} selezionat{masculine ? (count === 1 ? "o" : "i") : count === 1 ? "a" : "e"} su {total}
       </strong>
-      <button type="button" className="link" onClick={() => setAll(count < total)}>
+      <Button type="button" variant="outline" size="sm" onClick={() => setAll(count < total)}>
         {count < total ? `Seleziona tutt${masculine ? "i" : "e"}` : masculine ? "Nessuno" : "Nessuna"}
-      </button>
-      <fieldset disabled={count === 0} style={{ display: "contents" }}>
-        {children}
-      </fieldset>
+      </Button>
       {single && (
         <fieldset disabled={count !== 1} style={{ display: "contents" }}>
           {single}
         </fieldset>
       )}
+      {/* Le azioni pericolose (cestino) stanno in fondo: lontane da quelle innocue. */}
+      <fieldset disabled={count === 0} style={{ display: "contents" }}>
+        {children}
+      </fieldset>
     </div>
   );
 }
@@ -88,9 +90,9 @@ export function ConfirmButton({
         <input type="checkbox" name="conferma" value="si" checked={ok} onChange={(e) => setOk(e.target.checked)} />
         {confirmLabel}
       </label>
-      <button type="submit" className="danger" disabled={!ok} formAction={formAction}>
+      <Button type="submit" variant="destructive" size="sm" disabled={!ok} formAction={formAction}>
         {label}
-      </button>
+      </Button>
     </>
   );
 }

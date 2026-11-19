@@ -1,6 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
+import { Button } from "@/components/ui/button";
 
 /** Fondo di un elenco che si allunga: punto di aggancio, stato e "riprova". */
 export function GrowingFoot({
@@ -20,9 +21,9 @@ export function GrowingFoot({
   return (
     <div ref={sentinel} className="grid-more" aria-live="polite">
       {failed ? (
-        <button type="button" className="link" onClick={retry}>
+        <Button type="button" variant="outline" size="sm" onClick={retry}>
           Caricamento non riuscito: riprova
-        </button>
+        </Button>
       ) : (
         <span className="muted">{loading ? "Carico gli altri…" : (label ?? "")}</span>
       )}

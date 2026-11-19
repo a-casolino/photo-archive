@@ -182,19 +182,21 @@
     border-color: var(--accent);
     color: #fff;
     cursor: pointer;
+    /* Pulsanti a pillola, come quelli di shadcn/ui (src/components/ui/button.tsx). */
+    border-radius: 999px;
+    padding-inline: 16px;
+  }
+
+  /* Sul telefono almeno 44 px di altezza: si tocca il pulsante giusto. */
+  @media (max-width: 640px) {
+    button:not([data-slot]) {
+      min-height: 44px;
+    }
   }
 
   button:not([data-slot]):disabled {
     opacity: 0.6;
     cursor: default;
-  }
-
-  button.link {
-    background: none;
-    border: none;
-    color: var(--accent);
-    padding: 0;
-    text-decoration: underline;
   }
 
   .msg {

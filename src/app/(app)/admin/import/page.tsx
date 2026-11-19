@@ -271,9 +271,9 @@ export default async function ImportPage() {
                       ) : (
                         <form action={revokeDeviceKey}>
                           <input type="hidden" name="deviceId" value={d.id} />
-                          <button type="submit" className="link">
+                          <Button type="submit" variant="danger" size="sm">
                             Revoca
-                          </button>
+                          </Button>
                         </form>
                       )}
                     </td>
