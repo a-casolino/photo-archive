@@ -242,12 +242,21 @@ export async function refreshPerson(personId: number): Promise<void> {
   );
 }
 
-/** Dà il nome a un gruppo, tranne i volti esclusi (che restano senza nome). */
+/**
+ * Dà il nome a un gruppo, tranne i volti esclusi: restano senza nome e
+ * vengono segnati come "non è lei/lui", così il raggruppamento notturno
+ * non li ripropone come suggerimenti per la stessa persona.
+ */
 export async function nameCluster(clusterId: number, personId: number, excludedFaceIds: number[]): Promise<number> {
   const conn = await pool().getConnection();
   try {
     await conn.beginTransaction();
     if (excludedFaceIds.length) {
+      await conn.query(
+        `INSERT IGNORE INTO face_rejections (face_id, person_id)
+         SELECT id, ? FROM faces WHERE cluster_id = ? AND status = 'unknown' AND id IN (?)`,
+        [personId, clusterId, excludedFaceIds],
+      );
       await conn.query(
         "UPDATE faces SET cluster_id = NULL WHERE cluster_id = ? AND status = 'unknown' AND id IN (?)",
         [clusterId, excludedFaceIds],
