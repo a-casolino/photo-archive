@@ -13,12 +13,20 @@ textarea {
 
 a.button {
   display: inline-block;
-  padding: 8px 14px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
   background: var(--accent);
   color: #fff;
   text-decoration: none;
   border: 1px solid var(--accent);
+}
+
+@media (max-width: 640px) {
+  a.button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 a.button.secondary {
@@ -37,11 +45,6 @@ button.small {
   font-size: 0.85rem;
 }
 
-button.link.danger {
-  color: var(--error);
-}
-
-/* Pulsanti pieni "pericolosi" (es. Sposta nel cestino); le varianti testuali restano solo testo. */
 
 .page-head {
   display: flex;
@@ -1269,7 +1272,7 @@ a.tag-chip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
+  gap: 10px 12px;
   padding: 10px 12px;
   margin-bottom: 12px;
   border: 1px solid var(--border);
@@ -1284,10 +1287,11 @@ a.tag-chip {
   font-size: 0.9rem;
 }
 
-button.danger:not(.link) {
-  background: var(--danger, #c0392b);
-  border-color: var(--danger, #c0392b);
-  color: #fff;
+/* Pulsanti "pericolosi" (es. Sposta nel cestino): pillola con contorno rosso. */
+button.danger {
+  background: var(--card);
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  color: var(--danger);
 }
 
 .album-tools {
@@ -1297,9 +1301,16 @@ button.danger:not(.link) {
   gap: 8px;
 }
 
+/* "Sposta nel cestino" in fondo, staccato dalle altre azioni. */
 .photo-trash {
-  margin-top: 16px;
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
   font-size: 0.9rem;
+}
+
+.photo-trash p {
+  margin: 8px 0 0;
 }
 
 .sr-only {
@@ -1658,7 +1669,7 @@ button.danger:not(.link) {
 .msg-undo {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 4px 12px;
 }
 
@@ -1666,8 +1677,18 @@ button.danger:not(.link) {
   display: inline;
 }
 
-.undo-form button {
-  font-weight: 600;
+/* Righe di pulsanti a pillola: abbastanza distanti da non toccare quello accanto. */
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.pill-row-label {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 /* Selezione nell'elenco degli album: casella in alto a destra sulla copertina. */

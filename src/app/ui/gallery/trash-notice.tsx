@@ -4,6 +4,7 @@ import { undoTrashAction } from "@/app/actions/trash";
 import { env } from "@/lib/env";
 import { formatCount } from "@/lib/format";
 import { decodeUndo, UNDO_COOKIE } from "@/lib/trash-rules";
+import { Button } from "@/components/ui/button";
 
 /*
  * Messaggi dopo "Sposta nel cestino", "Elimina album" e "Togli dall'album",
@@ -24,9 +25,9 @@ function UndoButton({ back }: { back: string }) {
   return (
     <form action={undoTrashAction} className="undo-form">
       <input type="hidden" name="back" value={back} />
-      <button type="submit" className="link">
+      <Button type="submit" variant="outline" size="sm">
         Annulla
-      </button>
+      </Button>
     </form>
   );
 }

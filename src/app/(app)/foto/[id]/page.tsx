@@ -17,6 +17,8 @@ import { peopleInPhoto, peopleOptions } from "@/lib/people";
 import { photoNeighbors } from "@/lib/photos";
 import { photoFilterFromParams } from "@/lib/photo-filter-params";
 import { withQueryParam } from "@/lib/gallery-rules";
+import { Button } from "@/components/ui/button";
+import { ImageIcon, Trash2Icon } from "lucide-react";
 
 /** Foto appena spostata nel cestino da qui: "Annulla" ci riporta lì. */
 const TRASHED_PARAM = "prima";
@@ -98,17 +100,16 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
     >
       <TagEditor kind="photo" targetId={photo.public_id} tags={tags} allTags={allTags} />
       {faces.length > 0 && (
-        <p className="photo-people">
-          Persone:{" "}
-          {faces.map((f, i) => (
-            <span key={f.public_id}>
-              {i > 0 && ", "}
+        <div className="pill-row photo-people">
+          <span className="pill-row-label">Persone</span>
+          {faces.map((f) => (
+            <Button key={f.public_id} asChild variant="outline" size="sm">
               <Link href={`/persone/${f.public_id}`} prefetch={false}>
                 {f.name}
               </Link>
-            </span>
+            </Button>
           ))}
-        </p>
+        </div>
       )}
       <section className="photo-links">
         {photo.export_public_id && (
@@ -131,26 +132,32 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
           </p>
         )}
         {albums.length > 0 && (
-          <p className="muted">
-            In:{" "}
-            {albums.map((a, i) => (
-              <span key={a.public_id}>
-                {i > 0 && ", "}
-                <Link href={`/album/${a.public_id}`}>{a.title}</Link>
-                {a.is_cover ? " (copertina)" : ""}
-              </span>
+          <div className="pill-row">
+            <span className="pill-row-label">Negli album</span>
+            {albums.map((a) => (
+              <Button key={a.public_id} asChild variant="outline" size="sm">
+                <Link href={`/album/${a.public_id}`}>
+                  {a.title}
+                  {a.is_cover ? " (copertina)" : ""}
+                </Link>
+              </Button>
             ))}
-          </p>
+          </div>
         )}
-        {coverTargets.map((a) => (
-          <form key={a.public_id} action={setAlbumCover}>
-            <input type="hidden" name="albumId" value={a.public_id} />
-            <input type="hidden" name="photoId" value={photo.public_id} />
-            <button type="submit" className="link">
-              Usa come copertina di “{a.title}”
-            </button>
-          </form>
-        ))}
+        {coverTargets.length > 0 && (
+          <div className="pill-row">
+            {coverTargets.map((a) => (
+              <form key={a.public_id} action={setAlbumCover}>
+                <input type="hidden" name="albumId" value={a.public_id} />
+                <input type="hidden" name="photoId" value={photo.public_id} />
+                <Button type="submit" variant="secondary" size="sm">
+                  <ImageIcon />
+                  Usa come copertina di “{a.title}”
+                </Button>
+              </form>
+            ))}
+          </div>
+        )}
       </section>
 
       <details className="card owner-tools">
@@ -172,13 +179,14 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
       <form action={trashPhotosAction} className="photo-trash">
         <input type="hidden" name="photo" value={photo.public_id} />
         <input type="hidden" name="back" value={afterTrash} />
-        <button type="submit" className="link">
+        <Button type="submit" variant="danger" size="sm">
+          <Trash2Icon />
           Sposta nel cestino
-        </button>
-        <span className="muted">
-          {photo.export_public_id ? " insieme all'export di Lightroom collegato" : ""} (si può ripristinare dal{" "}
-          <Link href="/admin/cestino">Cestino</Link>)
-        </span>
+        </Button>
+        <p className="muted">
+          {photo.export_public_id ? "Va nel cestino insieme all'export di Lightroom collegato. " : ""}Si può
+          ripristinare dal <Link href="/admin/cestino">Cestino</Link>.
+        </p>
       </form>
     </PhotoView>
   );

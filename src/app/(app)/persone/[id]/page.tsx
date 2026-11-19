@@ -10,6 +10,7 @@ import { formatCount } from "@/lib/format";
 import { signKeys } from "@/lib/gallery";
 import { countPersonPhotos, getPerson, listPeople, personFaces, personPhotos } from "@/lib/people";
 import { requireOwner } from "@/lib/session";
+import { Button } from "@/components/ui/button";
 
 export default async function PersonPage({ params, searchParams }: PageProps<"/persone/[id]">) {
   await requireOwner();
@@ -71,9 +72,9 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/p
         <form action={removeFacesAction}>
           <input type="hidden" name="person" value={person.public_id} />
           <FaceGridUnchecked faces={faces} urls={urls} />
-          <button type="submit" className="link danger">
+          <Button type="submit" variant="danger" size="sm" className="mt-3">
             Togli i volti spuntati
-          </button>
+          </Button>
         </form>
       </details>
 
@@ -109,9 +110,9 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/p
 
           <form action={deletePersonAction} style={{ marginTop: 12 }}>
             <input type="hidden" name="person" value={person.public_id} />
-            <button type="submit" className="link danger">
+            <Button type="submit" variant="danger" size="sm" className="h-auto min-h-8 whitespace-normal py-1.5 text-left">
               Elimina {person.name} e i suoi volti (le foto restano)
-            </button>
+            </Button>
           </form>
         </div>
       </details>

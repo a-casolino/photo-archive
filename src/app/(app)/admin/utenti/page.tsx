@@ -3,6 +3,7 @@ import { ActionForm } from "@/app/ui/action-form";
 import { query } from "@/lib/db";
 import { requireOwner } from "@/lib/session";
 import { ROLE_LABELS, type Role } from "@/lib/roles";
+import { Button } from "@/components/ui/button";
 
 type UserRow = {
   id: number;
@@ -83,21 +84,21 @@ export default async function UsersPage() {
                 <td>{u.last_login_at ? fmt.format(u.last_login_at) : "—"}</td>
                 <td>
                   {u.role !== "owner" && (
-                    <span className="inline">
+                    <span className="pill-row" style={{ margin: 0 }}>
                       {!u.activated && !u.disabled_at && (
                         <form action={resendInvite}>
                           <input type="hidden" name="userId" value={u.id} />
-                          <button type="submit" className="link">
+                          <Button type="submit" variant="outline" size="sm">
                             Reinvia invito
-                          </button>
+                          </Button>
                         </form>
                       )}
                       <form action={setDisabled}>
                         <input type="hidden" name="userId" value={u.id} />
                         <input type="hidden" name="disable" value={u.disabled_at ? "0" : "1"} />
-                        <button type="submit" className="link">
+                        <Button type="submit" variant={u.disabled_at ? "outline" : "danger"} size="sm">
                           {u.disabled_at ? "Riattiva" : "Disattiva"}
-                        </button>
+                        </Button>
                       </form>
                     </span>
                   )}

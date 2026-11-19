@@ -5,6 +5,7 @@ import { formatCount } from "@/lib/format";
 import { signKeys } from "@/lib/gallery";
 import { facesSummary, listSuggestions } from "@/lib/people";
 import { requireOwner } from "@/lib/session";
+import { Button } from "@/components/ui/button";
 
 export default async function SuggestionsPage() {
   await requireOwner();
@@ -37,12 +38,12 @@ export default async function SuggestionsPage() {
               <input type="hidden" name="person" value={person.public_id} />
               <FaceGrid faces={faces} urls={urls} field="face" />
               <div className="share-actions">
-                <button type="submit" formAction={confirmSuggestionsAction}>
+                <Button type="submit" formAction={confirmSuggestionsAction}>
                   Sì, conferma le spuntate
-                </button>
-                <button type="submit" formAction={rejectSuggestionsAction} className="link danger">
+                </Button>
+                <Button type="submit" variant="danger" formAction={rejectSuggestionsAction}>
                   No, scarta le spuntate
-                </button>
+                </Button>
               </div>
             </form>
           </section>

@@ -15,6 +15,7 @@ import { dateTimeFmt, formatBytes, formatCount } from "@/lib/format";
 import { DriveAuthError, DriveClient, driveAccount, driveConfigured, driveRedirectUri } from "@/lib/google-drive";
 import { requireOwner } from "@/lib/session";
 import { AutoRefresh } from "../auto-refresh";
+import { Button } from "@/components/ui/button";
 
 /*
  * Import da Google Drive: il proprietario collega Drive (sola lettura),
@@ -155,9 +156,9 @@ export default async function DriveImportPage({ searchParams }: PageProps<"/admi
             Collegato a <strong>{account.email ?? "Google Drive"}</strong> (sola lettura)
           </span>
           <form action={disconnectDriveAction}>
-            <button type="submit" className="link">
+            <Button type="submit" variant="danger" size="sm">
               Scollega
-            </button>
+            </Button>
           </form>
         </div>
         {driveError && (
@@ -332,17 +333,17 @@ function QueueSection({ queue }: { queue: QueueRow[] }) {
                 {(q.status === "queued" || q.status === "running") && (
                   <form action={cancelDriveImport}>
                     <input type="hidden" name="id" value={q.public_id} />
-                    <button type="submit" className="link">
+                    <Button type="submit" variant="danger" size="sm">
                       Annulla
-                    </button>
+                    </Button>
                   </form>
                 )}
                 {(q.status === "failed" || q.status === "cancelled") && (
                   <form action={retryDriveImport}>
                     <input type="hidden" name="id" value={q.public_id} />
-                    <button type="submit" className="link">
+                    <Button type="submit" variant="outline" size="sm">
                       Riprova
-                    </button>
+                    </Button>
                   </form>
                 )}
               </td>
