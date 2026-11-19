@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { FilterBar } from "@/app/ui/gallery/filter-bar";
-import { DateSelects, PersonSelect } from "@/app/ui/gallery/filters";
+import { DateSelects, DeviceSelect, PersonSelect } from "@/app/ui/gallery/filters";
 import { pathWith, SelectableMasonry, SelectToggle } from "@/app/ui/gallery/photo-select";
 import { PhotoTrashNotice } from "@/app/ui/gallery/trash-notice";
 import { GRID_BATCH } from "@/lib/grid-rules";
@@ -9,7 +9,7 @@ import { dateFilterLabel, FILTER_PARAMS } from "@/lib/filter-rules";
 import { formatCount } from "@/lib/format";
 import { ORIGIN_LABEL } from "@/lib/gallery";
 import { peopleOptions } from "@/lib/people";
-import { countPhotos, photoYears } from "@/lib/photos";
+import { countPhotos, photoDevices, photoYears } from "@/lib/photos";
 import { photoFilterFromParams } from "@/lib/photo-filter-params";
 import { requireOwner } from "@/lib/session";
 import { listTags } from "@/lib/tags";
@@ -20,8 +20,8 @@ const ORIGINS = Object.keys(ORIGIN_LABEL) as (keyof typeof ORIGIN_LABEL)[];
 export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
   await requireOwner();
   const sp = await searchParams;
-  const [years, peopleList, tags] = await Promise.all([photoYears(), peopleOptions(), listTags()]);
-  const { filter, query, active } = photoFilterFromParams(sp, { people: peopleList, tags });
+  const [years, peopleList, tags, devices] = await Promise.all([photoYears(), peopleOptions(), listTags(), photoDevices()]);
+  const { filter, query, active } = photoFilterFromParams(sp, { people: peopleList, tags, devices });
 
   // Solo il primo blocco: gli altri arrivano mentre si scorre (GrowingGrid).
   const [items, total] = await Promise.all([photoTiles(filter, query, 0, GRID_BATCH), countPhotos(filter)]);
@@ -37,6 +37,7 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
     tagSlug && `#${tags.find((t) => t.slug === tagSlug)?.name}`,
     filter.origin && ORIGIN_LABEL[filter.origin],
     filter.personId && peopleList.find((p) => p.id === filter.personId)?.name,
+    filter.device?.label,
     filter.onlyEdited && "Con regolazioni",
   ].filter((x): x is string => !!x);
 
@@ -82,6 +83,7 @@ export default async function PhotosPage({ searchParams }: PageProps<"/foto">) {
               </option>
             ))}
           </select>
+          <DeviceSelect value={query[FILTER_PARAMS.device]} devices={devices} />
           <PersonSelect value={query[FILTER_PARAMS.person]} people={peopleList} />
           <label className="filter-check">
             <input

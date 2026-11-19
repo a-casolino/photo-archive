@@ -1,3 +1,4 @@
+import { DEVICE_GROUP_LABEL, DEVICE_GROUPS, type DeviceOption } from "@/lib/device-rules";
 import { FILTER_PARAMS, MONTH_NAMES, type DateFilter } from "@/lib/filter-rules";
 
 /*
@@ -58,6 +59,41 @@ export function PersonSelect({
           {p.name}
         </option>
       ))}
+    </select>
+  );
+}
+
+/**
+ * Fotocamera o telefono: i due gruppi interi, le foto senza dati EXIF del
+ * dispositivo (screenshot, immagini ricevute) e poi i singoli modelli.
+ */
+export function DeviceSelect({ value, devices }: { value: string | undefined; devices: DeviceOption[] }) {
+  const cameras = devices.filter((d) => d.kind === "camera");
+  const phones = devices.filter((d) => d.kind === "phone");
+  return (
+    <select name={FILTER_PARAMS.device} defaultValue={value ?? ""} aria-label="Fotocamera o telefono">
+      <option value="">Tutti i dispositivi</option>
+      <option value={DEVICE_GROUPS.cameras}>Solo fotocamere</option>
+      <option value={DEVICE_GROUPS.phones}>Solo telefoni</option>
+      <option value={DEVICE_GROUPS.none}>{DEVICE_GROUP_LABEL.sconosciuto}</option>
+      {cameras.length > 0 && (
+        <optgroup label="Fotocamere">
+          {cameras.map((d) => (
+            <option key={d.slug} value={d.slug}>
+              {d.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {phones.length > 0 && (
+        <optgroup label="Telefoni">
+          {phones.map((d) => (
+            <option key={d.slug} value={d.slug}>
+              {d.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }

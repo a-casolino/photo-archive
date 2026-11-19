@@ -14,7 +14,7 @@ import { requireOwner } from "@/lib/session";
 import { defaultLinkDays, listShares, shareableUsers } from "@/lib/shares";
 import { listTags, tagsOf } from "@/lib/tags";
 import { peopleInPhoto, peopleOptions } from "@/lib/people";
-import { photoNeighbors } from "@/lib/photos";
+import { photoDevices, photoNeighbors } from "@/lib/photos";
 import { photoFilterFromParams } from "@/lib/photo-filter-params";
 import { withQueryParam } from "@/lib/gallery-rules";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,9 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
   // Aperta dalla pagina Foto: si scorre con gli stessi filtri.
   const fromPhotos = !album && sp.da === "foto";
   const photosCtx = fromPhotos
-    ? await Promise.all([peopleOptions(), listTags()]).then(([people, tags]) => photoFilterFromParams(sp, { people, tags }))
+    ? await Promise.all([peopleOptions(), listTags(), photoDevices()]).then(([people, tags, devices]) =>
+        photoFilterFromParams(sp, { people, tags, devices }),
+      )
     : null;
   const neighbors = album
     ? await albumNeighbors(album.id, photo.id, onlyEdited)
