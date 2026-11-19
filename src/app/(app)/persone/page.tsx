@@ -1,18 +1,35 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { PeopleTabs } from "@/app/ui/people/faces";
+import { SortSelect } from "@/app/ui/sort-select";
 import { formatCount } from "@/lib/format";
 import { signKeys } from "@/lib/gallery";
 import { facesSummary, listPeople } from "@/lib/people";
+import { PEOPLE_SORT_COOKIE, PEOPLE_SORT_LABEL, PEOPLE_SORTS, parsePeopleSort, sortPeople } from "@/lib/people-sort";
 import { requireOwner } from "@/lib/session";
 
 export default async function PeoplePage() {
   await requireOwner();
-  const [people, summary] = await Promise.all([listPeople(), facesSummary()]);
+  const [list, summary, jar] = await Promise.all([listPeople(), facesSummary(), cookies()]);
+  // Ordine scelto dal proprietario (alfabetico se non ha scelto): in memoria, i conteggi ci sono già.
+  const sort = parsePeopleSort(jar.get(PEOPLE_SORT_COOKIE)?.value);
+  const people = sortPeople(list, sort);
   const urls = await signKeys(people.map((p) => p.cover_key));
 
   return (
     <>
-      <h1>Persone</h1>
+      <div className="page-head">
+        <h1>Persone</h1>
+        {people.length > 1 && (
+          <SortSelect
+            className="album-sort"
+            label="Ordina persone"
+            cookie={PEOPLE_SORT_COOKIE}
+            value={sort}
+            options={PEOPLE_SORTS.map((s) => ({ value: s, label: PEOPLE_SORT_LABEL[s] }))}
+          />
+        )}
+      </div>
       <PeopleTabs current="persone" groups={summary.groups} suggested={summary.suggested} />
       <p className="muted">
         Foto analizzate: {formatCount(summary.scanned)}
