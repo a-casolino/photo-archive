@@ -2,6 +2,7 @@ import "server-only";
 import { query, queryOne } from "./db";
 import { memo } from "./memo";
 import { dateFilterSql, type DateFilter } from "./filter-rules";
+import { deviceFilterSql, deviceOptions, type CameraRow, type DeviceFilter, type DeviceOption } from "./device-rules";
 import {
   CARD_COLUMNS,
   LINKED_EXPORT,
@@ -16,7 +17,7 @@ import { escapeLike } from "./search-rules";
 
 /*
  * Pagina Foto del proprietario: tutte le foto dell'archivio con i filtri
- * (ricerca, data di scatto, tag, origine, regolazioni, persona). I
+ * (ricerca, data di scatto, tag, origine, regolazioni, persona, dispositivo). I
  * chiamanti fanno requireOwner(): ricerca e filtro per persona usano i nomi
  * delle persone, che vede solo il proprietario.
  *
@@ -31,6 +32,8 @@ export type PhotoFilter = {
   origin?: AlbumRow["origin"];
   onlyEdited?: boolean;
   personId?: number;
+  /** Fotocamera o telefono dell'EXIF della foto mostrata (il CR2, se c'è). */
+  device?: DeviceFilter;
 };
 
 /** Le foto di `p` e del suo export mostrato `x` (per tag, album e volti). */
@@ -73,6 +76,11 @@ function photoWhere(f: PhotoFilter): { where: string; params: unknown[] } {
     where.push(`EXISTS (SELECT 1 FROM faces f WHERE f.photo_id IN ${SELF_OR_EXPORT}
                          AND f.person_id = ? AND f.status = 'confirmed')`);
     params.push(f.personId);
+  }
+  if (f.device) {
+    const d = deviceFilterSql("p.camera_id", f.device);
+    where.push(d.sql);
+    params.push(...d.params);
   }
   return { where: where.join(" AND "), params };
 }
@@ -124,5 +132,20 @@ export async function photoYears(): Promise<number[]> {
         WHERE deleted_at IS NULL AND taken_at IS NOT NULL ORDER BY y DESC`,
     );
     return rows.map((r) => Number(r.y));
+  });
+}
+
+/**
+ * Fotocamere e telefoni che hanno almeno una foto (per il filtro per
+ * dispositivo). La tabella cameras è piccola e il controllo usa l'indice
+ * su photos.camera_id; si tiene in memoria per 10 minuti come gli anni.
+ */
+export async function photoDevices(): Promise<DeviceOption[]> {
+  return memo("photoDevices", 10 * 60 * 1000, async () => {
+    const rows = await query<CameraRow>(
+      `SELECT c.id, c.make, c.model, c.serial, c.display_name FROM cameras c
+        WHERE EXISTS (SELECT 1 FROM photos p WHERE p.camera_id = c.id AND p.deleted_at IS NULL)`,
+    );
+    return deviceOptions(rows.map((r) => ({ ...r, id: Number(r.id) })));
   });
 }

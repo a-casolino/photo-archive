@@ -34,6 +34,7 @@ export const FILTER_PARAMS = {
   tag: "tag",
   person: "persona",
   edited: "solo",
+  device: "dispositivo",
 } as const;
 
 type Raw = string | string[] | undefined;

@@ -1,4 +1,5 @@
 import { dateFilterParams, FILTER_PARAMS, hasDateFilter, parseDateFilter } from "./filter-rules";
+import { parseDeviceFilter, type DeviceOption } from "./device-rules";
 import type { AlbumRow } from "./gallery";
 import type { PhotoFilter } from "./photos";
 import { parseSearchQuery } from "./search-rules";
@@ -19,7 +20,11 @@ function first(raw: Raw): string | undefined {
 
 export function photoFilterFromParams(
   sp: Record<string, Raw>,
-  lookups: { people: { id: number; public_id: string }[]; tags: { id: number; slug: string }[] },
+  lookups: {
+    people: { id: number; public_id: string }[];
+    tags: { id: number; slug: string }[];
+    devices: DeviceOption[];
+  },
 ): { filter: PhotoFilter; query: Record<string, string>; active: boolean } {
   const filter: PhotoFilter = {};
   const query: Record<string, string> = {};
@@ -52,6 +57,11 @@ export function photoFilterFromParams(
   if (first(sp[FILTER_PARAMS.edited]) === "regolazioni") {
     filter.onlyEdited = true;
     query[FILTER_PARAMS.edited] = "regolazioni";
+  }
+  const device = parseDeviceFilter(first(sp[FILTER_PARAMS.device]), lookups.devices);
+  if (device) {
+    filter.device = device;
+    query[FILTER_PARAMS.device] = device.value;
   }
   return { filter, query, active: Object.keys(query).length > 0 };
 }
