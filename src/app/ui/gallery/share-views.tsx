@@ -18,9 +18,10 @@ import {
   type AlbumCrumb,
   type AlbumRow,
 } from "@/lib/gallery";
-import { effectiveDownload, type Role } from "@/lib/roles";
+import { canDownload, effectiveDownload, type Role } from "@/lib/roles";
 import { recordShareEvent, shareCoversPhoto, type ShareRow } from "@/lib/shares";
 import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
+import { AlbumDownloadButton } from "./album-download";
 import { albumDetail, AlbumGrid, AlbumList, type AlbumEntry } from "./album-views";
 import { ALBUM_VIEW_COOKIE, parseAlbumView } from "./album-view-pref";
 import { albumDates } from "./dates";
@@ -118,6 +119,12 @@ export async function ShareHome(ctx: Ctx) {
               hasSubalbums={branch.children > 0}
               onlyEdited={onlyEdited}
               castAppId={env().CAST_APP_ID ?? null}
+            />
+          )}
+          {branch.photos > 0 && canDownload(effectiveDownload(share.allow_download, role), "preview") && (
+            <AlbumDownloadButton
+              source={ctx.access.token ? { t: ctx.access.token, ...albumQ } : { s: ctx.access.share, ...albumQ }}
+              photos={branch.photos}
             />
           )}
         </div>
@@ -226,6 +233,7 @@ export async function SharedPhoto(ctx: Ctx & { photoPid: string | null }) {
       level={effectiveDownload(share.allow_download, role)}
       access={ctx.access}
       showPrivate={role === "owner"}
+      minimal={role === "viewer" || role === null}
     >
       {share.target_type === "photo" && share.message && <p className="share-note">{share.message}</p>}
     </PhotoView>

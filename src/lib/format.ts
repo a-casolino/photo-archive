@@ -70,3 +70,13 @@ export function formatTakenAt(takenAt: Date | null, subsecMs?: number | null): s
   }).format(takenAt);
   return subsecMs === null || subsecMs === undefined ? s : `${s},${String(subsecMs).padStart(3, "0")}`;
 }
+
+/** Solo il giorno dello scatto, per esteso: "12 agosto 2023" (ora della fotocamera, vedi formatTakenAt). */
+export function formatTakenDay(takenAt: Date): string {
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(takenAt);
+}
