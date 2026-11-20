@@ -524,3 +524,19 @@ CREATE TABLE share_events (
 -- si raggiungono dal link al RAW dell'export. album_pairs.merged_at: quando
 -- la coppia confermata è stata unita (la cartella è finita nel cestino con
 -- merged_into_id = album Google).
+
+-- =====================================================================
+-- Migrazione 021_cache_versioni.sql (2026-11-20)
+-- =====================================================================
+
+-- cache_versions: una riga per etichetta della cache in memoria dell'app
+-- ('album', 'volti', vedi src/lib/cache-rules.ts). Ogni processo che scrive
+-- sul database aumenta version dell'etichetta toccata; l'app la legge prima
+-- di usare la cache e, se è cambiata, svuota le voci di quell'etichetta.
+-- Serve ai programmi da riga di comando, che non vedono la memoria dell'app.
+
+CREATE TABLE cache_versions (
+  tag        VARCHAR(32) NOT NULL PRIMARY KEY,
+  version    BIGINT UNSIGNED NOT NULL,
+  updated_at DATETIME NOT NULL
+) ENGINE=InnoDB;

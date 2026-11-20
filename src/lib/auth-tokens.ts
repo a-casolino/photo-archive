@@ -1,5 +1,5 @@
 import "server-only";
-import { pool, queryOne } from "./db";
+import { getConnection, queryOne } from "./db";
 import { newToken, sha256 } from "./crypto";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -18,7 +18,7 @@ export const TOKEN_TTL_MS: Record<TokenPurpose, number> = {
 /** Crea un nuovo token e invalida quelli precedenti dello stesso tipo. */
 export async function issueToken(userId: number, purpose: TokenPurpose): Promise<string> {
   const token = newToken();
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     await conn.query(
@@ -62,7 +62,7 @@ export async function consumeToken<T>(
   purpose: TokenPurpose,
   then: (userId: number, q: (sql: string, params: unknown[]) => Promise<unknown>) => Promise<T>,
 ): Promise<T | null> {
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     const [rows] = await conn.query<RowDataPacket[]>(

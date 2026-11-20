@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBase62 } from "./crypto";
-import { execute, pool, query, queryOne } from "./db";
+import { cached } from "./cache";
+import { execute, getConnection, query, queryOne } from "./db";
 import { centroid } from "./faces/cluster";
 import { decodeEmbedding, encodeEmbedding } from "./faces/embedding";
 import { CARD_COLUMNS, LINKED_EXPORT, type PhotoCard } from "./gallery";
@@ -43,6 +44,12 @@ const FACE_TILE = `f.id, f.gcs_face_key AS face_key, p.public_id AS photo_public
 // ---------------------------------------------------------------------
 
 export async function listPeople(): Promise<PersonListItem[]> {
+  // Conta foto e suggerimenti di ogni persona: in cache finché cambiano i volti.
+  const rows = await cached("volti:persone", ["volti"], listPeopleUncached);
+  return [...rows];
+}
+
+async function listPeopleUncached(): Promise<PersonListItem[]> {
   return query<PersonListItem>(
     `SELECT pe.id, pe.public_id, pe.name, pe.cover_face_id,
             (SELECT COUNT(DISTINCT f.photo_id) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
@@ -58,6 +65,11 @@ export async function listPeople(): Promise<PersonListItem[]> {
 
 /** Persone con almeno una foto confermata, per i filtri (solo proprietario). */
 export async function peopleOptions(): Promise<{ id: number; public_id: string; name: string }[]> {
+  const rows = await cached("volti:opzioni", ["volti"], () => peopleOptionsUncached());
+  return [...rows];
+}
+
+async function peopleOptionsUncached(): Promise<{ id: number; public_id: string; name: string }[]> {
   return query(
     `SELECT pe.id, pe.public_id, pe.name FROM people pe
       WHERE EXISTS (SELECT 1 FROM faces f WHERE f.person_id = pe.id AND f.status = 'confirmed')
@@ -72,6 +84,10 @@ export async function getPerson(publicId: string): Promise<Person | null> {
 export type FacesSummary = { scanned: number; pending: number; unknown: number; groups: number; suggested: number; ignored: number };
 
 export async function facesSummary(): Promise<FacesSummary> {
+  return cached("volti:riepilogo", ["volti"], facesSummaryUncached);
+}
+
+async function facesSummaryUncached(): Promise<FacesSummary> {
   const row = await queryOne<FacesSummary>(
     `SELECT
        (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND faces_scanned_at IS NOT NULL) AS scanned,
@@ -124,6 +140,10 @@ export async function listIgnoredFaces(offset: number, limit: number): Promise<F
 }
 
 export async function countClusters(): Promise<number> {
+  return cached("volti:gruppi", ["volti"], countClustersUncached);
+}
+
+async function countClustersUncached(): Promise<number> {
   const row = await queryOne<{ n: number }>(
     `SELECT COUNT(DISTINCT f.cluster_id) AS n FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
       WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL`,
@@ -281,7 +301,7 @@ export async function refreshPerson(personId: number): Promise<void> {
  * non li ripropone come suggerimenti per la stessa persona.
  */
 export async function nameCluster(clusterId: number, personId: number, excludedFaceIds: number[]): Promise<number> {
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     if (excludedFaceIds.length) {
@@ -387,7 +407,7 @@ export async function renamePerson(personId: number, name: string): Promise<{ er
 /** Sposta volti e scarti di `fromId` su `intoId` ed elimina `fromId`. */
 export async function mergePeople(fromId: number, intoId: number): Promise<void> {
   if (fromId === intoId) return;
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     await conn.query("UPDATE people SET cover_face_id = NULL WHERE id = ?", [fromId]);
@@ -413,7 +433,7 @@ export async function mergePeople(fromId: number, intoId: number): Promise<void>
  * ritrovati finché non si rianalizza la foto con `--rifai`.
  */
 export async function deletePerson(personId: number): Promise<void> {
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     await conn.query("UPDATE people SET cover_face_id = NULL WHERE id = ?", [personId]);

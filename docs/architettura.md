@@ -585,6 +585,29 @@ l'hanno). Chi riceve una condivisione o un link non li vede.
   stessa miniatura ha lo stesso URL per un'ora e il browser la prende dalla
   cache invece di riscaricarla a ogni pagina. Il server tiene in memoria gli
   URL già firmati nella finestra corrente.
+- **Cache in memoria** (`src/lib/cache.ts`, dal 2026-11-20): i conteggi
+  pesanti restano nella memoria del processo Node fino a 7 giorni. Etichetta
+  `album`: righe dell'elenco album (una per album: foto, peso, periodo,
+  copertina), id degli album per ogni filtro, contatori del singolo album,
+  albero degli album, anni e dispositivi dei filtri. Etichetta `volti`:
+  Persone, riepilogo dei volti, numero di gruppi, persone dei filtri.
+  Invalidazione:
+  - ogni `execute()` e ogni transazione aperta con `getConnection()`
+    (`src/lib/db.ts`) svuota le etichette della tabella scritta
+    (`src/lib/cache-rules.ts`; `photos.place_name` e `photos.phash` non
+    svuotano niente, `faces_scanned_at` solo `volti`). Le transazioni
+    svuotano al rilascio della connessione, dopo il commit. Per scrivere
+    usare sempre `execute()` o `getConnection()`, mai `pool()` direttamente;
+  - i programmi da riga di comando aumentano `cache_versions.version`
+    dell'etichetta (al più ogni 2 s e in `closePool()`, da chiamare alla fine
+    al posto di `pool().end()`); l'app legge la tabella al più una volta al
+    secondo e svuota le etichette cambiate;
+  - pulsante "Svuota cache" in Statistiche, e ogni riavvio dell'app.
+  Mai in cache dati che dipendono da chi guarda: i permessi si controllano a
+  ogni richiesta. Funziona perché l'app è un solo processo: con più istanze
+  servirebbe una cache condivisa (Redis).
+- **Query lente nel log**: `query()` ed `execute()` scrivono nel log
+  dell'app `[db] query lenta N ms: …` sopra i 300 ms.
 
 ## Infrastruttura
 

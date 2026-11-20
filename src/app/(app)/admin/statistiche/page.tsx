@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { clearCacheAction } from "@/app/actions/cache";
+import { Button } from "@/components/ui/button";
 import {
   BUCKET_REGION,
   ESTIMATED_SIZE,
@@ -12,6 +14,7 @@ import {
   USD_TO_EUR,
   type StorageClass,
 } from "@/lib/cost-rules";
+import { cacheSummary } from "@/lib/cache";
 import { env } from "@/lib/env";
 import { formatBytes, formatCount } from "@/lib/format";
 import { bucketMetrics, type DailyBytes } from "@/lib/gcs-metrics";
@@ -33,6 +36,22 @@ const eur = (usd: number) =>
   });
 
 const monthFmt = new Intl.DateTimeFormat("it-IT", { month: "short", year: "numeric", timeZone: "UTC" });
+const CACHE_TAG_LABEL: Record<string, string> = {
+  album: "Album (conteggi, peso, periodo, copertine, filtri)",
+  volti: "Persone e volti (conteggi)",
+  altro: "Altro",
+};
+
+/** "3 min", "2 h", "4 giorni": da quanto è in cache la voce più vecchia. */
+function age(ms: number): string {
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "meno di un minuto";
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 48) return `${h} ${h === 1 ? "ora" : "ore"}`;
+  return `${Math.floor(h / 24)} giorni`;
+}
+
 const dayFmt = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", timeZone: "UTC" });
 
 function Bar({ value, max }: { value: number; max: number }) {
@@ -115,6 +134,8 @@ export default async function StatsPage({ searchParams }: PageProps<"/admin/stat
   const maxYear = Math.max(0, ...stats.byYear.map((y) => y.bytes));
   const maxMonth = Math.max(0, ...stats.byMonth.map((m) => m.bytes));
   const bucketTotal = Object.values(storedBytes).reduce((s, v) => s + (v ?? 0), 0);
+  const cache = cacheSummary();
+  const cleared = typeof sp.cache === "string" ? Number(sp.cache) : null;
 
   return (
     <>
@@ -361,6 +382,42 @@ export default async function StatsPage({ searchParams }: PageProps<"/admin/stat
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <h2 id="cache">Cache</h2>
+      <section className="stats-grid">
+        <div className="card">
+          <p className="muted">
+            I conteggi più pesanti (album, persone, volti) restano in memoria fino a 7 giorni e si aggiornano da soli
+            a ogni modifica, anche dai programmi notturni. Se qualcosa sembra non aggiornato, svuotala: la prossima
+            pagina rilegge tutto dal database.
+          </p>
+          {cache.length === 0 ? (
+            <p className="muted">La cache è vuota.</p>
+          ) : (
+            <table className="stats-table">
+              <tbody>
+                {cache.map((c) => (
+                  <tr key={c.tag}>
+                    <td>{CACHE_TAG_LABEL[c.tag] ?? c.tag}</td>
+                    <td className="num">{formatCount(c.entries)} voci</td>
+                    <td className="num muted">{c.oldestAgeMs !== null ? `da ${age(c.oldestAgeMs)}` : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {cleared !== null && Number.isFinite(cleared) && (
+            <p className="muted stats-note" role="status">
+              Cache svuotata ({formatCount(cleared)} voci).
+            </p>
+          )}
+          <form action={clearCacheAction} className="mt-3">
+            <Button type="submit" variant="outline" size="sm">
+              Svuota cache
+            </Button>
+          </form>
         </div>
       </section>
     </>

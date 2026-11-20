@@ -15,7 +15,7 @@
  */
 import "../load-env";
 import { parseArgs } from "node:util";
-import { pool } from "../../src/lib/db";
+import { closePool } from "../../src/lib/db";
 import { fillPlaceNames, loadPlaceIndex, preparePlaces } from "./places";
 
 async function main() {
@@ -40,13 +40,11 @@ async function main() {
   console.log(
     `[luoghi] ${named} foto con il nome del luogo, ${empty} senza località vicine (${((Date.now() - t) / 1000).toFixed(1)} s).`,
   );
-  await pool().end();
+  await closePool();
 }
 
 main().catch(async (e) => {
   console.error("[luoghi]", e instanceof Error ? e.message : e);
-  await pool()
-    .end()
-    .catch(() => {});
+  await closePool().catch(() => {});
   process.exit(1);
 });

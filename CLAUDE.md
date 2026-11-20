@@ -84,6 +84,9 @@ Prima di aprire una PR: `npm run typecheck && npm run lint && npm test && npm ru
 - Volti e persone solo per il proprietario. Le impronte (`faces.embedding`) sono dati
   biometrici: mai al browser, mai a servizi esterni; eliminando una persona si
   eliminano anche i suoi volti.
+- Scritture sul database solo con `execute()` o `getConnection()` di `src/lib/db.ts`
+  (svuotano la cache in memoria, vedi "Prestazioni" in `docs/architettura.md`); i
+  programmi da riga di comando finiscono con `closePool()`, non `pool().end()`.
 - Negli URL solo `public_id` casuali, mai gli id numerici.
 - Token (sessione, invito, reset, link liberi) salvati solo come hash SHA-256.
 - Date in UTC nel database; in interfaccia fuso `Europe/Rome`.

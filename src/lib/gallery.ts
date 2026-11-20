@@ -1,5 +1,7 @@
 import "server-only";
+import { sortAlbums } from "./album-sort";
 import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
+import { cached, cachedMany, type CacheTag } from "./cache";
 import { query, queryOne } from "./db";
 import { dateFilterSql, hasDateFilter, type DateFilter } from "./filter-rules";
 import { storage } from "./storage";
@@ -292,11 +294,16 @@ function albumListWhere(filter: AlbumListFilter): { cond: string; params: unknow
 export async function listAlbumKeys(
   filter: AlbumListFilter,
 ): Promise<{ id: number; title: string; date_from: Date | null }[]> {
-  const { cond, params } = albumListWhere(filter);
-  return query(`${treeCte(cond)} SELECT a.id, a.title, ${BRANCH_DATE_FROM("a")} AS date_from FROM albums a WHERE ${cond}`, [
-    ...params,
-    ...params,
-  ]);
+  // In cache: il filtro per persona dipende anche dai volti confermati.
+  const tags: CacheTag[] = filter.personId ? ["album", "volti"] : ["album"];
+  return cached(`album:chiavi:${JSON.stringify(filter)}`, tags, async () => {
+    const { cond, params } = albumListWhere(filter);
+    const rows = await query<{ id: number; title: string; date_from: Date | null }>(
+      `${treeCte(cond)} SELECT a.id, a.title, ${BRANCH_DATE_FROM("a")} AS date_from FROM albums a WHERE ${cond}`,
+      [...params, ...params],
+    );
+    return rows.map((r) => ({ ...r, id: Number(r.id) }));
+  }).then((rows) => [...rows]);
 }
 
 /**
@@ -307,7 +314,23 @@ export async function listAlbumKeys(
 export async function listAlbums(
   filter: AlbumListFilter = {},
 ): Promise<AlbumListItem[]> {
-  const { cond, params } = albumListWhere(filter);
+  // Quali album: dai filtri (query leggera, in cache) o dati. Le righe con
+  // conteggi, peso, periodo e copertina sono in cache una per album: si
+  // calcolano solo quelle che mancano, con una sola query.
+  const ids = filter.ids ?? (await listAlbumKeys(filter)).map((k) => k.id);
+  if (!ids.length) return [];
+  const rows = await cachedMany(ids, (id) => `album:riga:${id}`, ["album"], async (missing) => {
+    const loaded = await albumListRows(missing);
+    return new Map(loaded.map((r) => [Number(r.id), r]));
+  });
+  const list = ids.map((id) => rows.get(id)).filter((r): r is AlbumListItem => r !== undefined);
+  // Ordine di sempre: per data della prima foto (i più recenti prima), senza data in fondo.
+  return sortAlbums(list, "recenti");
+}
+
+/** Le righe complete dell'elenco album per questi id (senza cache). */
+async function albumListRows(ids: number[]): Promise<AlbumListItem[]> {
+  const { cond, params } = albumListWhere({ ids });
   // La copertina effettiva si calcola in una tabella derivata: il join su photos resta per chiave primaria.
   return query<AlbumListItem>(
     `${treeCte(cond)}
@@ -407,7 +430,12 @@ export async function albumBranchSummary(
 
 /** Tutti gli album attivi, per "Sposta in…" e per i controlli sull'albero. */
 export async function albumTreeIndex(): Promise<{ id: number; public_id: string; title: string; parent_id: number | null }[]> {
-  return query("SELECT id, public_id, title, parent_id FROM albums WHERE deleted_at IS NULL ORDER BY title");
+  const rows = await cached("album:albero", ["album"], () =>
+    query<{ id: number; public_id: string; title: string; parent_id: number | null }>(
+      "SELECT id, public_id, title, parent_id FROM albums WHERE deleted_at IS NULL ORDER BY title",
+    ),
+  );
+  return [...rows]; // copia: chi la riceve può riordinarla senza toccare la cache
 }
 
 /** Copertina mostrata per l'album e se è stata scelta a mano (o è la prima foto). */
@@ -426,6 +454,10 @@ export async function getAlbumCover(
 }
 
 export async function albumCounts(albumId: number): Promise<{ total: number; edited: number; extra: number }> {
+  return cached(`album:conteggi:${albumId}`, ["album"], () => albumCountsUncached(albumId));
+}
+
+async function albumCountsUncached(albumId: number): Promise<{ total: number; edited: number; extra: number }> {
   const row = await queryOne<{ total: number; edited: number | null; extra: number | null }>(
     `SELECT COUNT(*) AS total, SUM(x.id IS NOT NULL) AS edited, SUM(ap.section = 'extra') AS extra
        FROM album_photos ap
