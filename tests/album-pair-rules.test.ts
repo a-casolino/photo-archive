@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { folderSections, promotedTitle, proposePairs, shotKey } from "../src/lib/album-pair-rules";
+import { HashIndex, cameraGroups, folderSections, promotedTitle, proposePairs, shotKey } from "../src/lib/album-pair-rules";
+import { parseHash } from "../src/lib/phash-rules";
 
 const votes = (spec: [number, number][]) => spec.flatMap(([folder, n]) => Array.from({ length: n }, () => [folder]));
 
@@ -102,5 +103,63 @@ describe("promotedTitle", () => {
   it("genitore che non è un anno: titolo invariato", () => {
     expect(promotedTitle("Matrimonio", "Rachele")).toBe("Rachele");
     expect(promotedTitle(null, "03-20")).toBe("03-20");
+  });
+});
+
+describe("cameraGroups", () => {
+  it("stessa marca e modello, seriale diverso → stesso id", () => {
+    const g = cameraGroups([
+      { id: 18365, make: "Panasonic", model: "DC-G9" },
+      { id: 17961, make: "Panasonic", model: "DC-G9" },
+      { id: 1, make: "Canon", model: "Canon EOS 7D" },
+    ]);
+    expect(g.get(18365)).toBe(17961);
+    expect(g.get(17961)).toBe(17961);
+    expect(g.get(1)).toBe(1);
+  });
+});
+
+describe("HashIndex", () => {
+  const h = (hex: string) => parseHash(hex);
+  it("trova l'immagine quasi uguale e scarta le raffiche", () => {
+    const idx = new HashIndex<{ id: number; hash: ReturnType<typeof h> }>();
+    idx.add({ id: 1, hash: h("431232667656e4e4") });
+    idx.add({ id: 2, hash: h("e9899c5d9f4f66d6") });
+    expect(idx.nearest(h("c3123266767664e4"))?.id).toBe(1); // 3 bit
+    expect(idx.nearest(h("ffffffffffffffff"))).toBeNull();
+    idx.add({ id: 3, hash: h("431232667656e4e5") }); // quasi identica alla 1
+    expect(idx.nearest(h("c3123266767664e4"))).toBeNull();
+  });
+});
+
+describe("folderSections con soli JPEG (2026-11-20)", () => {
+  const t = (s: string) => new Date(`${s}Z`);
+  it("copia Google ritagliata: resta in primo piano, collegata al JPEG della fotocamera", () => {
+    const album = [
+      { id: 1, kind: "edit", camera_id: 5, taken_at: t("2018-04-22T17:32:04"), raw_id: null, phash: "cace0eb396cbe9d0" },
+    ];
+    const folder = [
+      { id: 10, kind: "edit", camera_id: 5, taken_at: t("2018-04-22T17:32:04"), raw_id: null, phash: "9382ce8693566930" },
+      { id: 11, kind: "edit", camera_id: 5, taken_at: t("2018-04-22T17:40:00"), raw_id: null, phash: "0000000000000000" },
+    ];
+    expect(folderSections(album, folder)).toEqual({ behind: [10], extra: [11], links: [{ exportId: 1, rawId: 10 }] });
+  });
+
+  it("copia senza EXIF: riconosciuta dall'impronta", () => {
+    const album = [{ id: 1, kind: "phone", camera_id: null, taken_at: t("2018-12-07T18:27:56"), raw_id: null, phash: "c3123266767664e4" }];
+    const folder = [
+      { id: 10, kind: "edit", camera_id: 5, taken_at: t("2018-12-06T22:59:03"), raw_id: null, phash: "431232667656e4e4" },
+      { id: 11, kind: "edit", camera_id: 5, taken_at: t("2018-12-06T22:58:25"), raw_id: null, phash: "e9899c5d9f4f66d6" },
+    ];
+    expect(folderSections(album, folder)).toEqual({ behind: [10], extra: [11], links: [{ exportId: 1, rawId: 10 }] });
+  });
+
+  it("export Lightroom senza EXIF accanto a CR2+JPEG: collegato al CR2, il JPEG della fotocamera sta dietro", () => {
+    const album = [{ id: 1, kind: "phone", camera_id: null, taken_at: t("2025-09-21T19:53:57"), raw_id: null, phash: "925332b373b2b3ab" }];
+    const folder = [
+      { id: 10, kind: "raw", camera_id: 1, taken_at: t("2025-09-13T13:04:03"), raw_id: null, phash: "925332b373b2b3ab" },
+      { id: 11, kind: "edit", camera_id: 1, taken_at: t("2025-09-13T13:04:03"), raw_id: null, phash: "009273333232b232" },
+    ];
+    expect(folderSections(album, folder)).toEqual({ behind: [10, 11], extra: [], links: [{ exportId: 1, rawId: 10 }] });
   });
 });

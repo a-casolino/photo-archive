@@ -181,7 +181,8 @@ export default async function AlbumPairsPage() {
       <p className="muted">
         Ogni album di Google Foto o Drive è una selezione di un evento; gli originali stanno in una cartella del disco.
         Una cartella è proposta se contiene almeno il {Math.round(PAIR_MIN_SHARE * 100)}% delle foto dell&apos;album
-        (come CR2 collegato o come scatto con la stessa fotocamera e lo stesso istante). Un evento su due giorni può
+        (come CR2 collegato, come scatto con la stessa fotocamera e lo stesso istante anche senza numero di serie,
+        o, per le copie senza dati della fotocamera, come stessa immagine). Un evento su due giorni può
         avere due cartelle; ogni cartella va a un solo album. Confermare non sposta niente: l&apos;unione degli album
         è il passo successivo.
       </p>

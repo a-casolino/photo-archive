@@ -105,6 +105,8 @@ export type PhotoDetail = PhotoCard & {
   camera_name: string | null;
   match_status: "none" | "auto" | "confirmed" | "rejected";
   derived_from_public_id: string | null;
+  /** Tipo dell'originale collegato: di solito un CR2, a volte il JPEG della fotocamera. */
+  derived_from_kind: "raw" | "phone" | "edit" | null;
   export_public_id: string | null;
   export_filename: string | null;
 };
@@ -620,7 +622,7 @@ async function photoBy(column: "p.public_id" | "p.id", value: string | number): 
             p.file_size, p.mime_type, p.gcs_original_key AS original_key, p.original_pending, p.lens, p.focal_length_mm,
             p.aperture, p.exposure_time, p.iso, p.gps_lat, p.gps_lon, p.place_name, p.description, p.match_status,
             c.make AS camera_make, c.model AS camera_model, c.display_name AS camera_name,
-            d.public_id AS derived_from_public_id,
+            d.public_id AS derived_from_public_id, d.kind AS derived_from_kind,
             x.public_id AS export_public_id, x.original_filename AS export_filename
        FROM photos p
        ${LINKED_EXPORT}

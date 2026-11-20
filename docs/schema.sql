@@ -137,7 +137,7 @@ CREATE TABLE photos (
   -- Collegamento export -> CR2 originale
   derived_from_id BIGINT UNSIGNED NULL,
   match_status    ENUM('none','auto','confirmed','rejected') NOT NULL DEFAULT 'none',
-  match_method    VARCHAR(32) NULL,                -- 'serial+datetime', 'datetime', 'name+date', 'pixel', 'manual'
+  match_method    VARCHAR(32) NULL,                -- 'serial+datetime', 'datetime', 'name+date', 'pixel', 'album' (unione album, 020+), 'manual'
 
   -- Dati editoriali
   title           VARCHAR(255) NULL,
