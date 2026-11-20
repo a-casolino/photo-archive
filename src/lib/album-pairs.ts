@@ -1,7 +1,10 @@
 import "server-only";
 import {
   BACKUP_ROOT_TITLE,
+  HashIndex,
+  cameraGroups,
   folderSections,
+  hashOf,
   looseYearTitle,
   promotedTitle,
   proposePairs,
@@ -10,6 +13,7 @@ import {
 } from "./album-pair-rules";
 import { mergeAlbums } from "./albums";
 import { execute, query } from "./db";
+import type { Hash } from "./phash-rules";
 
 /*
  * Calcolo delle coppie album Google ↔ cartella del disco (vedi
@@ -18,35 +22,56 @@ import { execute, query } from "./db";
  * scartata) restano; le proposte si aggiornano.
  */
 
-type Row = { album_id: number; photo_id: number; camera_id: number | null; taken_at: Date | null; raw_id: number | null };
+type Row = {
+  album_id: number;
+  photo_id: number;
+  camera_id: number | null;
+  taken_at: Date | null;
+  raw_id: number | null;
+  phash: string | null;
+};
+
+/** Fotocamere senza distinzione di numero di serie (vedi cameraGroups). */
+async function cameraIds(): Promise<(id: number | null) => number | null> {
+  const groups = cameraGroups(await query<{ id: number; make: string; model: string }>("SELECT id, make, model FROM cameras"));
+  return (id) => (id ? (groups.get(Number(id)) ?? Number(id)) : null);
+}
 
 export async function computeAlbumPairs(): Promise<{ proposed: number; albums: number }> {
-  const [googleRows, folderRows] = await Promise.all([
+  const [googleRows, folderRows, camera] = await Promise.all([
     query<Row>(
-      `SELECT ap.album_id, p.id AS photo_id, p.camera_id, p.taken_at, p.derived_from_id AS raw_id
+      `SELECT ap.album_id, p.id AS photo_id, p.camera_id, p.taken_at, p.derived_from_id AS raw_id, p.phash
          FROM albums a
          JOIN album_photos ap ON ap.album_id = a.id
          JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
         WHERE a.origin = 'google_photos' AND a.parent_id IS NULL AND a.deleted_at IS NULL
           AND ap.section = 'main'`,
     ),
-    // Le cartelle del disco sotto il primo livello ("Backup Foto" › anno › giorno).
+    // Le cartelle del disco: quelle ancora sotto "Backup Foto" e quelle già
+    // portate al primo livello (2026-11-20: le cartelle di soli JPEG non erano
+    // state riconosciute e sono finite al primo livello accanto al loro album).
     query<Row>(
-      `SELECT ap.album_id, p.id AS photo_id, p.camera_id, p.taken_at, NULL AS raw_id
+      `SELECT ap.album_id, p.id AS photo_id, p.camera_id, p.taken_at, NULL AS raw_id, p.phash
          FROM albums a
          JOIN album_photos ap ON ap.album_id = a.id
          JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-        WHERE a.origin = 'disk_folder' AND a.parent_id IS NOT NULL AND a.deleted_at IS NULL`,
+        WHERE a.origin = 'disk_folder' AND a.deleted_at IS NULL`,
     ),
+    cameraIds(),
   ]);
 
   const foldersOfPhoto = new Map<number, number[]>();
   const foldersOfShot = new Map<string, number[]>();
+  const index = new HashIndex<{ id: number; hash: Hash }>();
   for (const r of folderRows) {
     const folder = Number(r.album_id);
     const pid = Number(r.photo_id);
+    if (!foldersOfPhoto.has(pid)) {
+      const h = hashOf(r.phash);
+      if (h) index.add({ id: pid, hash: h });
+    }
     foldersOfPhoto.set(pid, [...(foldersOfPhoto.get(pid) ?? []), folder]);
-    const k = shotKey(r.camera_id, r.taken_at);
+    const k = shotKey(camera(r.camera_id), r.taken_at);
     if (k) foldersOfShot.set(k, [...(foldersOfShot.get(k) ?? []), folder]);
   }
 
@@ -55,12 +80,19 @@ export async function computeAlbumPairs(): Promise<{ proposed: number; albums: n
     const id = Number(r.album_id);
     const a = byAlbum.get(id) ?? { albumId: id, photos: 0, folders: [] as number[][] };
     a.photos++;
-    const k = shotKey(r.camera_id, r.taken_at);
-    (a.folders as number[][]).push([
+    const k = shotKey(camera(r.camera_id), r.taken_at);
+    const folders = [
       ...(foldersOfPhoto.get(Number(r.photo_id)) ?? []),
       ...(r.raw_id ? (foldersOfPhoto.get(Number(r.raw_id)) ?? []) : []),
       ...(k ? (foldersOfShot.get(k) ?? []) : []),
-    ]);
+    ];
+    // Senza dati della fotocamera (copie di Google Foto senza EXIF): la stessa immagine.
+    if (!folders.length && !k) {
+      const h = hashOf(r.phash);
+      const twin = h ? index.nearest(h) : null;
+      if (twin) folders.push(...(foldersOfPhoto.get(twin.id) ?? []));
+    }
+    (a.folders as number[][]).push(folders);
     byAlbum.set(id, a);
   }
 
@@ -91,7 +123,14 @@ export async function computeAlbumPairs(): Promise<{ proposed: number; albums: n
 // Unione (passo 3): album Google + cartelle confermate
 // ---------------------------------------------------------------------
 
-type PhotoRow = { id: number; kind: string; camera_id: number | null; taken_at: Date | null; raw_id: number | null };
+type PhotoRow = {
+  id: number;
+  kind: string;
+  camera_id: number | null;
+  taken_at: Date | null;
+  raw_id: number | null;
+  phash: string | null;
+};
 
 /**
  * Unisce all'album Google le sue cartelle confermate e non ancora unite
@@ -115,14 +154,16 @@ export async function mergeAlbumPair(googlePublicId: string): Promise<{ ok: true
   const googleId = Number(rows[0].g);
   const folderIds = rows.map((r) => Number(r.f));
 
-  const photoSql = `SELECT p.id, p.kind, p.camera_id, p.taken_at, p.derived_from_id AS raw_id
+  const photoSql = `SELECT p.id, p.kind, p.camera_id, p.taken_at, p.derived_from_id AS raw_id, p.phash
                       FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
                      WHERE ap.album_id IN (?)`;
-  const [inAlbum, inFolders] = await Promise.all([
+  const [inAlbum, inFolders, camera] = await Promise.all([
     query<PhotoRow>(photoSql, [[googleId]]),
     query<PhotoRow>(photoSql, [folderIds]),
+    cameraIds(),
   ]);
-  const sections = folderSections(inAlbum, inFolders);
+  const same = (p: PhotoRow) => ({ ...p, camera_id: camera(p.camera_id) });
+  const sections = folderSections(inAlbum.map(same), inFolders.map(same));
 
   const res = await mergeAlbums({
     intoPublicId: googlePublicId,
@@ -146,7 +187,7 @@ export async function mergeAlbumPair(googlePublicId: string): Promise<{ ok: true
   }
   for (const l of sections.links) {
     await execute(
-      `UPDATE photos SET kind = 'edit', derived_from_id = ?, match_status = 'confirmed', match_method = 'datetime'
+      `UPDATE photos SET kind = 'edit', derived_from_id = ?, match_status = 'confirmed', match_method = 'album'
         WHERE id = ? AND derived_from_id IS NULL AND match_status = 'none' AND deleted_at IS NULL`,
       [l.rawId, l.exportId],
     );

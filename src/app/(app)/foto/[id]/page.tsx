@@ -118,12 +118,13 @@ export default async function OwnerPhotoPage({ params, searchParams }: PageProps
           <p>
             Mostrata con l&apos;export di Lightroom{" "}
             <Link href={`/foto/${photo.export_public_id}`}>{photo.export_filename}</Link>. L&apos;originale scaricabile
-            resta il CR2.
+            resta {photo.kind === "raw" ? "il CR2" : "questo file"}.
           </p>
         )}
         {photo.derived_from_public_id && (
           <p>
-            Export del CR2 <Link href={`/foto/${photo.derived_from_public_id}`}>originale</Link>
+            Export del {photo.derived_from_kind === "raw" ? "CR2" : "file"}{" "}
+            <Link href={`/foto/${photo.derived_from_public_id}`}>originale</Link>
             {photo.match_status === "auto" && (
               <>
                 {" "}
