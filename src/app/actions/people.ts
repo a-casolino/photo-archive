@@ -84,12 +84,19 @@ async function suggestionTarget(formData: FormData) {
   return person ? { person, faces: faceIds(formData, "face") } : null;
 }
 
-/** Conferma i suggerimenti spuntati di una persona. */
+/**
+ * Conferma i suggerimenti spuntati di una persona. Quelli mostrati ma
+ * senza spunta sono "non è lei/lui": vengono scartati, altrimenti il
+ * raggruppamento notturno li riproporrebbe ogni mattina.
+ */
 export async function confirmSuggestionsAction(formData: FormData): Promise<void> {
   await requireOwner();
   const t = await suggestionTarget(formData);
   if (!t) return;
+  const checked = new Set(t.faces);
+  const unchecked = faceIds(formData, "shown").filter((f) => !checked.has(f));
   await confirmSuggestions(t.person.id, t.faces);
+  await rejectFaces(t.person.id, unchecked, "suggested");
   await refreshPerson(t.person.id);
   refresh();
 }
