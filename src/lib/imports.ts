@@ -1,6 +1,6 @@
 import "server-only";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { execute, pool, query, queryOne } from "./db";
+import { execute, getConnection, pool, query, queryOne } from "./db";
 import { newToken, randomBase62, sha256 } from "./crypto";
 import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
 import { countDuplicatePairs } from "./duplicates";
@@ -280,7 +280,7 @@ export async function commitPhoto(
     throw new ImportProblem("L'anteprima non risulta caricata.");
   }
 
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     const cameraId = c.camera && (c.camera.make || c.camera.model) ? await upsertCamera(conn, c.camera) : null;

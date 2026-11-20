@@ -28,7 +28,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type yauzl from "yauzl";
 import { newToken, sha256 } from "../../src/lib/crypto";
-import { execute, pool, queryOne } from "../../src/lib/db";
+import { execute, closePool, queryOne } from "../../src/lib/db";
 import { isNonAlbumFolder } from "../import/takeout";
 import { DRIVE_DEVICE_NAME, makeBatches, safeSegment, uniqueName, zipEntrySegments } from "../../src/lib/drive-rules";
 import { env } from "../../src/lib/env";
@@ -436,7 +436,10 @@ async function main() {
   }
   process.on("SIGTERM", () => {
     child?.kill("SIGINT");
-    void release().then(() => process.exit(143));
+    void release()
+      .then(() => closePool())
+      .catch(() => {})
+      .then(() => process.exit(143));
   });
   try {
     // Abbiamo il blocco: un import "in corso" è rimasto da un giro morto e si riprende.
@@ -475,7 +478,7 @@ async function main() {
     }
   } finally {
     await release();
-    await pool().end();
+    await closePool();
   }
 }
 

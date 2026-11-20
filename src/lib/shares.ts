@@ -1,5 +1,5 @@
 import "server-only";
-import { execute, pool, query, queryOne } from "./db";
+import { execute, getConnection, query, queryOne } from "./db";
 import {
   createCipheriv,
   createDecipheriv,
@@ -217,7 +217,7 @@ export async function createShare(
 ): Promise<{ publicId: string; token: string | null }> {
   const publicId = randomBase62(22);
   const token = s.mode === "link" ? newLinkToken() : null;
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     const [res] = await conn.query<ResultSetHeader>(

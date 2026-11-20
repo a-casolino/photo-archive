@@ -11,7 +11,7 @@
  */
 import "./load-env";
 import { parseArgs } from "node:util";
-import { pool } from "../src/lib/db";
+import { closePool } from "../src/lib/db";
 import { env } from "../src/lib/env";
 import { purgeAlbums, purgePhotos } from "../src/lib/trash";
 
@@ -26,7 +26,7 @@ async function main() {
     `[cestino] nel cestino da più di ${days} giorni: ${albums.albums} album e ${albums.photos + deleted} foto eliminate, ` +
       `${albums.failed + failed} foto non riuscite.`,
   );
-  await pool().end();
+  await closePool();
   if (failed || albums.failed) process.exitCode = 1;
 }
 

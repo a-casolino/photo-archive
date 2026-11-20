@@ -1,6 +1,6 @@
 import "server-only";
 import { query, queryOne } from "./db";
-import { memo } from "./memo";
+import { cached } from "./cache";
 import { dateFilterSql, type DateFilter } from "./filter-rules";
 import { deviceFilterSql, deviceOptions, type CameraRow, type DeviceFilter, type DeviceOption } from "./device-rules";
 import {
@@ -122,11 +122,11 @@ export async function photoNeighbors(f: PhotoFilter, photoId: number): Promise<N
 
 /**
  * Anni in cui ci sono foto (per il filtro di data), dal più recente. Legge
- * tutta la tabella photos, quindi si tiene in memoria per 10 minuti: un anno
- * nuovo arriva solo con un import.
+ * tutta la tabella photos, quindi si tiene in cache (src/lib/cache.ts): un
+ * anno nuovo arriva solo con un import, che la svuota.
  */
 export async function photoYears(): Promise<number[]> {
-  return memo("photoYears", 10 * 60 * 1000, async () => {
+  return cached("album:anni", ["album"], async () => {
     const rows = await query<{ y: number }>(
       `SELECT DISTINCT YEAR(taken_at) AS y FROM photos
         WHERE deleted_at IS NULL AND taken_at IS NOT NULL ORDER BY y DESC`,
@@ -138,10 +138,10 @@ export async function photoYears(): Promise<number[]> {
 /**
  * Fotocamere e telefoni che hanno almeno una foto (per il filtro per
  * dispositivo). La tabella cameras è piccola e il controllo usa l'indice
- * su photos.camera_id; si tiene in memoria per 10 minuti come gli anni.
+ * su photos.camera_id; si tiene in cache come gli anni.
  */
 export async function photoDevices(): Promise<DeviceOption[]> {
-  return memo("photoDevices", 10 * 60 * 1000, async () => {
+  return cached("album:dispositivi", ["album"], async () => {
     const rows = await query<CameraRow>(
       `SELECT c.id, c.make, c.model, c.serial, c.display_name FROM cameras c
         WHERE EXISTS (SELECT 1 FROM photos p WHERE p.camera_id = c.id AND p.deleted_at IS NULL)`,

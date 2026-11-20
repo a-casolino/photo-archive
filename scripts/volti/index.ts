@@ -29,7 +29,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import sharp from "sharp";
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
-import { pool, query } from "../../src/lib/db";
+import { getConnection, closePool, query } from "../../src/lib/db";
 import { encodeEmbedding, similarity } from "../../src/lib/faces/embedding";
 import { createFaceEngine, FACE_MODEL_ID, type AnalyzedImage, type FaceEngine } from "../../src/lib/faces/engine";
 import { thumbnailRegion } from "../../src/lib/faces/geometry";
@@ -232,7 +232,7 @@ async function scanArchive(engine: FaceEngine, opts: ReturnType<typeof options>)
     console.log("\nMi fermo dopo la foto in corso (Ctrl+C di nuovo per uscire subito).");
   });
 
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   const started = performance.now();
   let done = 0, faces = 0, errors = 0, lastId = 0, peakRss = 0, busyMs = 0;
   try {
@@ -302,7 +302,7 @@ async function main() {
     try {
       await groupFaces();
     } finally {
-      await pool().end();
+      await closePool();
     }
     return;
   }
@@ -318,7 +318,7 @@ async function main() {
     }
   } finally {
     await engine.release();
-    if (!opts.files.length) await pool().end();
+    if (!opts.files.length) await closePool();
   }
 }
 

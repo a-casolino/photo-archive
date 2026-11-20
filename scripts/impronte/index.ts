@@ -18,7 +18,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import sharp from "sharp";
-import { execute, pool, query } from "../../src/lib/db";
+import { execute, closePool, query } from "../../src/lib/db";
 import {
   dHashHex,
   hamming,
@@ -166,14 +166,12 @@ async function main() {
   if (opts.files.length) return tryFiles(opts.files);
   await hashArchive(opts);
   await linkByPixels(opts.dryRun);
-  await pool().end();
+  await closePool();
 }
 
 main()
   .catch(async (e) => {
     console.error("[impronte]", e instanceof Error ? e.message : e);
-    await pool()
-      .end()
-      .catch(() => {});
+    await closePool().catch(() => {});
     process.exit(1);
   });

@@ -2,7 +2,7 @@ import "server-only";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { depthOf, MAX_ALBUM_DEPTH, mergeTreeProblem, moveProblem } from "./album-tree-rules";
 import { randomBase62 } from "./crypto";
-import { execute, pool, query, queryOne } from "./db";
+import { execute, getConnection, query, queryOne } from "./db";
 import { albumTreeIndex } from "./gallery";
 
 /*
@@ -81,7 +81,7 @@ export async function mergeAlbums(m: {
     if (problem) return { ok: false, error: problem };
   }
 
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     const ids = [m.intoPublicId, ...m.sourcePublicIds];
@@ -260,7 +260,7 @@ export async function removePhotosFromAlbum(albumPublicId: string, photoPublicId
     [pickedIds],
   );
   const ids = [...new Set([...pickedIds, ...exports.map((r) => r.id)])];
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     await conn.query("DELETE FROM album_photos WHERE album_id = ? AND photo_id IN (?)", [album.id, ids]);

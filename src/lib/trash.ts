@@ -1,6 +1,6 @@
 import "server-only";
 import type { RowDataPacket } from "mysql2/promise";
-import { execute, pool, query, queryOne } from "./db";
+import { execute, getConnection, query, queryOne } from "./db";
 import { CARD_COLUMNS, linkedExport, treeCte, type PhotoCard } from "./gallery";
 import { storage } from "./storage";
 import { runLimited, storageKeysOf, type PurgeRow } from "./trash-rules";
@@ -158,7 +158,7 @@ export async function purgePhotos(target: PurgeTarget): Promise<{ deleted: numbe
 
   // 2. Database, tutto insieme o niente.
   if (done.length) {
-    const conn = await pool().getConnection();
+    const conn = await getConnection();
     try {
       await conn.beginTransaction();
       // Condivisioni della sola foto (destinatari e registro vanno con loro).
@@ -257,7 +257,7 @@ export async function trashAlbum(publicId: string): Promise<{ photos: number; su
   const branch = await branchIds(album.id);
   const subalbums = branch.filter((id) => id !== album.id);
   const { ids, shown } = await branchOnlyPhotoIds(branch);
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     if (ids.length) {
@@ -296,7 +296,7 @@ export async function restoreAlbum(publicId: string): Promise<boolean> {
     [publicId],
   );
   if (!album) return false;
-  const conn = await pool().getConnection();
+  const conn = await getConnection();
   try {
     await conn.beginTransaction();
     await conn.query("UPDATE photos SET deleted_at = NULL, trashed_with_album_id = NULL WHERE trashed_with_album_id = ?", [
@@ -387,7 +387,7 @@ export async function purgeAlbums(
     photos += res.deleted;
     failed += res.failed;
     if (res.failed) continue;
-    const conn = await pool().getConnection();
+    const conn = await getConnection();
     try {
       await conn.beginTransaction();
       // Sotto-album andati nel cestino con lui, e album uniti in questi
