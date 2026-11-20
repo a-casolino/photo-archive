@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { formatBytes, formatTakenAt } from "@/lib/format";
+import { DownloadIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { formatBytes, formatTakenAt, formatTakenDay } from "@/lib/format";
 import { cameraLabel, displaySize, exposureLabel } from "@/lib/gallery-rules";
 import type { PhotoCard, PhotoDetail } from "@/lib/gallery";
 import { canDownload, type DownloadLevel } from "@/lib/roles";
@@ -110,6 +112,8 @@ function PhotoMap({ lat, lon, label }: { lat: number; lon: number; label: string
 /**
  * Pagina di una foto: anteprima grande, frecce, informazioni e download.
  * `showPrivate`: dati riservati al proprietario (posizione GPS, file).
+ * `minimal`: per i visualizzatori e i link liberi (chiesto da Antonio il
+ * 2026-11-20): dei dati della foto solo la data, con accanto "Scarica".
  */
 export function PhotoView({
   photo,
@@ -118,6 +122,7 @@ export function PhotoView({
   level,
   access,
   showPrivate,
+  minimal = false,
   children,
   notice,
   lightbox,
@@ -136,6 +141,7 @@ export function PhotoView({
   level: DownloadLevel;
   access: DownloadAccess;
   showPrivate: boolean;
+  minimal?: boolean;
   children?: ReactNode;
   /** Messaggi in cima alla pagina (es. dopo il cestino). */
   notice?: ReactNode;
@@ -194,92 +200,116 @@ export function PhotoView({
         )}
       </div>
 
-      <div className="photo-info">
-        <section>
-          {/* Niente titolo visibile: il nome del file è già tra i dati sotto (File). */}
-          {photo.description && <p>{photo.description}</p>}
-          {photo.edited ? <p className="muted">Versione con le regolazioni di Lightroom.</p> : null}
-          <dl className="exif">
-            {photo.title && photo.title !== photo.original_filename && (
-              <>
-                <dt>Titolo</dt>
-                <dd>{photo.title}</dd>
-              </>
-            )}
-            <dt>Data</dt>
-            <dd>{formatTakenAt(photo.taken_at)}</dd>
-            {camera && (
-              <>
-                <dt>Fotocamera</dt>
-                <dd>{camera}</dd>
-              </>
-            )}
-            {photo.lens && (
-              <>
-                <dt>Obiettivo</dt>
-                <dd>{photo.lens}</dd>
-              </>
-            )}
-            {exposure.length > 0 && (
-              <>
-                <dt>Scatto</dt>
-                <dd>{exposure.join(" · ")}</dd>
-              </>
-            )}
-            {size && (
-              <>
-                <dt>Dimensioni</dt>
-                <dd>
-                  {size.width} × {size.height} px
-                </dd>
-              </>
-            )}
-            {showPrivate && (
-              <>
-                <dt>File</dt>
-                <dd>
-                  {photo.original_filename} · {formatBytes(photo.file_size)}
-                </dd>
-              </>
-            )}
-            {showPrivate && photo.gps_lat !== null && photo.gps_lon !== null && (
-              <>
-                <dt>Luogo</dt>
-                <dd>
-                  <a href={osmUrl(photo.gps_lat, photo.gps_lon)} target="_blank" rel="noreferrer">
-                    {photo.place_name || `${Number(photo.gps_lat).toFixed(5)}, ${Number(photo.gps_lon).toFixed(5)}`}
+      {minimal ? (
+        <div className="photo-info photo-info-minimal">
+          <section>
+            {photo.description && <p>{photo.description}</p>}
+            <div className="photo-minimal-row">
+              {photo.taken_at && <span>{formatTakenDay(photo.taken_at)}</span>}
+              {canDownload(level, "preview") && photo.preview_key && (
+                <Button asChild variant="outline">
+                  <a href={downloadHref(photo.public_id, "preview", access)} download>
+                    <DownloadIcon />
+                    Scarica
                   </a>
-                </dd>
-              </>
-            )}
-          </dl>
-          {showPrivate && photo.gps_lat !== null && photo.gps_lon !== null && (
-            <PhotoMap lat={Number(photo.gps_lat)} lon={Number(photo.gps_lon)} label={photo.place_name || "Posizione della foto"} />
-          )}
-        </section>
-
-        {(canDownload(level, "preview") && photo.preview_key) || canDownload(level, "original") ? (
-          <section className="downloads">
-            {canDownload(level, "preview") && photo.preview_key && (
-              <a className="button" href={downloadHref(photo.public_id, "preview", access)}>
-                Scarica JPEG
-              </a>
-            )}
-            {canDownload(level, "original") &&
-              (photo.original_pending ? (
-                <span className="muted" title="Caricato dal browser: prima le anteprime, poi gli originali">
-                  Originale{isRaw ? " (CR2)" : ""} in arrivo
-                </span>
-              ) : (
-                <a className="button secondary" href={downloadHref(photo.public_id, "original", access)}>
-                  Scarica originale{isRaw ? " (CR2)" : ""} · {formatBytes(photo.file_size)}
-                </a>
-              ))}
+                </Button>
+              )}
+            </div>
           </section>
-        ) : null}
+          {children}
+        </div>
+      ) : (
+        <div className="photo-info">
+          <section>
+            {/* Niente titolo visibile: il nome del file è già tra i dati sotto (File). */}
+            {photo.description && <p>{photo.description}</p>}
+            {photo.edited ? <p className="muted">Versione con le regolazioni di Lightroom.</p> : null}
+            <dl className="exif">
+              {photo.title && photo.title !== photo.original_filename && (
+                <>
+                  <dt>Titolo</dt>
+                  <dd>{photo.title}</dd>
+                </>
+              )}
+              <dt>Data</dt>
+              <dd>{formatTakenAt(photo.taken_at)}</dd>
+              {camera && (
+                <>
+                  <dt>Fotocamera</dt>
+                  <dd>{camera}</dd>
+                </>
+              )}
+              {photo.lens && (
+                <>
+                  <dt>Obiettivo</dt>
+                  <dd>{photo.lens}</dd>
+                </>
+              )}
+              {exposure.length > 0 && (
+                <>
+                  <dt>Scatto</dt>
+                  <dd>{exposure.join(" · ")}</dd>
+                </>
+              )}
+              {size && (
+                <>
+                  <dt>Dimensioni</dt>
+                  <dd>
+                    {size.width} × {size.height} px
+                  </dd>
+                </>
+              )}
+              {showPrivate && (
+                <>
+                  <dt>File</dt>
+                  <dd>
+                    {photo.original_filename} · {formatBytes(photo.file_size)}
+                  </dd>
+                </>
+              )}
+              {showPrivate && photo.gps_lat !== null && photo.gps_lon !== null && (
+                <>
+                  <dt>Luogo</dt>
+                  <dd>
+                    <a href={osmUrl(photo.gps_lat, photo.gps_lon)} target="_blank" rel="noreferrer">
+                      {photo.place_name || `${Number(photo.gps_lat).toFixed(5)}, ${Number(photo.gps_lon).toFixed(5)}`}
+                    </a>
+                  </dd>
+                </>
+              )}
+            </dl>
+            {showPrivate && photo.gps_lat !== null && photo.gps_lon !== null && (
+              <PhotoMap
+                lat={Number(photo.gps_lat)}
+                lon={Number(photo.gps_lon)}
+                label={photo.place_name || "Posizione della foto"}
+              />
+            )}
+          </section>
 
-        {children}
-      </div>
+          {(canDownload(level, "preview") && photo.preview_key) || canDownload(level, "original") ? (
+            <section className="downloads">
+              {canDownload(level, "preview") && photo.preview_key && (
+                <a className="button" href={downloadHref(photo.public_id, "preview", access)}>
+                  Scarica JPEG
+                </a>
+              )}
+              {canDownload(level, "original") &&
+                (photo.original_pending ? (
+                  <span className="muted" title="Caricato dal browser: prima le anteprime, poi gli originali">
+                    Originale{isRaw ? " (CR2)" : ""} in arrivo
+                  </span>
+                ) : (
+                  <a className="button secondary" href={downloadHref(photo.public_id, "original", access)}>
+                    Scarica originale{isRaw ? " (CR2)" : ""} · {formatBytes(photo.file_size)}
+                  </a>
+                ))}
+            </section>
+          ) : null}
+
+          {children}
+        </div>
+      )}
     </div>
   );
 }

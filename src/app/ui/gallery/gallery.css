@@ -666,6 +666,14 @@ a.stage-nav:hover {
   font-size: 0.85rem;
 }
 
+/* Pagina foto per visualizzatori e link liberi: solo la data e "Scarica". */
+.photo-minimal-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
 .downloads {
   display: flex;
   flex-wrap: wrap;

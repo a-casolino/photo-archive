@@ -38,6 +38,7 @@ import { appUrl } from "@/lib/mail";
 import { TagEditor } from "@/app/ui/gallery/tag-editor";
 import { AddPhotosButton, AlbumUploader } from "@/app/ui/upload/album-uploader";
 import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
+import { AlbumDownloadButton } from "@/app/ui/gallery/album-download";
 import { markCover } from "@/app/ui/gallery/tiles";
 import { EditedFilter, ExtraHeading } from "@/app/ui/gallery/views";
 import { Button } from "@/components/ui/button";
@@ -237,6 +238,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
               castAppId={env().CAST_APP_ID ?? null}
             />
           )}
+          {branch.photos > 0 && <AlbumDownloadButton source={{ album: album.public_id }} photos={branch.photos} />}
           <Dialog>
             <DialogTrigger asChild>
               <Button>
