@@ -343,6 +343,21 @@ export async function confirmSuggestions(personId: number, faceIds: number[]): P
   );
 }
 
+/**
+ * Conferma in blocco tutti i suggerimenti della persona (anche quelli non
+ * mostrati), tranne i volti esclusi. Un solo UPDATE sull'indice
+ * (person_id, status); le foto nel cestino restano fuori, come nel conteggio.
+ */
+export async function confirmAllSuggestions(personId: number, excludedFaceIds: number[]): Promise<number> {
+  const res = await execute(
+    `UPDATE faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+        SET f.status = 'confirmed', f.suggest_score = NULL, f.confirmed_at = UTC_TIMESTAMP()
+      WHERE f.person_id = ? AND f.status = 'suggested'${excludedFaceIds.length ? " AND f.id NOT IN (?)" : ""}`,
+    excludedFaceIds.length ? [personId, excludedFaceIds] : [personId],
+  );
+  return res.affectedRows;
+}
+
 /** "Non è lei/lui": il volto torna senza nome e non verrà più proposto per questa persona. */
 export async function rejectFaces(personId: number, faceIds: number[], from: "suggested" | "confirmed"): Promise<void> {
   if (!faceIds.length) return;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { confirmSuggestionsAction, rejectSuggestionsAction } from "@/app/actions/people";
+import { confirmAllSuggestionsAction, confirmSuggestionsAction, rejectSuggestionsAction } from "@/app/actions/people";
 import { FaceGrid, PeopleTabs } from "@/app/ui/people/faces";
 import { formatCount } from "@/lib/format";
 import { signKeys } from "@/lib/gallery";
@@ -19,7 +19,9 @@ export default async function SuggestionsPage() {
       <p className="muted">
         Volti che somigliano a una persona che hai già nominato, i più sicuri prima. Nulla viene assegnato senza la tua
         conferma: togli la spunta a quelli sbagliati e conferma, oppure spunta solo quelli sbagliati e scartali. In
-        tutti e due i casi i volti sbagliati non verranno più proposti per quella persona.
+        tutti e due i casi i volti sbagliati non verranno più proposti per quella persona. Quando una persona ha più
+        suggerimenti di quelli mostrati, &ldquo;Conferma tutti&rdquo; conferma anche quelli che non vedi (tranne quelli a cui
+        hai tolto la spunta).
       </p>
 
       {groups.length === 0 ? (
@@ -41,6 +43,11 @@ export default async function SuggestionsPage() {
                 <Button type="submit" formAction={confirmSuggestionsAction}>
                   Sì, conferma le spuntate
                 </Button>
+                {total > faces.length && (
+                  <Button type="submit" variant="outline" formAction={confirmAllSuggestionsAction}>
+                    Sì, conferma tutti i {formatCount(total)}
+                  </Button>
+                )}
                 <Button type="submit" variant="danger" formAction={rejectSuggestionsAction}>
                   No, scarta le spuntate
                 </Button>
