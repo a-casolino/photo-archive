@@ -18,8 +18,8 @@ export default async function SuggestionsPage() {
       <PeopleTabs current="suggerimenti" groups={summary.groups} suggested={summary.suggested} />
       <p className="muted">
         Volti che somigliano a una persona che hai già nominato, i più sicuri prima. Nulla viene assegnato senza la tua
-        conferma: togli la spunta a quelli sbagliati e conferma, oppure spunta solo quelli sbagliati e scartali (non
-        verranno più proposti per quella persona).
+        conferma: togli la spunta a quelli sbagliati e conferma, oppure spunta solo quelli sbagliati e scartali. In
+        tutti e due i casi i volti sbagliati non verranno più proposti per quella persona.
       </p>
 
       {groups.length === 0 ? (
@@ -36,7 +36,7 @@ export default async function SuggestionsPage() {
             </h2>
             <form>
               <input type="hidden" name="person" value={person.public_id} />
-              <FaceGrid faces={faces} urls={urls} field="face" />
+              <FaceGrid faces={faces} urls={urls} field="face" shownField="shown" />
               <div className="share-actions">
                 <Button type="submit" formAction={confirmSuggestionsAction}>
                   Sì, conferma le spuntate
