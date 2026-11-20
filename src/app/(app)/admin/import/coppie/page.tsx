@@ -6,9 +6,10 @@ import {
   mergeAllConfirmedPairs,
   promoteBackupFoldersAction,
   recomputeAlbumPairs,
+  tidyMergedAlbumsAction,
 } from "@/app/actions/album-pairs";
 import { PAIR_MIN_SHARE, PAIR_SURE_SHARE } from "@/lib/album-pair-rules";
-import { backupFoldersLeft } from "@/lib/album-pairs";
+import { backupFoldersLeft, tidyMergedAlbums } from "@/lib/album-pairs";
 import { query } from "@/lib/db";
 import { formatCount } from "@/lib/format";
 import { requireOwner } from "@/lib/session";
@@ -122,8 +123,9 @@ function GroupRow({ g, urls, merge = false }: { g: Group; urls: Map<string, stri
   );
 }
 
-export default async function AlbumPairsPage() {
+export default async function AlbumPairsPage({ searchParams }: { searchParams: Promise<{ riordina?: string }> }) {
   await requireOwner();
+  const tidyPreview = (await searchParams).riordina === "anteprima" ? await tidyMergedAlbums({ dryRun: true }) : null;
 
   const rows = await query<PairRow>(
     `SELECT g.public_id AS g_pid, g.title AS g_title, gc.gcs_thumb_key AS g_thumb,
@@ -244,6 +246,60 @@ export default async function AlbumPairsPage() {
           </details>
         )}
       </section>
+
+      {Number(mergedRow?.n ?? 0) > 0 && (
+        <section className="card" id="riordina">
+          <div className="import-head">
+            <h2>Riordina gli album uniti</h2>
+            {tidyPreview === null ? (
+              <Link prefetch={false} href="/admin/import/coppie?riordina=anteprima#riordina" className="button secondary">
+                Anteprima
+              </Link>
+            ) : (
+              tidyPreview.length > 0 && (
+                <form action={tidyMergedAlbumsAction}>
+                  <button type="submit">Riordina {formatCount(tidyPreview.length)} album</button>
+                </form>
+              )
+            )}
+          </div>
+          <p className="muted">
+            Ricontrolla gli «Altri scatti» degli album già uniti anche con il nome del file e il confronto delle
+            immagini: gli scatti che stanno dietro a un export escono dall&apos;album e si aprono dal suo link
+            all&apos;originale, gli export della cartella passano in primo piano, gli export senza originale si
+            collegano. Nessuna foto va nel cestino. L&apos;anteprima non cambia niente.
+          </p>
+          {tidyPreview !== null &&
+            (tidyPreview.length === 0 ? (
+              <p className="muted">Niente da riordinare.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Album</th>
+                    <th>Escono (dietro a un export)</th>
+                    <th>In primo piano</th>
+                    <th>Collegamenti</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tidyPreview.map((a) => (
+                    <tr key={a.id}>
+                      <td>
+                        <Link prefetch={false} href={`/album/${a.public_id}`}>
+                          {a.title}
+                        </Link>
+                      </td>
+                      <td>{formatCount(a.behind)}</td>
+                      <td>{formatCount(a.main)}</td>
+                      <td>{formatCount(a.links)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ))}
+        </section>
+      )}
 
       {rejected.length > 0 && (
         <section className="card">

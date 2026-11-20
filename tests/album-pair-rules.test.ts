@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HashIndex, cameraGroups, folderSections, promotedTitle, proposePairs, shotKey } from "../src/lib/album-pair-rules";
+import { HashIndex, cameraGroups, fileStem, folderSections, promotedTitle, proposePairs, shotKey } from "../src/lib/album-pair-rules";
 import { parseHash } from "../src/lib/phash-rules";
 
 const votes = (spec: [number, number][]) => spec.flatMap(([folder, n]) => Array.from({ length: n }, () => [folder]));
@@ -78,6 +78,7 @@ describe("folderSections", () => {
     expect(folderSections(album, folder)).toEqual({
       behind: [100, 101, 102],
       extra: [103, 104],
+      main: [],
       links: [{ exportId: 2, rawId: 101 }],
     });
   });
@@ -142,7 +143,7 @@ describe("folderSections con soli JPEG (2026-11-20)", () => {
       { id: 10, kind: "edit", camera_id: 5, taken_at: t("2018-04-22T17:32:04"), raw_id: null, phash: "9382ce8693566930" },
       { id: 11, kind: "edit", camera_id: 5, taken_at: t("2018-04-22T17:40:00"), raw_id: null, phash: "0000000000000000" },
     ];
-    expect(folderSections(album, folder)).toEqual({ behind: [10], extra: [11], links: [{ exportId: 1, rawId: 10 }] });
+    expect(folderSections(album, folder)).toEqual({ behind: [10], extra: [11], main: [], links: [{ exportId: 1, rawId: 10 }] });
   });
 
   it("copia senza EXIF: riconosciuta dall'impronta", () => {
@@ -151,7 +152,7 @@ describe("folderSections con soli JPEG (2026-11-20)", () => {
       { id: 10, kind: "edit", camera_id: 5, taken_at: t("2018-12-06T22:59:03"), raw_id: null, phash: "431232667656e4e4" },
       { id: 11, kind: "edit", camera_id: 5, taken_at: t("2018-12-06T22:58:25"), raw_id: null, phash: "e9899c5d9f4f66d6" },
     ];
-    expect(folderSections(album, folder)).toEqual({ behind: [10], extra: [11], links: [{ exportId: 1, rawId: 10 }] });
+    expect(folderSections(album, folder)).toEqual({ behind: [10], extra: [11], main: [], links: [{ exportId: 1, rawId: 10 }] });
   });
 
   it("export Lightroom senza EXIF accanto a CR2+JPEG: collegato al CR2, il JPEG della fotocamera sta dietro", () => {
@@ -160,6 +161,59 @@ describe("folderSections con soli JPEG (2026-11-20)", () => {
       { id: 10, kind: "raw", camera_id: 1, taken_at: t("2025-09-13T13:04:03"), raw_id: null, phash: "925332b373b2b3ab" },
       { id: 11, kind: "edit", camera_id: 1, taken_at: t("2025-09-13T13:04:03"), raw_id: null, phash: "009273333232b232" },
     ];
-    expect(folderSections(album, folder)).toEqual({ behind: [10, 11], extra: [], links: [{ exportId: 1, rawId: 10 }] });
+    expect(folderSections(album, folder)).toEqual({ behind: [10, 11], extra: [], main: [], links: [{ exportId: 1, rawId: 10 }] });
+  });
+});
+
+describe("fileStem", () => {
+  it("toglie estensione e suffissi delle copie", () => {
+    expect(fileStem("ADV_3459.CR2")).toBe("adv_3459");
+    expect(fileStem("ADV_3459.jpg")).toBe("adv_3459");
+    expect(fileStem("ADV_3459-modificato (1).jpg")).toBe("adv_3459");
+    expect(fileStem(null)).toBeNull();
+  });
+});
+
+describe("folderSections per nome del file (2026-11-20)", () => {
+  const t = (s: string) => new Date(`${s}Z`);
+  const ph = "0000000000000000";
+  it("raffica Lumix: la copia Google senza EXIF si collega al JPEG con lo stesso nome", () => {
+    const album = [{ id: 1, kind: "phone", camera_id: null, taken_at: t("2018-12-07T18:28:27"), raw_id: null, phash: "c7c73311111195a5", name: "P1022656.jpg" }];
+    const folder = [
+      { id: 10, kind: "edit", camera_id: 5, taken_at: t("2018-12-06T23:01:22"), raw_id: null, phash: "47e333131199b5a5", name: "P1022656.JPG" },
+      { id: 11, kind: "edit", camera_id: 5, taken_at: t("2018-12-06T23:01:34"), raw_id: null, phash: "47432213111195a5", name: "P1022658.JPG" },
+      { id: 12, kind: "edit", camera_id: 5, taken_at: t("2018-12-06T22:58:25"), raw_id: null, phash: ph, name: "P1022648.JPG" },
+    ];
+    expect(folderSections(album, folder)).toEqual({ behind: [10], extra: [11, 12], main: [], links: [{ exportId: 1, rawId: 10 }] });
+  });
+
+  it("export ritagliato con la data di caricamento: al CR2 con lo stesso nome; export della cartella in primo piano", () => {
+    const album = [{ id: 1, kind: "phone", camera_id: null, taken_at: t("2025-09-21T19:53:57"), raw_id: null, phash: "925332b373b2b3ab", name: "ADV_3459.jpg" }];
+    const folder = [
+      { id: 10, kind: "raw", camera_id: 1, taken_at: t("2025-09-13T13:04:03"), raw_id: null, phash: "009253333232b232", name: "ADV_3459.CR2" },
+      { id: 11, kind: "edit", camera_id: 1, taken_at: t("2025-09-13T13:04:03"), raw_id: null, phash: "009273333232b232", name: "ADV_3459.JPG" },
+      { id: 20, kind: "raw", camera_id: 1, taken_at: t("2025-09-13T13:08:55"), raw_id: null, phash: "cbb7b27161626071", name: "ADV_3484.CR2" },
+      { id: 21, kind: "edit", camera_id: 1, taken_at: t("2025-09-13T13:08:55"), raw_id: null, phash: "8bb7b27161626071", name: "ADV_3484.JPG" },
+      { id: 22, kind: "phone", camera_id: null, taken_at: null, raw_id: null, phash: "ca36b27160626474", name: "ADV_3484.jpg" },
+      { id: 30, kind: "raw", camera_id: 1, taken_at: t("2025-09-13T13:09:43"), raw_id: null, phash: "a829696964ec6064", name: "ADV_3487.CR2" },
+      { id: 31, kind: "edit", camera_id: null, taken_at: null, raw_id: 30, phash: "a929696564e46066", name: "ADV_3487.jpg" },
+      { id: 40, kind: "raw", camera_id: 1, taken_at: t("2025-09-13T15:55:25"), raw_id: null, phash: ph, name: "ADV_3497.CR2" },
+      { id: 41, kind: "edit", camera_id: 1, taken_at: t("2025-09-13T15:55:25"), raw_id: null, phash: ph, name: "ADV_3497.JPG" },
+    ];
+    expect(folderSections(album, folder)).toEqual({
+      behind: [10, 11, 20, 21, 30],
+      extra: [40, 41],
+      main: [22, 31],
+      links: [
+        { exportId: 1, rawId: 10 },
+        { exportId: 22, rawId: 20 },
+      ],
+    });
+  });
+
+  it("stesso nome ma un'altra fotocamera (iPhone IMG_ e Canon IMG_): nessun collegamento", () => {
+    const album = [{ id: 1, kind: "phone", camera_id: 9, taken_at: t("2020-01-01T10:00:00"), raw_id: null, phash: ph, name: "IMG_1234.jpg" }];
+    const folder = [{ id: 10, kind: "raw", camera_id: 1, taken_at: t("2020-01-01T12:00:00"), raw_id: null, phash: "ffffffffffffffff", name: "IMG_1234.CR2" }];
+    expect(folderSections(album, folder)).toEqual({ behind: [], extra: [10], main: [], links: [] });
   });
 });
