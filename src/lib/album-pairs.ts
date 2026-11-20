@@ -130,14 +130,40 @@ type PhotoRow = {
   taken_at: Date | null;
   raw_id: number | null;
   phash: string | null;
+  name: string | null;
 };
+
+const PHOTO_COLUMNS =
+  "p.id, p.kind, p.camera_id, p.taken_at, p.derived_from_id AS raw_id, p.phash, p.original_filename AS name";
+
+/** Applica all'album le sezioni calcolate da folderSections. */
+async function applySections(albumId: number, sections: ReturnType<typeof folderSections>): Promise<void> {
+  const chunks = (ids: number[]) =>
+    Array.from({ length: Math.ceil(ids.length / 1000) }, (_, i) => ids.slice(i * 1000, i * 1000 + 1000));
+  for (const c of chunks(sections.behind)) {
+    await execute("DELETE FROM album_photos WHERE album_id = ? AND photo_id IN (?)", [albumId, c]);
+  }
+  for (const c of chunks(sections.extra)) {
+    await execute("UPDATE album_photos SET section = 'extra' WHERE album_id = ? AND photo_id IN (?)", [albumId, c]);
+  }
+  for (const c of chunks(sections.main)) {
+    await execute("UPDATE album_photos SET section = 'main' WHERE album_id = ? AND photo_id IN (?)", [albumId, c]);
+  }
+  for (const l of sections.links) {
+    await execute(
+      `UPDATE photos SET kind = 'edit', derived_from_id = ?, match_status = 'confirmed', match_method = 'album'
+        WHERE id = ? AND derived_from_id IS NULL AND match_status = 'none' AND deleted_at IS NULL`,
+      [l.rawId, l.exportId],
+    );
+  }
+}
 
 /**
  * Unisce all'album Google le sue cartelle confermate e non ancora unite
  * (richiesta di Antonio del 2026-11-16: due gruppi soli). Le foto della
- * cartella che stanno dietro a un export dell'album (CR2 collegato o stesso
- * scatto) non entrano: si aprono dal link al RAW; gli export ancora senza CR2
- * con un solo CR2 dello stesso scatto nella cartella si collegano. Le altre
+ * cartella che stanno dietro a un export dell'album (vedi folderSections) non
+ * entrano: si aprono dal link all'originale; gli export ancora senza originale
+ * si collegano; gli export della cartella vanno in primo piano. Le altre
  * entrano come 'extra' ("Altri scatti"). Le cartelle vanno nel cestino con
  * merged_into_id (vedi mergeAlbums).
  */
@@ -154,7 +180,7 @@ export async function mergeAlbumPair(googlePublicId: string): Promise<{ ok: true
   const googleId = Number(rows[0].g);
   const folderIds = rows.map((r) => Number(r.f));
 
-  const photoSql = `SELECT p.id, p.kind, p.camera_id, p.taken_at, p.derived_from_id AS raw_id, p.phash
+  const photoSql = `SELECT ${PHOTO_COLUMNS}
                       FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
                      WHERE ap.album_id IN (?)`;
   const [inAlbum, inFolders, camera] = await Promise.all([
@@ -173,30 +199,52 @@ export async function mergeAlbumPair(googlePublicId: string): Promise<{ ok: true
   });
   if (!res.ok) return { ok: false, error: res.error };
 
-  for (let i = 0; i < sections.behind.length; i += 1000) {
-    await execute("DELETE FROM album_photos WHERE album_id = ? AND photo_id IN (?)", [
-      googleId,
-      sections.behind.slice(i, i + 1000),
-    ]);
-  }
-  for (let i = 0; i < sections.extra.length; i += 1000) {
-    await execute("UPDATE album_photos SET section = 'extra' WHERE album_id = ? AND photo_id IN (?)", [
-      googleId,
-      sections.extra.slice(i, i + 1000),
-    ]);
-  }
-  for (const l of sections.links) {
-    await execute(
-      `UPDATE photos SET kind = 'edit', derived_from_id = ?, match_status = 'confirmed', match_method = 'album'
-        WHERE id = ? AND derived_from_id IS NULL AND match_status = 'none' AND deleted_at IS NULL`,
-      [l.rawId, l.exportId],
-    );
-  }
+  await applySections(googleId, sections);
   await execute(
     "UPDATE album_pairs SET merged_at = UTC_TIMESTAMP() WHERE google_album_id = ? AND folder_album_id IN (?)",
     [googleId, folderIds],
   );
   return { ok: true, folders: folderIds.length };
+}
+
+/**
+ * Riordina gli album già uniti (2026-11-20): ricalcola gli "Altri scatti"
+ * rispetto alle foto in primo piano con le regole di oggi (nome del file,
+ * fotocamera senza numero di serie, impronta visiva). Gli scatti che stanno
+ * dietro a un export escono dall'album, gli export della cartella passano in
+ * primo piano, gli export senza originale si collegano. Due query per tutti
+ * gli album, il confronto in memoria. Con dryRun non cambia niente: serve
+ * per l'anteprima.
+ */
+export type TidyAlbum = { id: number; public_id: string; title: string; behind: number; main: number; links: number };
+
+export async function tidyMergedAlbums(opts: { dryRun?: boolean } = {}): Promise<TidyAlbum[]> {
+  const [rows, camera] = await Promise.all([
+    query<PhotoRow & { album_id: number; section: "main" | "extra"; album_pid: string; album_title: string }>(
+      `SELECT ap.album_id, ap.section, a.public_id AS album_pid, a.title AS album_title, ${PHOTO_COLUMNS}
+         FROM album_photos ap
+         JOIN albums a ON a.id = ap.album_id AND a.deleted_at IS NULL
+         JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+        WHERE ap.album_id IN (SELECT google_album_id FROM album_pairs WHERE merged_at IS NOT NULL)`,
+    ),
+    cameraIds(),
+  ]);
+  const byAlbum = new Map<number, { pid: string; title: string; main: PhotoRow[]; extra: PhotoRow[] }>();
+  for (const r of rows) {
+    const a = byAlbum.get(Number(r.album_id)) ?? { pid: r.album_pid, title: r.album_title, main: [], extra: [] };
+    a[r.section === "extra" ? "extra" : "main"].push({ ...r, camera_id: camera(r.camera_id) });
+    byAlbum.set(Number(r.album_id), a);
+  }
+  const out: TidyAlbum[] = [];
+  for (const [albumId, a] of byAlbum) {
+    if (!a.extra.length) continue;
+    const s = folderSections(a.main, a.extra);
+    if (!s.behind.length && !s.main.length && !s.links.length) continue;
+    // Quelle che restano negli Altri scatti sono già lì.
+    if (!opts.dryRun) await applySections(albumId, { ...s, extra: [] });
+    out.push({ id: albumId, public_id: a.pid, title: a.title, behind: s.behind.length, main: s.main.length, links: s.links.length });
+  }
+  return out.sort((x, y) => x.title.localeCompare(y.title, "it"));
 }
 
 // ---------------------------------------------------------------------

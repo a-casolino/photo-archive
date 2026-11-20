@@ -138,27 +138,49 @@ type SectionPhoto = {
   taken_at: Date | null;
   raw_id: number | null;
   phash?: string | null;
+  /** Nome del file, per riconoscere l'export dal nome dell'originale (2026-11-20). */
+  name?: string | null;
 };
 
 /**
- * Cosa fare delle foto di una cartella che si unisce all'album Google:
- *  - `behind`: stanno dietro a un export dell'album (il CR2 collegato, lo
- *    stesso scatto, o la stessa immagine per impronta visiva, più il JPEG
- *    della fotocamera accanto a un CR2 che sta dietro). Non entrano
+ * Nome del file senza estensione e senza i suffissi delle copie, in
+ * minuscolo: "ADV_3459.jpg", "ADV_3459.CR2" e "ADV_3459-modificato (1).jpg"
+ * danno tutti "adv_3459".
+ */
+export function fileStem(name: string | null | undefined): string | null {
+  if (!name) return null;
+  let s = name.trim().toLowerCase();
+  const dot = s.lastIndexOf(".");
+  if (dot > 0) s = s.slice(0, dot);
+  s = s
+    .replace(/\s*\(\d+\)$/, "")
+    .replace(/[-_ ](modificat[oa]|edited|edit)$/, "")
+    .trim();
+  return s || null;
+}
+
+/**
+ * Cosa fare delle foto di una cartella che si unisce all'album Google (o
+ * degli "Altri scatti" di un album già unito, quando si riordina):
+ *  - `behind`: stanno dietro a un export (il CR2 collegato, lo stesso scatto,
+ *    lo stesso nome di file, la stessa immagine per impronta visiva, più il
+ *    JPEG della fotocamera accanto a un CR2 che sta dietro). Non entrano
  *    nell'album: si aprono dal link all'originale dell'export.
+ *  - `main`: export della cartella che nell'album non ci sono ancora (es.
+ *    "lina85 out", 2026-11-20): vanno in primo piano, il loro CR2 dietro.
  *  - `extra`: gli altri scatti, in fondo all'album ("Altri scatti").
- *  - `links`: export dell'album ancora senza originale che nella cartella
- *    hanno un solo originale: il CR2 dello stesso scatto, altrimenti il file
- *    della cartella dello stesso scatto o con la stessa immagine (es. JPEG
- *    della Lumix senza CR2, 2026-11-20: la copia di Google Foto è spesso
- *    ritagliata o regolata, quindi resta in primo piano e si collega al file
- *    della fotocamera invece di sostituirlo).
+ *  - `links`: export ancora senza originale che nella cartella ne hanno uno
+ *    solo: il CR2 dello stesso scatto o con lo stesso nome, altrimenti il file
+ *    della cartella dello stesso scatto, con lo stesso nome o con la stessa
+ *    immagine (es. JPEG della Lumix senza CR2: la copia di Google Foto è
+ *    spesso ritagliata o regolata, quindi resta in primo piano e si collega al
+ *    file della fotocamera invece di sostituirlo).
  * Quelle già nell'album restano come sono.
  */
 export function folderSections(
   album: SectionPhoto[],
   folder: SectionPhoto[],
-): { behind: number[]; extra: number[]; links: { exportId: number; rawId: number }[] } {
+): { behind: number[]; extra: number[]; main: number[]; links: { exportId: number; rawId: number }[] } {
   const ids = new Set(album.map((p) => Number(p.id)));
   const raws = new Set(album.flatMap((p) => (p.raw_id ? [Number(p.raw_id)] : [])));
   const shots = new Set(album.map((p) => shotKey(p.camera_id, p.taken_at)).filter((k): k is string => !!k));
@@ -171,8 +193,10 @@ export function folderSections(
     seen.add(id);
     candidates.push(p);
   }
+  const byId = new Map(candidates.map((p) => [Number(p.id), p]));
   const byShot = new Map<string, SectionPhoto[]>();
   const rawsOfShot = new Map<string, number[]>();
+  const byStem = new Map<string, SectionPhoto[]>();
   const index = new HashIndex<{ id: number; hash: Hash; photo: SectionPhoto }>();
   for (const p of candidates) {
     const k = shotKey(p.camera_id, p.taken_at);
@@ -180,17 +204,34 @@ export function folderSections(
       byShot.set(k, [...(byShot.get(k) ?? []), p]);
       if (p.kind === "raw") rawsOfShot.set(k, [...(rawsOfShot.get(k) ?? []), Number(p.id)]);
     }
+    const stem = fileStem(p.name);
+    if (stem) byStem.set(stem, [...(byStem.get(stem) ?? []), p]);
     const h = hashOf(p.phash);
     if (h) index.add({ id: Number(p.id), hash: h, photo: p });
   }
 
-  /** L'originale di un file della cartella: il suo CR2 collegato, il CR2 dello stesso scatto, o lui. */
-  const originalOf = (p: SectionPhoto): number => {
+  /** Il JPEG che la fotocamera ha salvato accanto al CR2 (RAW+JPEG): non è un export. */
+  const isCameraJpeg = (p: SectionPhoto): boolean => {
+    const k = shotKey(p.camera_id, p.taken_at);
+    return p.kind !== "raw" && !!k && !!rawsOfShot.get(k)?.length;
+  };
+  /** I file della cartella con lo stesso nome, della stessa fotocamera se si sa. */
+  const sameName = (p: SectionPhoto): SectionPhoto[] => {
+    const stem = fileStem(p.name);
+    const cam = p.camera_id ? Number(p.camera_id) : null;
+    return (stem ? (byStem.get(stem) ?? []) : []).filter(
+      (q) => Number(q.id) !== Number(p.id) && (cam === null || !q.camera_id || Number(q.camera_id) === cam),
+    );
+  };
+  /** Il CR2 di un file: quello collegato, quello dello stesso scatto o con lo stesso nome, se è uno solo. */
+  const rawOf = (p: SectionPhoto): number | null => {
     if (p.kind === "raw") return Number(p.id);
     if (p.raw_id) return Number(p.raw_id);
     const k = shotKey(p.camera_id, p.taken_at);
     const r = k ? rawsOfShot.get(k) : undefined;
-    return r?.length === 1 ? r[0] : Number(p.id);
+    if (r?.length === 1) return r[0];
+    const named = sameName(p).filter((q) => q.kind === "raw");
+    return named.length === 1 ? Number(named[0].id) : null;
   };
 
   const matched = new Set<number>();
@@ -200,10 +241,18 @@ export function folderSections(
     const k = shotKey(e.camera_id, e.taken_at);
     let twin: SectionPhoto | undefined;
     const r = k ? rawsOfShot.get(k) : undefined;
-    if (r?.length === 1) twin = candidates.find((p) => Number(p.id) === r[0]);
+    if (r?.length === 1) twin = byId.get(r[0]);
     if (!twin && k && !r?.length) {
       const same = byShot.get(k) ?? [];
       if (same.length === 1) twin = same[0];
+    }
+    if (!twin) {
+      // Stesso nome di file (export rinominato no, ma ritagliato o con la data di caricamento sì).
+      const named = sameName(e);
+      const namedRaws = named.filter((q) => q.kind === "raw");
+      if (namedRaws.length === 1) twin = namedRaws[0];
+      else if (!namedRaws.length && named.length === 1) twin = named[0];
+      if (twin) for (const q of named) matched.add(Number(q.id));
     }
     if (!twin && !k) {
       const h = hashOf(e.phash);
@@ -212,32 +261,48 @@ export function folderSections(
     if (!twin) continue;
     matched.add(Number(twin.id));
     if (e.raw_id) continue;
-    const original = originalOf(twin);
+    const original = rawOf(twin) ?? Number(twin.id);
     if (original !== Number(e.id)) links.push({ exportId: Number(e.id), rawId: original });
   }
 
+  const behindIds = new Set<number>();
+  for (const p of candidates) {
+    const id = Number(p.id);
+    const k = shotKey(p.camera_id, p.taken_at);
+    if (raws.has(id) || matched.has(id) || (k !== null && shots.has(k))) behindIds.add(id);
+  }
+  for (const l of links) if (byId.has(l.rawId)) behindIds.add(l.rawId);
+
+  // Export della cartella che nell'album mancano: in primo piano, con il CR2 dietro.
+  const main: number[] = [];
+  for (const p of candidates) {
+    const id = Number(p.id);
+    if (behindIds.has(id) || p.kind === "raw" || isCameraJpeg(p)) continue;
+    const raw = rawOf(p);
+    if (raw === null || raw === id) continue;
+    main.push(id);
+    if (byId.has(raw)) behindIds.add(raw);
+    if (!p.raw_id) links.push({ exportId: id, rawId: raw });
+  }
+  const mainIds = new Set(main);
+
+  // Il JPEG della fotocamera accanto a un CR2 che sta dietro (RAW+JPEG) sta dietro anche lui.
+  const behindShots = new Set<string>();
+  for (const id of behindIds) {
+    const p = byId.get(id);
+    const k = p && p.kind === "raw" ? shotKey(p.camera_id, p.taken_at) : null;
+    if (k) behindShots.add(k);
+  }
   const behind: number[] = [];
   const extra: number[] = [];
-  const behindShots = new Set<string>();
   for (const p of candidates) {
     const id = Number(p.id);
+    if (mainIds.has(id)) continue;
     const k = shotKey(p.camera_id, p.taken_at);
-    const isBehind =
-      raws.has(id) || matched.has(id) || (k !== null && shots.has(k)) || links.some((l) => l.rawId === id);
-    if (isBehind) {
-      behind.push(id);
-      if (k && p.kind === "raw") behindShots.add(k);
-    }
-  }
-  // Il JPEG della fotocamera accanto a un CR2 che sta dietro (RAW+JPEG) sta dietro anche lui.
-  for (const p of candidates) {
-    const id = Number(p.id);
-    if (behind.includes(id)) continue;
-    const k = shotKey(p.camera_id, p.taken_at);
-    if (k && behindShots.has(k)) behind.push(id);
+    if (behindIds.has(id) || (k && behindShots.has(k))) behind.push(id);
     else extra.push(id);
   }
-  return { behind, extra, links };
+  return { behind, extra, main, links };
 }
 
 /** La cartella del disco che si chiama così contiene gli anni e i giorni. */

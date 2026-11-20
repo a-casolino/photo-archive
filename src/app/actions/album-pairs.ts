@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { PAIR_SURE_SHARE } from "@/lib/album-pair-rules";
-import { computeAlbumPairs, mergeAlbumPair, promoteBackupFolders } from "@/lib/album-pairs";
+import { computeAlbumPairs, mergeAlbumPair, promoteBackupFolders, tidyMergedAlbums } from "@/lib/album-pairs";
 import { execute, query } from "@/lib/db";
 import { requireOwner } from "@/lib/session";
 
@@ -81,6 +81,14 @@ export async function mergeAllConfirmedPairs(): Promise<void> {
 export async function promoteBackupFoldersAction(): Promise<void> {
   await requireOwner();
   await promoteBackupFolders();
+  revalidatePath(PATH);
+  revalidatePath("/album");
+}
+
+/** Riordina gli Altri scatti degli album già uniti con le regole di oggi (nome del file, impronta). */
+export async function tidyMergedAlbumsAction(): Promise<void> {
+  await requireOwner();
+  await tidyMergedAlbums();
   revalidatePath(PATH);
   revalidatePath("/album");
 }
