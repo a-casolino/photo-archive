@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
+  confirmAllSuggestions,
   confirmSuggestions,
   deletePerson,
   findOrCreatePerson,
@@ -97,6 +98,22 @@ export async function confirmSuggestionsAction(formData: FormData): Promise<void
   const unchecked = faceIds(formData, "shown").filter((f) => !checked.has(f));
   await confirmSuggestions(t.person.id, t.faces);
   await rejectFaces(t.person.id, unchecked, "suggested");
+  await refreshPerson(t.person.id);
+  refresh();
+}
+
+/**
+ * Conferma tutti i suggerimenti della persona, anche quelli che la pagina
+ * non mostra. Come sopra, i volti mostrati e senza spunta vengono scartati.
+ */
+export async function confirmAllSuggestionsAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  const t = await suggestionTarget(formData);
+  if (!t) return;
+  const checked = new Set(t.faces);
+  const unchecked = faceIds(formData, "shown").filter((f) => !checked.has(f));
+  await rejectFaces(t.person.id, unchecked, "suggested");
+  await confirmAllSuggestions(t.person.id, unchecked);
   await refreshPerson(t.person.id);
   refresh();
 }
