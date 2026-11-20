@@ -4,6 +4,7 @@ import { execute, pool, query, queryOne } from "./db";
 import { centroid } from "./faces/cluster";
 import { decodeEmbedding, encodeEmbedding } from "./faces/embedding";
 import { CARD_COLUMNS, LINKED_EXPORT, type PhotoCard } from "./gallery";
+import type { AlbumNode, PersonPhotoSort } from "./person-photo-rules";
 
 /*
  * Persone e volti per le pagine del proprietario. I chiamanti fanno
@@ -156,33 +157,65 @@ export async function listSuggestions(limitPerPerson = 60): Promise<{ person: Pe
   }));
 }
 
-/** Foto in cui la persona compare (volti confermati), per data. */
-export async function personPhotos(personId: number, offset: number, limit: number): Promise<PhotoCard[]> {
-  return query<PhotoCard>(
-    `SELECT ${CARD_COLUMNS}
-       FROM photos p
-       ${LINKED_EXPORT}
-      WHERE p.deleted_at IS NULL
+// Foto della persona: quelle con un suo volto confermato, fuori dal cestino.
+// Un export collegato a un CR2 della stessa persona è la stessa foto: si mostra solo il CR2.
+const PERSON_PHOTOS_WHERE = `
+      p.deleted_at IS NULL
         AND p.id IN (SELECT f.photo_id FROM faces f WHERE f.person_id = ? AND f.status = 'confirmed')
-        -- un export collegato a un CR2 della stessa persona è la stessa foto: si mostra solo il CR2
         AND NOT (p.derived_from_id IS NOT NULL AND p.match_status IN ('auto', 'confirmed')
-                 AND p.derived_from_id IN (SELECT f.photo_id FROM faces f WHERE f.person_id = ? AND f.status = 'confirmed'))
-      ORDER BY p.taken_at IS NULL, p.taken_at, p.taken_at_subsec, p.id
-      LIMIT ? OFFSET ?`,
-    [personId, personId, limit, offset],
+                 AND p.derived_from_id IN (SELECT f.photo_id FROM faces f WHERE f.person_id = ? AND f.status = 'confirmed'))`;
+
+/**
+ * Id di tutte le foto della persona, già nell'ordine scelto (le foto senza
+ * data in fondo). Una sola query leggera (solo id): filtro per album,
+ * conteggio e pagina si fanno poi su questo elenco.
+ */
+export async function personPhotoIds(personId: number, sort: PersonPhotoSort): Promise<number[]> {
+  const dir = sort === "vecchie" ? "ASC" : "DESC";
+  const rows = await query<{ id: number }>(
+    `SELECT p.id FROM photos p
+      WHERE ${PERSON_PHOTOS_WHERE}
+      ORDER BY p.taken_at IS NULL, p.taken_at ${dir}, p.taken_at_subsec ${dir}, p.id ${dir}`,
+    [personId, personId],
+  );
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Album in cui stanno le foto indicate, direttamente o con il loro export
+ * collegato (dopo l'unione degli album, nell'album c'è il JPEG lavorato e il
+ * CR2 no). photo_id è sempre la foto indicata.
+ */
+export async function albumLinksOfPhotos(photoIds: number[]): Promise<{ album_id: number; photo_id: number }[]> {
+  if (photoIds.length === 0) return [];
+  return query<{ album_id: number; photo_id: number }>(
+    `SELECT ap.album_id, ap.photo_id FROM album_photos ap WHERE ap.photo_id IN (?)
+     UNION
+     SELECT ap.album_id, e.derived_from_id AS photo_id
+       FROM photos e FORCE INDEX (ix_photos_derived)
+       JOIN album_photos ap ON ap.photo_id = e.id
+      WHERE e.derived_from_id IN (?) AND e.match_status IN ('auto', 'confirmed') AND e.deleted_at IS NULL`,
+    [photoIds, photoIds],
   );
 }
 
-export async function countPersonPhotos(personId: number): Promise<number> {
-  const row = await queryOne<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM photos p
-      WHERE p.deleted_at IS NULL
-        AND p.id IN (SELECT f.photo_id FROM faces f WHERE f.person_id = ? AND f.status = 'confirmed')
-        AND NOT (p.derived_from_id IS NOT NULL AND p.match_status IN ('auto', 'confirmed')
-                 AND p.derived_from_id IN (SELECT f.photo_id FROM faces f WHERE f.person_id = ? AND f.status = 'confirmed'))`,
-    [personId, personId],
+/** Album fuori dal cestino, solo i campi per l'albero del filtro. */
+export async function albumNodes(): Promise<AlbumNode[]> {
+  return query<AlbumNode>("SELECT id, public_id, title, parent_id, date_from FROM albums WHERE deleted_at IS NULL");
+}
+
+/** Schede delle foto indicate, nello stesso ordine degli id. */
+export async function photoCardsByIds(ids: number[]): Promise<PhotoCard[]> {
+  if (ids.length === 0) return [];
+  const rows = await query<PhotoCard>(
+    `SELECT ${CARD_COLUMNS}
+       FROM photos p
+       ${LINKED_EXPORT}
+      WHERE p.id IN (?)`,
+    [ids],
   );
-  return row?.n ?? 0;
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids.map((id) => byId.get(id)).filter((r): r is PhotoCard => !!r);
 }
 
 /** Volti confermati della persona (per togliere quelli sbagliati). */

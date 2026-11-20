@@ -1746,3 +1746,20 @@ button.danger {
 .album-sort {
   max-width: 100%;
 }
+
+/* --- Pagina della persona: ordine e filtro album --- */
+
+.person-album {
+  max-width: min(100%, 22rem);
+}
+
+@media (max-width: 640px) {
+  .person-tools {
+    width: 100%;
+  }
+
+  .person-tools select {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
