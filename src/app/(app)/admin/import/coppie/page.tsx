@@ -250,7 +250,7 @@ export default async function AlbumPairsPage({ searchParams }: { searchParams: P
       {Number(mergedRow?.n ?? 0) > 0 && (
         <section className="card" id="riordina">
           <div className="import-head">
-            <h2>Riordina gli album uniti</h2>
+            <h2>Riordina gli album uniti e gli eventi</h2>
             {tidyPreview === null ? (
               <Link prefetch={false} href="/admin/import/coppie?riordina=anteprima#riordina" className="button secondary">
                 Anteprima

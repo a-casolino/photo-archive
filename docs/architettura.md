@@ -98,6 +98,18 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   "AAAA (foto senza cartella)") e mette nel cestino anni e Backup Foto rimasti
   vuoti. Un nuovo import le ritrova per `origin_ref` e non le rimette sotto un
   genitore nel cestino.
+- **Evento** (`--evento`, richiesta di Antonio del 2026-11-21): per un evento
+  nuovo con CR2 ed export di Lightroom. Tutte le foto della cartella, anche
+  delle sottocartelle, vanno in un album solo col nome della cartella. A import
+  completo (`finish` con `eventAlbumRef`) `arrangeEventAlbum()`
+  (`src/lib/album-pairs.ts`) lo sistema come un'unione: `eventSides()` divide
+  gli export dai file della fotocamera (CR2 e JPEG con lo stesso percorso di un
+  CR2), poi `folderSections()`: export in primo piano, CR2 dietro a un export
+  fuori dall'album (link al RAW), gli altri in "Altri scatti", export senza
+  originale collegati al CR2 dello stesso scatto. Gli export vanno in una
+  sottocartella diversa dai CR2, altrimenti sembrano JPEG della fotocamera.
+  "Riordina" in `/admin/import/coppie` aggiorna anche gli eventi (tutti gli
+  album con "Altri scatti") con i collegamenti arrivati dopo.
 - **Probabili doppioni**: i file identici (stesso SHA-256) non entrano mai. In
   più, due CR2 con file diversi ma stessa fotocamera, stesso `taken_at` e stesso
   FileNumber Canon (o, se manca, stesso nome e millisecondi) vanno in

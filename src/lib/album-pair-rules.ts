@@ -131,7 +131,7 @@ export function hashOf(hex: string | null | undefined): Hash | null {
   return hex && /^[0-9a-f]{16}$/i.test(hex) ? parseHash(hex) : null;
 }
 
-type SectionPhoto = {
+export type SectionPhoto = {
   id: number;
   kind: string;
   camera_id: number | null;
@@ -325,4 +325,28 @@ export function promotedTitle(yearTitle: string | null, title: string): string {
 /** Titolo di una cartella anno con foto sue, fuori dai giorni. */
 export function looseYearTitle(yearTitle: string): string {
   return `${yearTitle} (foto senza cartella)`;
+}
+
+/**
+ * Album di un evento (`npm run import -- … --evento`, richiesta di Antonio
+ * del 2026-11-21): tutte le foto della cartella in un album solo. Si divide
+ * come in un'unione: da una parte gli export (in primo piano), dall'altra i
+ * file della fotocamera, cioè i CR2 e i JPEG salvati accanto a un CR2
+ * (RAW+JPEG: stesso percorso, cambia l'estensione). Poi folderSections
+ * decide cosa sta dietro a un export e cosa va negli "Altri scatti".
+ * Senza export restituisce null: l'album resta com'è, tutto in primo piano.
+ */
+export function eventSides<T extends SectionPhoto & { path: string | null }>(
+  photos: T[],
+): { exports: T[]; camera: T[] } | null {
+  const stem = (p: string | null) => (p ? p.toLowerCase().replace(/\.[^./]*$/, "") : null);
+  const rawPaths = new Set(photos.filter((p) => p.kind === "raw").map((p) => stem(p.path)).filter((s) => s !== null));
+  const exports: T[] = [];
+  const camera: T[] = [];
+  for (const p of photos) {
+    const s = stem(p.path);
+    if (p.kind === "raw" || (s !== null && rawPaths.has(s))) camera.push(p);
+    else exports.push(p);
+  }
+  return exports.length ? { exports, camera } : null;
 }

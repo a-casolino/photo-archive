@@ -85,7 +85,7 @@ export async function promoteBackupFoldersAction(): Promise<void> {
   revalidatePath("/album");
 }
 
-/** Riordina gli Altri scatti degli album già uniti con le regole di oggi (nome del file, impronta). */
+/** Riordina gli Altri scatti degli album già uniti e degli eventi con le regole di oggi (nome del file, impronta). */
 export async function tidyMergedAlbumsAction(): Promise<void> {
   await requireOwner();
   await tidyMergedAlbums();

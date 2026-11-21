@@ -2,6 +2,7 @@ import "server-only";
 import {
   BACKUP_ROOT_TITLE,
   HashIndex,
+  eventSides,
   cameraGroups,
   folderSections,
   hashOf,
@@ -208,7 +209,7 @@ export async function mergeAlbumPair(googlePublicId: string): Promise<{ ok: true
 }
 
 /**
- * Riordina gli album già uniti (2026-11-20): ricalcola gli "Altri scatti"
+ * Riordina gli album già uniti (2026-11-20) e quelli degli eventi: ricalcola gli "Altri scatti"
  * rispetto alle foto in primo piano con le regole di oggi (nome del file,
  * fotocamera senza numero di serie, impronta visiva). Gli scatti che stanno
  * dietro a un export escono dall'album, gli export della cartella passano in
@@ -225,7 +226,8 @@ export async function tidyMergedAlbums(opts: { dryRun?: boolean } = {}): Promise
          FROM album_photos ap
          JOIN albums a ON a.id = ap.album_id AND a.deleted_at IS NULL
          JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
-        WHERE ap.album_id IN (SELECT google_album_id FROM album_pairs WHERE merged_at IS NOT NULL)`,
+        -- Gli album con "Altri scatti": quelli uniti e quelli degli eventi (--evento).
+        WHERE ap.album_id IN (SELECT album_id FROM album_photos WHERE section = 'extra')`,
     ),
     cameraIds(),
   ]);
@@ -245,6 +247,33 @@ export async function tidyMergedAlbums(opts: { dryRun?: boolean } = {}): Promise
     out.push({ id: albumId, public_id: a.pid, title: a.title, behind: s.behind.length, main: s.main.length, links: s.links.length });
   }
   return out.sort((x, y) => x.title.localeCompare(y.title, "it"));
+}
+
+/**
+ * Sistema l'album di un evento appena importato (`--evento`, 2026-11-21):
+ * gli export in primo piano, i CR2 che stanno dietro a un export fuori
+ * dall'album (si aprono dal link al RAW), gli altri CR2 negli "Altri
+ * scatti", gli export ancora senza originale collegati al CR2 dello stesso
+ * scatto. Si può rifare: ricalcola tutto dalle foto che l'album ha oggi.
+ * Dopo, "Riordina" in Coppie lo aggiorna con i collegamenti nuovi (es.
+ * quelli per impronta visiva della notte).
+ */
+export async function arrangeEventAlbum(albumId: number): Promise<{ main: number; extra: number; behind: number } | null> {
+  const [rows, camera] = await Promise.all([
+    query<PhotoRow & { path: string | null }>(
+      `SELECT ${PHOTO_COLUMNS}, p.source_path AS path
+         FROM album_photos ap JOIN photos p ON p.id = ap.photo_id AND p.deleted_at IS NULL
+        WHERE ap.album_id = ?`,
+      [albumId],
+    ),
+    cameraIds(),
+  ]);
+  const sides = eventSides(rows.map((r) => ({ ...r, camera_id: camera(r.camera_id) })));
+  if (!sides) return null;
+  const s = folderSections(sides.exports, sides.camera);
+  const main = [...sides.exports.map((p) => Number(p.id)), ...s.main];
+  await applySections(albumId, { ...s, main });
+  return { main: main.length, extra: s.extra.length, behind: s.behind.length };
 }
 
 // ---------------------------------------------------------------------
