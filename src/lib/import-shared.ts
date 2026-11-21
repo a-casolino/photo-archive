@@ -306,4 +306,9 @@ export const errorBody = z.object({
 export const finishBody = z.object({
   status: z.enum(["finished", "interrupted", "failed"]),
   log: z.string().max(60_000).optional(),
+  /**
+   * Import di un evento (`--evento`): l'album unico in cui sono finite le
+   * foto, da sistemare con export in primo piano e "Altri scatti".
+   */
+  eventAlbumRef: z.string().min(1).max(1024).optional(),
 });

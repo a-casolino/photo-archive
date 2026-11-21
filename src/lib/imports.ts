@@ -3,6 +3,7 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/prom
 import { execute, getConnection, pool, query, queryOne } from "./db";
 import { newToken, randomBase62, sha256 } from "./crypto";
 import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
+import { arrangeEventAlbum } from "./album-pairs";
 import { countDuplicatePairs } from "./duplicates";
 import { matchByName, type NamedPhoto } from "./match-rules";
 import { storage } from "./storage";
@@ -174,7 +175,8 @@ export async function finishImport(
   importId: number,
   status: "finished" | "interrupted" | "failed",
   log?: string,
-): Promise<{ matched: number; duplicates: number }> {
+  eventAlbumRef?: string,
+): Promise<{ matched: number; duplicates: number; event?: { main: number; extra: number; behind: number } | null }> {
   await execute(
     `UPDATE imports SET status = ?, finished_at = UTC_TIMESTAMP(), current_file = NULL, activity_json = NULL,
             last_seen_at = UTC_TIMESTAMP(), log = COALESCE(?, log)
@@ -183,7 +185,15 @@ export async function finishImport(
   );
   const matched = await autoMatch();
   const duplicates = await countDuplicatePairs();
-  return { matched, duplicates };
+  // L'evento si sistema solo a import completo: interrotto, mancano ancora foto.
+  if (!eventAlbumRef || status !== "finished") return { matched, duplicates };
+  const [album] = await query<{ id: number }>(
+    `SELECT COALESCE(merged_into_id, id) AS id FROM albums
+      WHERE origin = 'disk_folder' AND origin_ref = ? AND deleted_at IS NULL`,
+    [eventAlbumRef],
+  );
+  const event = album ? await arrangeEventAlbum(Number(album.id)) : null;
+  return { matched, duplicates, event };
 }
 
 // ---------------------------------------------------------------------

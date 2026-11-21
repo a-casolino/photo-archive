@@ -13,6 +13,11 @@
  *   --max N          importa al massimo N file (per provare)
  *   --senza-album    non crea album dalle cartelle
  *   --nuovo          non riprendere l'import interrotto, iniziane uno nuovo
+ *   --evento         la cartella è un evento: tutte le foto, anche delle
+ *                    sottocartelle, in un album solo con il nome della
+ *                    cartella; a fine import gli export vanno in primo piano
+ *                    e i CR2 non lavorati in fondo, negli "Altri scatti".
+ *                    Gli export vanno in una sottocartella diversa dai CR2.
  *
  * Configurazione in .env.local: IMPORT_SERVER_URL e IMPORT_KEY (la chiave
  * creata nella pagina Import dell'app).
@@ -35,7 +40,7 @@ import {
 import { Api, FatalError } from "./api";
 import { exifJson, photoFields, romeLocalString, type Tags } from "./metadata";
 import { makePreviews } from "./previews";
-import { scan, type FileEntry } from "./scan";
+import { diskAlbum, scan, type FileEntry } from "./scan";
 import { HashCache, lastOpenImport, rememberImport, sha256File } from "./state";
 import { parseSidecar, type TakeoutSidecar } from "./takeout";
 
@@ -49,6 +54,7 @@ const { values: opts, positionals } = parseArgs({
     max: { type: "string" },
     "senza-album": { type: "boolean", default: false },
     nuovo: { type: "boolean", default: false },
+    evento: { type: "boolean", default: false },
   },
 });
 
@@ -65,6 +71,7 @@ async function main() {
   const root = path.resolve(positionals[0]);
   if (!(await stat(root).catch(() => null))?.isDirectory()) fail(`La cartella non esiste: ${root}`);
   const source: ImportSource = opts.takeout ? "google_takeout" : "cr2_disk";
+  if (opts.evento && (opts.takeout || opts["senza-album"])) fail("--evento non si usa con --takeout né con --senza-album.");
   const parallel = Math.max(1, Math.min(8, Number(opts.paralleli) || 3));
   const max = opts.max ? Number(opts.max) : Infinity;
 
@@ -77,6 +84,12 @@ async function main() {
     onProgress: (n) => n % 500 === 0 && process.stdout.write(`\rScansione… ${n} file`),
   });
   const files = found.files.slice(0, max);
+  // Evento: un album solo, quello della cartella scelta, anche per le sottocartelle.
+  const eventAlbum = opts.evento ? diskAlbum(path.basename(root), "") : null;
+  if (eventAlbum) {
+    for (const f of files) f.album = eventAlbum;
+    console.log(`Evento: tutte le foto nell'album «${eventAlbum.title}».`);
+  }
   const bytesTotal = files.reduce((s, f) => s + f.size, 0);
   console.log(`\rTrovati ${files.length} file da importare (${fmtBytes(bytesTotal)}).`);
   if (found.videos) console.log(`Video ignorati (non ancora supportati): ${found.videos}`);
@@ -86,7 +99,7 @@ async function main() {
   const et = new ExifTool({ maxProcs: parallel });
   try {
     if (opts.prova) await dryRun(et, files);
-    else await runImport(et, root, source, files, bytesTotal, parallel, found.videos);
+    else await runImport(et, root, source, files, bytesTotal, parallel, found.videos, eventAlbum?.ref);
   } finally {
     await et.end();
   }
@@ -158,6 +171,7 @@ async function runImport(
   bytesTotal: number,
   parallel: number,
   videos: number,
+  eventAlbumRef?: string,
 ) {
   const server = process.env.IMPORT_SERVER_URL;
   const key = process.env.IMPORT_KEY;
@@ -375,11 +389,22 @@ async function runImport(
   ]
     .filter(Boolean)
     .join("\n");
-  const done = await api.call<{ matched: number; duplicates?: number }>("POST", `/imports/${id}/finish`, { status, log });
+  const done = await api.call<{
+    matched: number;
+    duplicates?: number;
+    event?: { main: number; extra: number; behind: number } | null;
+  }>("POST", `/imports/${id}/finish`, { status, log, eventAlbumRef });
   if (status === "finished") await rememberImport(server, source, root, null);
 
   console.log(`\n\n${log}`);
   if (done.matched) console.log(`Export collegati in automatico al loro CR2: ${done.matched}`);
+  if (done.event) {
+    console.log(
+      `Album dell'evento: ${done.event.main} in primo piano, ${done.event.extra} negli Altri scatti, ${done.event.behind} originali dietro agli export.`,
+    );
+  } else if (done.event === null) {
+    console.log("Album dell'evento: nessun export trovato, le foto restano tutte in primo piano.");
+  }
   if (done.duplicates) {
     console.log(`Probabili doppioni da rivedere nell'archivio: ${done.duplicates} (${new URL("/admin/import/doppioni", server)})`);
   }
