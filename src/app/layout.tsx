@@ -17,6 +17,15 @@ export const metadata: Metadata = {
   description: "Archivio fotografico privato",
   // Nessuna pagina dell'app va indicizzata (anche i link liberi).
   robots: { index: false, follow: false },
+  // Anteprima generica sui social (login, condivisioni protette): solo il nome
+  // del sito, nessuna foto. I link liberi hanno la loro (share-metadata.ts).
+  openGraph: {
+    type: "website",
+    siteName: "Antonio Casolino | Photo Archive",
+    title: "Antonio Casolino | Photo Archive",
+    description: "Archivio fotografico privato",
+    locale: "it_IT",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

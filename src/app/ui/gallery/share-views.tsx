@@ -18,6 +18,7 @@ import {
   type AlbumCrumb,
   type AlbumRow,
 } from "@/lib/gallery";
+import { isPreviewBot } from "@/lib/link-preview-rules";
 import { canDownload, effectiveDownload, type Role } from "@/lib/roles";
 import { recordShareEvent, shareCoversPhoto, type ShareRow } from "@/lib/shares";
 import { SlideshowButton } from "@/app/ui/slideshow/slideshow";
@@ -57,7 +58,10 @@ async function clientIp(): Promise<string | null> {
 /** Pagina iniziale della condivisione: l'album o la foto. Registra la vista. */
 export async function ShareHome(ctx: Ctx) {
   const { share, base, role } = ctx;
-  if (role !== "owner") await recordShareEvent(share, "view", { userId: ctx.userId, ip: await clientIp() });
+  // Le visite dei programmi che preparano l'anteprima del link (WhatsApp, Facebook…) non contano.
+  if (role !== "owner" && !isPreviewBot((await headers()).get("user-agent"))) {
+    await recordShareEvent(share, "view", { userId: ctx.userId, ip: await clientIp() });
+  }
 
   if (share.target_type === "photo") {
     return <SharedPhoto {...ctx} photoPid={null} />;
@@ -157,7 +161,7 @@ function withQuery(path: string, q: Record<string, string>): string {
  * L'album da mostrare: quello condiviso, o un suo sotto-album (?album=…)
  * se sta davvero nel suo ramo. Con il percorso dall'album condiviso.
  */
-async function sharedAlbum(
+export async function sharedAlbum(
   share: ShareRow,
   param: string | string[] | undefined,
 ): Promise<{ album: AlbumRow; path: AlbumCrumb[] } | null> {
