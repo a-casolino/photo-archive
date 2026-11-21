@@ -329,6 +329,16 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   sostituisce). Scadenza `SHARE_LINK_TTL_DAYS` (30), "Rinnova" la sposta di
   nuovo a 30 giorni da oggi. Link scaduti, revocati e sbagliati danno la
   stessa pagina "Link non disponibile".
+- **Anteprima sui social** (WhatsApp, Facebook, Telegram, X, LinkedIn…): le
+  pagine `/l/...` hanno i tag Open Graph e Twitter (`generateMetadata`, in
+  `src/app/ui/gallery/share-metadata.ts`): nome dell'album (o "Foto del …"),
+  messaggio della condivisione o descrizione o date e numero di foto, e la
+  copertina. L'immagine è `/l/<token>/anteprima?p=<foto>`: URL stabile (gli
+  URL firmati scadono), ricontrolla il link a ogni richiesta, JPEG 1200×630
+  ritagliato con sharp sulla parte più interessante, cache di 1 ora. Le
+  visite dei bot delle anteprime non contano. Le condivisioni protette non
+  hanno anteprima propria: senza login si arriva al login (solo il nome del
+  sito, nessuna foto). Le pagine restano noindex.
 - **Link con nome**: `/l/<nome>` (tabella `named_links`, pagina `/admin/link`
   e riquadro nella finestra Condividi). Nome di 2-30 caratteri `[a-z0-9-]`:
   i token sono di 32, quindi `getLinkShare()` capisce dalla forma se è un
