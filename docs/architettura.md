@@ -51,6 +51,10 @@ in `.env.local` come `IMPORT_KEY` (nel DB solo lo SHA-256, revocabile).
   GCS: CR2 e originali in classe `ARCHIVE`, anteprime in `STANDARD`. Le chiavi sono
   deterministiche (`originals/AAAA/AAAA-MM-GG/<sha8>_<nome>`,
   `previews/<sha2>/<sha>.jpg`, `thumbs/...`), quindi ripetere un upload non duplica.
+- **Niente sospensione** (`scripts/import/awake.ts`, 2026-11-22): durante
+  l'import il Mac lancia `caffeinate -i -s -w <pid>`, Windows chiama
+  `SetThreadExecutionState` da PowerShell; si chiudono da soli quando il
+  programma finisce. Chiudere il coperchio del portatile lo addormenta lo stesso.
 - **Ripresa**: Ctrl+C chiude l'import come interrotto; rilanciando lo stesso
   comando riprende lo stesso import (`~/.photo-archive/imports.json`).
 - **Tipi**: dal disco `raw`; da Takeout `edit` se l'EXIF viene da una fotocamera
