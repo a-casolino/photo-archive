@@ -39,6 +39,7 @@ import {
 } from "../../src/lib/import-shared";
 import { Api, FatalError } from "./api";
 import { exifJson, photoFields, romeLocalString, type Tags } from "./metadata";
+import { keepAwake } from "./awake";
 import { makePreviews } from "./previews";
 import { diskAlbum, scan, type FileEntry } from "./scan";
 import { HashCache, lastOpenImport, rememberImport, sha256File } from "./state";
@@ -192,7 +193,14 @@ async function runImport(
   });
   const id = started.publicId;
   await rememberImport(server, source, root, id);
-  console.log(`${started.resumed ? "Riprendo" : "Inizio"} l'import «${label}»: ${new URL(`/admin/import/${id}`, server)}\n`);
+  console.log(`${started.resumed ? "Riprendo" : "Inizio"} l'import «${label}»: ${new URL(`/admin/import/${id}`, server)}`);
+  // Il computer non va in sospensione finché l'import lavora (si chiude da solo all'uscita).
+  const awake = keepAwake();
+  console.log(
+    awake.how
+      ? "Il computer resta sveglio fino alla fine dell'import (lo schermo può spegnersi). Su un portatile tieni il coperchio aperto.\n"
+      : "",
+  );
 
   const cache = await HashCache.load();
   const stats = { seen: 0, bytesDone: 0, imported: 0, skipped: 0, failed: 0, noPreview: 0, uploaded: 0 };
@@ -395,6 +403,7 @@ async function runImport(
     event?: { main: number; extra: number; behind: number } | null;
   }>("POST", `/imports/${id}/finish`, { status, log, eventAlbumRef });
   if (status === "finished") await rememberImport(server, source, root, null);
+  awake.stop();
 
   console.log(`\n\n${log}`);
   if (done.matched) console.log(`Export collegati in automatico al loro CR2: ${done.matched}`);
