@@ -6,7 +6,7 @@ import { NameInput } from "@/app/ui/people/name-input";
 import { parsePage } from "@/app/ui/gallery/views";
 import { formatCount } from "@/lib/format";
 import { signKeys } from "@/lib/gallery";
-import { facesSummary, listClusters, listPeople } from "@/lib/people";
+import { facesSummary, listClusters, listPeople, MIN_CLUSTER_SIZE } from "@/lib/people";
 import { requireOwner } from "@/lib/session";
 
 const CLUSTERS_PER_PAGE = 20;
@@ -31,7 +31,8 @@ export default async function UnknownFacesPage({ searchParams }: PageProps<"/per
       <h1>Persone</h1>
       <PeopleTabs current="gruppi" groups={summary.groups} suggested={summary.suggested} />
       <p className="muted">
-        Volti senza nome raggruppati per somiglianza, dal gruppo più grande. Scrivi un nome (nuovo o di una persona che
+        Volti senza nome raggruppati per somiglianza, dal gruppo più grande, solo i gruppi con almeno {MIN_CLUSTER_SIZE}{" "}
+        volti. Scrivi un nome (nuovo o di una persona che
         esiste già) e vale per tutto il gruppo; togli la spunta ai volti che non c&apos;entrano. Con &quot;Ignora&quot; il gruppo non viene più proposto (si può recuperare da Volti ignorati). I gruppi si aggiornano a
         ogni <code>npm run volti</code>.
       </p>
@@ -72,6 +73,15 @@ export default async function UnknownFacesPage({ searchParams }: PageProps<"/per
           </span>
           {page < pages ? <Link href={`/persone/da-riconoscere?pagina=${page + 1}`}>Successivi →</Link> : <span />}
         </nav>
+      )}
+
+      {summary.smallGroups > 0 && (
+        <p className="muted">
+          {formatCount(summary.smallGroups)}{" "}
+          {summary.smallGroups === 1 ? "gruppo più piccolo non è mostrato" : "gruppi più piccoli non sono mostrati"} (meno di{" "}
+          {MIN_CLUSTER_SIZE} volti): se la persona compare in altre foto, il gruppo crescerà con i prossimi{" "}
+          <code>npm run volti</code>.
+        </p>
       )}
 
       {summary.ignored > 0 && (
