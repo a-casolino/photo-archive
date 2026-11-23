@@ -95,7 +95,7 @@ con altre persone.
 - [ ] Riconoscimento facciale (proposta da preparare)
 - [ ] Deploy su xCloud e backup notturno del DB
 - [x] Volti: rilevamento e impronte con `npm run volti` (migrazione 006)
-- [x] Volti: raggruppamento, "Da riconoscere", suggerimenti, pagina persona
+- [x] Volti: raggruppamento, "Da riconoscere" (solo gruppi con almeno 5 volti, 23/11), suggerimenti, pagina persona
 - [ ] Volti: riquadri nel visore della foto
 - [x] Cestino ed eliminazione definitiva anche dal bucket (cron giornaliero `npm run cestino` su xCloud dal 2026-11-08)
 - [x] Eliminare un intero album (con le foto che stanno solo lì)

@@ -81,39 +81,62 @@ export async function getPerson(publicId: string): Promise<Person | null> {
   return queryOne<Person>("SELECT id, public_id, name, cover_face_id FROM people WHERE public_id = ?", [publicId]);
 }
 
-export type FacesSummary = { scanned: number; pending: number; unknown: number; groups: number; suggested: number; ignored: number };
+/** Un gruppo di volti senza nome viene proposto solo da questo numero di volti in su: i più piccoli sono quasi sempre sconosciuti. */
+export const MIN_CLUSTER_SIZE = 5;
+
+export type FacesSummary = {
+  scanned: number;
+  pending: number;
+  unknown: number;
+  /** Gruppi proposti in "Da riconoscere" (almeno MIN_CLUSTER_SIZE volti). */
+  groups: number;
+  /** Gruppi più piccoli, non mostrati. */
+  smallGroups: number;
+  suggested: number;
+  ignored: number;
+};
 
 export async function facesSummary(): Promise<FacesSummary> {
   return cached("volti:riepilogo", ["volti"], facesSummaryUncached);
 }
 
 async function facesSummaryUncached(): Promise<FacesSummary> {
-  const row = await queryOne<FacesSummary>(
-    `SELECT
-       (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND faces_scanned_at IS NOT NULL) AS scanned,
-       (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND gcs_preview_key IS NOT NULL AND faces_scanned_at IS NULL) AS pending,
-       (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
-         WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL) AS unknown,
-       (SELECT COUNT(DISTINCT f.cluster_id) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
-         WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL) AS \`groups\`,
-       (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL WHERE f.status = 'suggested') AS suggested,
-       (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL WHERE f.status = 'ignored') AS ignored`,
-  );
-  return row!;
+  const [row, sizes] = await Promise.all([
+    queryOne<Omit<FacesSummary, "groups" | "smallGroups">>(
+      `SELECT
+         (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND faces_scanned_at IS NOT NULL) AS scanned,
+         (SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND gcs_preview_key IS NOT NULL AND faces_scanned_at IS NULL) AS pending,
+         (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+           WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL) AS unknown,
+         (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL WHERE f.status = 'suggested') AS suggested,
+         (SELECT COUNT(*) FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL WHERE f.status = 'ignored') AS ignored`,
+    ),
+    // Un solo passaggio sui gruppi: quanti arrivano alla soglia e quanti no.
+    queryOne<{ big: unknown; small: unknown }>(
+      `SELECT SUM(t.n >= ?) AS big, SUM(t.n < ?) AS small FROM (
+         SELECT COUNT(*) AS n FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
+          WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL GROUP BY f.cluster_id
+       ) t`,
+      [MIN_CLUSTER_SIZE, MIN_CLUSTER_SIZE],
+    ),
+  ]);
+  // SUM restituisce un DECIMAL (stringa per mysql2), o NULL se non ci sono gruppi.
+  return { ...row!, groups: Number(sizes?.big ?? 0), smallGroups: Number(sizes?.small ?? 0) };
 }
 
 export type Cluster = { cluster_id: number; size: number; faces: FaceTile[] };
 
 /**
- * Gruppi di volti senza nome, dal più grande, con i primi volti di ognuno.
- * Con `first` quel gruppo viene mostrato per primo (es. volti appena ripristinati).
+ * Gruppi di volti senza nome con almeno MIN_CLUSTER_SIZE volti, dal più grande, con i primi volti di ognuno.
+ * Con `first` quel gruppo viene mostrato per primo, anche se è più piccolo (es. volti appena ripristinati).
  */
 export async function listClusters(offset: number, limit: number, perCluster = 18, first = 0): Promise<Cluster[]> {
   const groups = await query<{ cluster_id: number; size: number }>(
     `SELECT f.cluster_id, COUNT(*) AS size FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
       WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL
-      GROUP BY f.cluster_id ORDER BY f.cluster_id = ? DESC, size DESC, f.cluster_id LIMIT ? OFFSET ?`,
-    [first, limit, offset],
+      GROUP BY f.cluster_id HAVING size >= ? OR f.cluster_id = ?
+      ORDER BY f.cluster_id = ? DESC, size DESC, f.cluster_id LIMIT ? OFFSET ?`,
+    [MIN_CLUSTER_SIZE, first, first, limit, offset],
   );
   if (!groups.length) return [];
   const faces = await query<FaceTile & { cluster_id: number; rn: number }>(
@@ -137,18 +160,6 @@ export async function listIgnoredFaces(offset: number, limit: number): Promise<F
       ORDER BY f.id DESC LIMIT ? OFFSET ?`,
     [limit, offset],
   );
-}
-
-export async function countClusters(): Promise<number> {
-  return cached("volti:gruppi", ["volti"], countClustersUncached);
-}
-
-async function countClustersUncached(): Promise<number> {
-  const row = await queryOne<{ n: number }>(
-    `SELECT COUNT(DISTINCT f.cluster_id) AS n FROM faces f JOIN photos p ON p.id = f.photo_id AND p.deleted_at IS NULL
-      WHERE f.status = 'unknown' AND f.cluster_id IS NOT NULL`,
-  );
-  return row?.n ?? 0;
 }
 
 /** Suggerimenti raggruppati per persona, i più sicuri prima. */
