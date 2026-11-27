@@ -72,6 +72,7 @@ export async function albumListSlice(
     key: a.public_id,
     href: `/album/${a.public_id}`,
     src: a.cover_thumb ? (urls.get(a.cover_thumb) ?? null) : null,
+    position: a.cover_position,
     title: a.title,
     path: a.parent_id ? parentsLabel(a.id, byId) : undefined,
     detail: albumDetail(a, { withSize: true }),

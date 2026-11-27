@@ -16,6 +16,8 @@ export type AlbumEntry = {
   href: string;
   /** URL firmato della copertina, null se manca. */
   src: string | null;
+  /** object-position della copertina che tiene visibili i volti; assente = centrata. */
+  position?: string | null;
   title: string;
   /** Album che lo contengono ("Viaggi › 2019"), nei risultati di una ricerca. */
   path?: string;
@@ -67,7 +69,7 @@ export function AlbumGrid({ albums, selectName }: { albums: AlbumEntry[]; select
       {albums.map((a) => (
         <li key={a.key}>
           <Pick entry={a} selectName={selectName} className="album-card">
-            <Cover src={a.src} />
+            <Cover src={a.src} position={a.position} />
             <span className="album-card-text">
               {a.path && <span className="album-path">{a.path}</span>}
               <strong>{a.title}</strong>
@@ -86,7 +88,7 @@ export function AlbumList({ albums, selectName }: { albums: AlbumEntry[]; select
       {albums.map((a) => (
         <li key={a.key}>
           <Pick entry={a} selectName={selectName} className="album-row">
-            <Cover src={a.src} />
+            <Cover src={a.src} position={a.position} />
             <span className="album-row-text">
               {a.path && <span className="album-path">{a.path}</span>}
               <strong>{a.title}</strong>
@@ -129,10 +131,17 @@ function Pick({
   );
 }
 
-function Cover({ src }: { src: string | null }) {
+function Cover({ src, position }: { src: string | null; position?: string | null }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element -- URL firmati temporanei, niente ottimizzazione
-    <img className="album-cover" src={src} alt="" loading="lazy" decoding="async" />
+    <img
+      className="album-cover"
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      style={position ? { objectPosition: position } : undefined}
+    />
   ) : (
     <span className="album-cover album-cover-empty">senza anteprima</span>
   );
