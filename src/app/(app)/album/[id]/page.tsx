@@ -140,6 +140,7 @@ export default async function AlbumPage({ params, searchParams }: PageProps<"/al
     key: c.public_id,
     href: `/album/${c.public_id}`,
     src: c.cover_thumb ? (urls.get(c.cover_thumb) ?? null) : null,
+    position: c.cover_position,
     title: c.title,
     detail: albumDetail(c, { withSize: true }),
   }));

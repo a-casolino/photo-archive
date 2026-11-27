@@ -2,8 +2,10 @@ import "server-only";
 import { sortAlbums } from "./album-sort";
 import { MAX_ALBUM_DEPTH } from "./album-tree-rules";
 import { cached, cachedMany, type CacheTag } from "./cache";
+import { coverObjectPosition, type FaceBox } from "./cover-focus-rules";
 import { query, queryOne } from "./db";
 import { dateFilterSql, hasDateFilter, type DateFilter } from "./filter-rules";
+import { displaySize } from "./gallery-rules";
 import { storage } from "./storage";
 
 /*
@@ -136,6 +138,10 @@ export type AlbumListItem = AlbumRow & {
   cover_width: number | null;
   cover_height: number | null;
   cover_orientation: number | null;
+  /** Foto mostrata come copertina (l'export collegato, se c'è). */
+  cover_shown_id: number | null;
+  /** object-position che tiene visibili i volti della copertina; null = centrata. */
+  cover_position: string | null;
 };
 
 export const ORIGIN_LABEL: Record<AlbumRow["origin"], string> = {
@@ -323,9 +329,41 @@ export async function listAlbums(
     const loaded = await albumListRows(missing);
     return new Map(loaded.map((r) => [Number(r.id), r]));
   });
-  const list = ids.map((id) => rows.get(id)).filter((r): r is AlbumListItem => r !== undefined);
+  const found = ids.map((id) => rows.get(id)).filter((r): r is AlbumListItem => r !== undefined);
+  const list = await withCoverPositions(found);
   // Ordine di sempre: per data della prima foto (i più recenti prima), senza data in fondo.
   return sortAlbums(list, "recenti");
+}
+
+/**
+ * Aggiunge alle righe (copie: quelle in cache non si toccano) la posizione
+ * del ritaglio della copertina, calcolata dai volti della foto mostrata.
+ * I riquadri dei volti sono in cache a parte, per foto, con l'etichetta
+ * "volti": il calcolo notturno dei volti non svuota le righe degli album.
+ */
+async function withCoverPositions(rows: AlbumListItem[]): Promise<AlbumListItem[]> {
+  const photoIds = [...new Set(rows.map((r) => r.cover_shown_id).filter((id): id is number => id != null))].map(Number);
+  const boxes = await coverFaceBoxes(photoIds);
+  return rows.map((r) => {
+    const size = displaySize(r.cover_width, r.cover_height, r.cover_orientation);
+    const faces = r.cover_shown_id != null ? (boxes.get(Number(r.cover_shown_id)) ?? []) : [];
+    return { ...r, cover_position: coverObjectPosition(faces, size ? size.width / size.height : null) };
+  });
+}
+
+/** Riquadri dei volti (solo la posizione, mai le impronte) di queste foto. */
+async function coverFaceBoxes(photoIds: number[]): Promise<Map<number, FaceBox[] | undefined>> {
+  if (!photoIds.length) return new Map();
+  return cachedMany(photoIds, (id) => `copertina:volti:${id}`, ["volti"], async (missing) => {
+    const rows = await query<{ photo_id: number; x: number; y: number; w: number; h: number }>(
+      `SELECT photo_id, box_x AS x, box_y AS y, box_w AS w, box_h AS h FROM faces
+        WHERE photo_id IN (?) AND status <> 'ignored'`,
+      [missing],
+    );
+    const out = new Map<number, FaceBox[]>(missing.map((id) => [id, []]));
+    for (const r of rows) out.get(Number(r.photo_id))?.push({ x: Number(r.x), y: Number(r.y), w: Number(r.w), h: Number(r.h) });
+    return out;
+  });
 }
 
 /** Le righe complete dell'elenco album per questi id (senza cache). */
@@ -339,7 +377,8 @@ async function albumListRows(ids: number[]): Promise<AlbumListItem[]> {
             COALESCE(x.gcs_thumb_key, p.gcs_thumb_key) AS cover_thumb,
             IF(x.id IS NULL, p.width, x.width) AS cover_width,
             IF(x.id IS NULL, p.height, x.height) AS cover_height,
-            IF(x.id IS NULL, p.orientation, x.orientation) AS cover_orientation
+            IF(x.id IS NULL, p.orientation, x.orientation) AS cover_orientation,
+            COALESCE(x.id, p.id) AS cover_shown_id
        FROM (
          SELECT a.id, a.public_id, a.title, a.description, a.origin, a.origin_ref, a.parent_id, a.cover_photo_id,
                 ${BRANCH_DATE_FROM("a")} AS date_from,

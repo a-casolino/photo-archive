@@ -86,6 +86,7 @@ export async function ShareHome(ctx: Ctx) {
     key: c.public_id,
     href: withQuery(base, { album: c.public_id }),
     src: c.cover_thumb ? (urls.get(c.cover_thumb) ?? null) : null,
+    position: c.cover_position,
     title: c.title,
     detail: albumDetail(c),
   }));

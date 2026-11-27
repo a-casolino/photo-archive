@@ -377,6 +377,12 @@ importa le **cartelle normali di Drive** (album che stanno solo lì).
   prima foto dell'album (`albumCoverId()` in `src/lib/gallery.ts`): una foto
   cestinata viene sostituita senza toccare il dato e torna se la ripristini.
   Nell'album la miniatura della copertina ha il badge "Copertina".
+  **Ritaglio sui volti**: nelle copertine 4:3 (e nelle miniature quadrate della
+  lista) una foto verticale, o molto larga, si ritaglia; se la foto mostrata ha
+  volti (tabella `faces`, esclusi gli "ignorati") l'`object-position` si sposta
+  quanto basta per tenerli dentro (`coverObjectPosition()` in
+  `src/lib/cover-focus-rules.ts`). Senza volti resta centrata. Si leggono solo
+  i riquadri, mai le impronte, in cache per foto con l'etichetta "volti".
 - **Ricerca con suggerimenti** (solo proprietario, `src/app/ui/search-suggest.tsx`):
   mentre si scrive nel campo di `/album` compare una tendina con fino a 5
   album, 5 tag e 5 persone il cui nome contiene il testo (maiuscole e accenti
